@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/utils/constants/colors.dart';
 
-class MyCircularContainer extends StatelessWidget {
-  const MyCircularContainer({
+class FCircularContainer extends StatelessWidget {
+  const FCircularContainer({
     super.key,
     this.width = 400,
     this.height = 400,
     this.radius = 400,
     this.padding = 0,
     this.child,
-    this.backgroundColor = MyColors.white,
+    this.backgroundColor = FColors.white,
   });
 
   final double? width;

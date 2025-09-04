@@ -8,8 +8,8 @@ import 'package:fyp/utils/validators/validation.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
-class MyLoginForm extends StatelessWidget {
-  const MyLoginForm({
+class FLoginForm extends StatelessWidget {
+  const FLoginForm({
     super.key,
   });
 
@@ -20,27 +20,27 @@ class MyLoginForm extends StatelessWidget {
     return Form(
       key: controller.loginFormKey,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: MySizes.spaceBtwSections),
+        padding: const EdgeInsets.symmetric(vertical: FSizes.spaceBtwSections),
         child: Column(
           children: [
             /// Email
             TextFormField(
               controller: controller.email,
-              validator: (value) => MyValidator.validateEmail(value),
+              validator: (value) => FValidator.validateEmail(value),
               decoration: const InputDecoration(
                   prefixIcon: Icon(Iconsax.direct_right),
-                  labelText: MyTexts.email),
+                  labelText: FTexts.email),
             ),
-            const SizedBox(height: MySizes.spaceBtwInputFields),
+            const SizedBox(height: FSizes.spaceBtwInputFields),
 
             /// Password
             Obx(
               () => TextFormField(
                 controller: controller.password,
-                validator: (value) => MyValidator.validateEmptyText('Password', value),
+                validator: (value) => FValidator.validateEmptyText('Password', value),
                 obscureText: controller.hidePassword.value,
                 decoration: InputDecoration(
-                  labelText: MyTexts.password,
+                  labelText: FTexts.password,
                   prefixIcon: const Icon(Iconsax.password_check),
                   suffixIcon: IconButton(
                     onPressed: () => controller.hidePassword.value = !controller.hidePassword.value,
@@ -49,35 +49,35 @@ class MyLoginForm extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: MySizes.spaceBtwInputFields / 2),
+            const SizedBox(height: FSizes.spaceBtwInputFields / 2),
 
             /// Remember Me & Forget Password
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 /// Remember Me
-                Row(
-                  children: [
-                    Obx(() => Checkbox(value: controller.rememberMe.value, onChanged: (value) => controller.rememberMe.value = !controller.rememberMe.value)),
-                    const Text(MyTexts.rememberMe),
-                  ],
-                ),
+                // Row(
+                //   children: [
+                //     Obx(() => Checkbox(value: controller.rememberMe.value, onChanged: (value) => controller.rememberMe.value = !controller.rememberMe.value)),
+                //     const Text(FTexts.rememberMe),
+                //   ],
+                // ),
 
                 /// Forget Password
                 TextButton(
                   onPressed: () => Get.to(() => const ForgetPassword()),
-                  child: const Text(MyTexts.forgetPassword),
+                  child: const Text(FTexts.forgetPassword),
                 ),
               ],
             ),
-            const SizedBox(height: MySizes.spaceBtwSections),
+            const SizedBox(height: FSizes.spaceBtwSections),
 
             /// Sign In Button
-            SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => controller.emailAndPasswordSignIn(), child: const Text(MyTexts.signIn))),
-            const SizedBox(height: MySizes.spaceBtwItems),
+            SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => controller.emailAndPasswordSignIn(), child: const Text(FTexts.signIn))),
+            const SizedBox(height: FSizes.spaceBtwItems),
 
             /// Create Account Button
-            SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Get.to(const SignupScreen()), child: const Text(MyTexts.createAccount))),
+            SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Get.to(const SignupScreen()), child: const Text(FTexts.createAccount))),
           ],
         ),
       ),

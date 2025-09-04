@@ -16,21 +16,21 @@ class LoginScreen extends StatelessWidget {
     return Scaffold(
       body: SingleChildScrollView(
         child: Padding(
-          padding: MySpacingStyle.paddingWithAppBarHeight,
+          padding: FSpacingStyle.paddingWithAppBarHeight,
           child: Column(
             children: [
               /// Logo, Title & Sub-Title
-              const MyLoginHeader(),
+              const FLoginHeader(),
 
               /// Form
-              const MyLoginForm(),
+              const FLoginForm(),
 
               /// Divider
-              MyFormDivider(dividerText: MyTexts.orSignInWith.capitalize!),
-              const SizedBox(height: MySizes.spaceBtwSections),
+              FFormDivider(dividerText: FTexts.orSignInWith.capitalize!),
+              const SizedBox(height: FSizes.spaceBtwSections),
               
               /// Footer
-              const MySocialButtons()
+              const FSocialButtons()
             ],
           ),
         ),

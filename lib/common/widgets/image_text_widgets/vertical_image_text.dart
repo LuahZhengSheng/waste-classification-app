@@ -3,13 +3,13 @@ import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 
-class MyVerticalImageText extends StatelessWidget {
-  const MyVerticalImageText({
+class FVerticalImageText extends StatelessWidget {
+  const FVerticalImageText({
     super.key,
     required this.image,
     required this.title,
-    this.textColor = MyColors.white,
-    this.backgroundColor = MyColors.white,
+    this.textColor = FColors.white,
+    this.backgroundColor = FColors.white,
     this.onTap,
   });
 
@@ -20,41 +20,39 @@ class MyVerticalImageText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = MyHelperFunctions.isDarkMode(context);
+    final dark = FHelperFunctions.isDarkMode(context);
 
     return GestureDetector(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.only(right: MySizes.spaceBtwItems),
+        padding: const EdgeInsets.only(right: FSizes.spaceBtwItems),
         child: Column(
             children: [
-
               /// Circular Icon
               Container(
                 width: 56,
                 height: 56,
-                padding: const EdgeInsets.all(MySizes.sm),
+                padding: const EdgeInsets.all(FSizes.sm),
                 decoration: BoxDecoration(
-                  color: backgroundColor ?? (MyHelperFunctions.isDarkMode(context) ? MyColors.black : MyColors.white),
+                  color: backgroundColor ?? (FHelperFunctions.isDarkMode(context) ? FColors.black : FColors.white),
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: Center(
-                  child: Image(
-                      image: AssetImage(image),
-                      fit: BoxFit.cover,
-                      color: dark ? MyColors.light : MyColors.dark),
+                  child: Image(image: AssetImage(image), fit: BoxFit.cover, color: dark ? FColors.light : FColors.dark),
                 ),
               ),
 
               /// Text
-              const SizedBox(height: MySizes.spaceBtwItems / 2),
+              const SizedBox(height: FSizes.spaceBtwItems / 2),
               SizedBox(
                 width: 55,
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelMedium!.apply(color: textColor),
+                child: Center(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium!.apply(color: textColor),
+                  ),
                 ),
               ),
             ]

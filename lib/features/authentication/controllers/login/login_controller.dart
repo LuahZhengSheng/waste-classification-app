@@ -31,18 +31,18 @@ class LoginController extends GetxController {
   Future<void> emailAndPasswordSignIn() async {
     try {
       // Start Loading
-      MyFullScreenLoader.openLoadingDialog('Logging you in...', MyImages.docerAnimation);
+      FFullScreenLoader.openLoadingDialog('Logging you in...', FImages.docerAnimation);
 
       // Check Internet Connectivity
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
-        MyFullScreenLoader.stopLoading();
+        FFullScreenLoader.stopLoading();
         return;
       }
 
       // Form Validation
       if (!loginFormKey.currentState!.validate()) {
-        MyFullScreenLoader.stopLoading();
+        FFullScreenLoader.stopLoading();
         return;
       }
 
@@ -56,14 +56,14 @@ class LoginController extends GetxController {
       final userCredentials = await AuthenticationRepository.instance.loginWithEmailAndPassword(email.text.trim(), password.text.trim());
 
       // Remove Loader
-      MyFullScreenLoader.stopLoading();
+      FFullScreenLoader.stopLoading();
 
       // Redirect
       AuthenticationRepository.instance.screenRedirect();
     } catch (e) {
-      MyFullScreenLoader.stopLoading();
+      FFullScreenLoader.stopLoading();
       // Show some Generic Error to the user
-      MyLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
     }
   }
 
@@ -71,12 +71,12 @@ class LoginController extends GetxController {
   Future<void> googleSignIn() async {
     try {
       // Start Loading
-      MyFullScreenLoader.openLoadingDialog('Logging you in...', MyImages.docerAnimation);
+      FFullScreenLoader.openLoadingDialog('Logging you in...', FImages.docerAnimation);
 
       // Check Internet Connectivity
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
-        MyFullScreenLoader.stopLoading();
+        FFullScreenLoader.stopLoading();
         return;
       }
 
@@ -100,8 +100,8 @@ class LoginController extends GetxController {
 
     } catch (e) {
       // Remove Loader
-      MyFullScreenLoader.stopLoading();
-      MyLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      FFullScreenLoader.stopLoading();
+      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
     }
   }
 
@@ -109,12 +109,12 @@ class LoginController extends GetxController {
   Future<void> facebookSignIn() async {
     try {
       // Start Loading
-      MyFullScreenLoader.openLoadingDialog('Logging you in...', MyImages.docerAnimation);
+      FFullScreenLoader.openLoadingDialog('Logging you in...', FImages.docerAnimation);
 
       // Check Internet Connectivity
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
-        MyFullScreenLoader.stopLoading();
+        FFullScreenLoader.stopLoading();
         return;
       }
 
@@ -138,8 +138,8 @@ class LoginController extends GetxController {
 
     } catch (e) {
       // Stop Loading & Show Error
-      MyFullScreenLoader.stopLoading();
-      MyLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      FFullScreenLoader.stopLoading();
+      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
     }
   }
 

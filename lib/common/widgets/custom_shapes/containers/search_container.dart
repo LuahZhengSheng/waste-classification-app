@@ -5,8 +5,8 @@ import 'package:fyp/utils/device/device_utility.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:iconsax/iconsax.dart';
 
-class MySearchContainer extends StatelessWidget {
-  const MySearchContainer({
+class FSearchContainer extends StatelessWidget {
+  const FSearchContainer({
     super.key, required this.text, this.icon, this.showBackground = true, this.showBorder = true,
   });
 
@@ -16,22 +16,22 @@ class MySearchContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = MyHelperFunctions.isDarkMode(context);
+    final dark = FHelperFunctions.isDarkMode(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: MySizes.defaultSpace),
+      padding: const EdgeInsets.symmetric(horizontal: FSizes.defaultSpace),
       child: Container(
-        width: MyDeviceUtils.getScreenWidth(),
-        padding: const EdgeInsets.all(MySizes.md),
+        width: FDeviceUtils.getScreenWidth(),
+        padding: const EdgeInsets.all(FSizes.md),
         decoration: BoxDecoration(
-          color: showBackground ? dark ? MyColors.dark : MyColors.light : Colors.transparent,
-          borderRadius: BorderRadius.circular(MySizes.cardRadiusLg),
-          border: showBorder ? Border.all(color: MyColors.grey) : null,
+          color: showBackground ? dark ? FColors.dark : FColors.light : Colors.transparent,
+          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+          border: showBorder ? Border.all(color: FColors.grey) : null,
         ),
         child: Row(
           children: [
-            const Icon(Iconsax.search_normal, color: MyColors.grey),
-            const SizedBox(width: MySizes.spaceBtwItems),
+            const Icon(Iconsax.search_normal, color: FColors.grey),
+            const SizedBox(width: FSizes.spaceBtwItems),
             Text(text, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),

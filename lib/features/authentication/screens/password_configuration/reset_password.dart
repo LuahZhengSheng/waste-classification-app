@@ -26,28 +26,28 @@ class ResetPasswordScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(MySizes.defaultSpace),
+          padding: const EdgeInsets.all(FSizes.defaultSpace),
           child: Column(
             children: [
               /// Image with 60% of screen width
               Image(
-                image: const AssetImage(MyImages.deliveredEmailIllustration),
-                width: MyDeviceUtils.getScreenWidth() * 0.6,
+                image: const AssetImage(FImages.deliveredEmailIllustration),
+                width: FDeviceUtils.getScreenWidth() * 0.6,
               ),
-              const SizedBox(height: MySizes.spaceBtwSections),
+              const SizedBox(height: FSizes.spaceBtwSections),
         
               /// Title & Subtitle
               Text(email, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-              const SizedBox(height: MySizes.spaceBtwItems),
-              Text(MyTexts.changeYourPasswordTitle, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
-              const SizedBox(height: MySizes.spaceBtwItems),
-              Text(MyTexts.changeYourPasswordSubTitle, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
-              const SizedBox(height: MySizes.spaceBtwSections),
+              const SizedBox(height: FSizes.spaceBtwItems),
+              Text(FTexts.changeYourPasswordTitle, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
+              const SizedBox(height: FSizes.spaceBtwItems),
+              Text(FTexts.changeYourPasswordSubTitle, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
+              const SizedBox(height: FSizes.spaceBtwSections),
         
               /// Buttons
-              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Get.offAll(() => const LoginScreen()), child: const Text(MyTexts.done))),
-              const SizedBox(height: MySizes.spaceBtwItems),
-              SizedBox(width: double.infinity, child: TextButton(onPressed: () => ForgetPasswordController.instance.resendPasswordResetEmail(email), child: const Text(MyTexts.resendEmail ))),
+              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Get.offAll(() => const LoginScreen()), child: const Text(FTexts.done))),
+              const SizedBox(height: FSizes.spaceBtwItems),
+              SizedBox(width: double.infinity, child: TextButton(onPressed: () => ForgetPasswordController.instance.resendPasswordResetEmail(email), child: const Text(FTexts.resendEmail ))),
             ],
           ),
         ),

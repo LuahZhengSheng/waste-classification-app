@@ -3,10 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:fyp/data/repositories/user/user_repository.dart';
+import 'package:fyp/features/admin/screens/user_management/user_management.dart';
+import 'package:fyp/features/authentication/screens/admin/login/login.dart';
 import 'package:fyp/features/authentication/screens/login/login.dart';
 import 'package:fyp/features/authentication/screens/onboarding/onboarding.dart';
 import 'package:fyp/features/authentication/screens/signup/verify_email.dart';
 import 'package:fyp/navigation_menu.dart';
+import 'package:fyp/sidebar_menu.dart';
 import 'package:fyp/utils/exceptions/firebase_auth_exceptions.dart';
 import 'package:fyp/utils/exceptions/firebase_exceptions.dart';
 import 'package:fyp/utils/exceptions/format_exceptions.dart';
@@ -22,6 +26,9 @@ class AuthenticationRepository extends GetxController {
   final deviceStorage = GetStorage();
   final _auth = FirebaseAuth.instance;
 
+  /// Get Authenticated User Data
+  User? get authUser => _auth.currentUser;
+
   /// Called from main.dart on app launch
   @override
   void onReady() {
@@ -32,23 +39,64 @@ class AuthenticationRepository extends GetxController {
   }
 
   /// Function to Show Relevant Screen
-  screenRedirect() async {
+  Future<void> screenRedirect() async {
     final User? user = _auth.currentUser;
+
     if (user != null) {
+      // ✅ 已登录
       if (user.emailVerified) {
-        Get.offAll(() => const NavigationMenu());
+        if (kIsWeb) {
+          // 👉 Web 用 Sidebar
+          Get.offAll(() => UserManagementScreen());
+        } else {
+          // 👉 App 用 Navigation Menu
+          Get.offAll(() => const NavigationMenu());
+        }
       } else {
-        Get.offAll(() => VerifyEmailScreen(email: _auth.currentUser?.email));
+        // 账号存在但还没验证邮箱
+        Get.offAll(() => VerifyEmailScreen(email: user.email));
       }
     } else {
-      // Local Storage
-      deviceStorage.writeIfNull('IsFirstTime', true);
-      // Check if it's the first time launching the app
-      deviceStorage.read('IsFirstTime') != true
-          ? Get.offAll(() => const LoginScreen()) // Redirect to Login Screen if not the first time
-          : Get.offAll(const OnBoardingScreen()); // Redirect to OnBoarding Screen if It's the first time
+      // ✅ 未登录
+      if (kIsWeb) {
+        // 👉 Web 直接去 AdminLogin
+        Get.offAll(() => const AdminLoginScreen());
+      } else {
+        // 👉 App
+        deviceStorage.writeIfNull('IsFirstTime', true);
+        final isFirstTime = deviceStorage.read('IsFirstTime') ?? true;
+
+        if (isFirstTime) {
+          // 第一次使用 → OnBoarding
+          Get.offAll(() => const OnBoardingScreen());
+        } else {
+          // 非第一次 → Login
+          Get.offAll(() => const LoginScreen());
+        }
+      }
     }
   }
+
+
+
+  // /// Function to Show Relevant Screen
+  // Future<void> screenRedirect() async {
+  //   final User? user = _auth.currentUser;
+  //   if (user != null) {
+  //     if (user.emailVerified) {
+  //       Get.offAll(() => const NavigationMenu());
+  //     } else {
+  //       Get.offAll(() => VerifyEmailScreen(email: _auth.currentUser?.email));
+  //     }
+  //   } else {
+  //     // Local Storage
+  //     deviceStorage.writeIfNull('IsFirstTime', true);
+  //     // Check if it's the first time launching the app
+  //     deviceStorage.read('IsFirstTime') != true
+  //         ? Get.offAll(() => const LoginScreen()) // Redirect to Login Screen if not the first time
+  //         : Get.offAll(const OnBoardingScreen()); // Redirect to OnBoarding Screen if It's the first time
+  //   }
+  // }
 
 /* --------------------------- Email & Password sign-in --------------------------- */
 
@@ -57,13 +105,13 @@ class AuthenticationRepository extends GetxController {
     try {
       return await _auth.signInWithEmailAndPassword(email: email, password: password);
     } on FirebaseAuthException catch (e) {
-      throw MyFirebaseAuthException(e.code).message;
+      throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
-      throw MyFirebaseException(e.code).message;
+      throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
-      throw const MyFormatException();
+      throw const FFormatException();
     } on PlatformException catch (e) {
-      throw MyPlatformException(e.code).message;
+      throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
     }
@@ -74,13 +122,13 @@ class AuthenticationRepository extends GetxController {
     try {
       return await _auth.createUserWithEmailAndPassword(email: email, password: password);
     } on FirebaseAuthException catch (e) {
-      throw MyFirebaseAuthException(e.code).message;
+      throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
-      throw MyFirebaseException(e.code).message;
+      throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
-      throw const MyFormatException();
+      throw const FFormatException();
     } on PlatformException catch (e) {
-      throw MyPlatformException(e.code).message;
+      throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
     }
@@ -91,32 +139,51 @@ class AuthenticationRepository extends GetxController {
     try {
       await _auth.currentUser?.sendEmailVerification();
     } on FirebaseAuthException catch (e) {
-      throw MyFirebaseAuthException(e.code).message;
+      throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
-      throw MyFirebaseException(e.code).message;
+      throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
-      throw const MyFormatException();
+      throw const FFormatException();
     } on PlatformException catch (e) {
-      throw MyPlatformException(e.code).message;
+      throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
     }
   }
 
   /// [ReAuthenticate] - ReAuthenticate User
+  Future<void> reAuthenticateWithEmailAndPassword(String email, String password) async {
+    try {
+      // Create a credential
+      AuthCredential credential = EmailAuthProvider.credential(email: email, password: password);
+      
+      // ReAuthenticate
+      await _auth.currentUser!.reauthenticateWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw FFirebaseAuthException(e.code).message;
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } on FormatException catch (_) {
+      throw const FFormatException();
+    } on PlatformException catch (e) {
+      throw FPlatformException(e.code).message;
+    } catch (e) {
+      throw 'Something went wrong. Please try again.';
+    }
+  }
 
   /// [EmailAuthentication] - Forget Password
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
-      throw MyFirebaseAuthException(e.code).message;
+      throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
-      throw MyFirebaseException(e.code).message;
+      throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
-      throw const MyFormatException();
+      throw const FFormatException();
     } on PlatformException catch (e) {
-      throw MyPlatformException(e.code).message;
+      throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
     }
@@ -143,13 +210,13 @@ class AuthenticationRepository extends GetxController {
       return await _auth.signInWithCredential(credentials);
 
     } on FirebaseAuthException catch (e) {
-      throw MyFirebaseAuthException(e.code).message;
+      throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
-      throw MyFirebaseException(e.code).message;
+      throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
-      throw const MyFormatException();
+      throw const FFormatException();
     } on PlatformException catch (e) {
-      throw MyPlatformException(e.code).message;
+      throw FPlatformException(e.code).message;
     } catch (e) {
       if (kDebugMode) print('Something went wrong: $e');
       return null;
@@ -188,13 +255,13 @@ class AuthenticationRepository extends GetxController {
       return FirebaseAuth.instance.signInWithCredential(facebookAuthCredential);
 
     } on FirebaseAuthException catch (e) {
-      throw MyFirebaseAuthException(e.code).message;
+      throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
-      throw MyFirebaseException(e.code).message;
+      throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
-      throw const MyFormatException();
+      throw const FFormatException();
     } on PlatformException catch (e) {
-      throw MyPlatformException(e.code).message;
+      throw FPlatformException(e.code).message;
     } catch (e) {
       if (kDebugMode) print('Something went wrong: $e');
       return null;
@@ -231,13 +298,13 @@ class AuthenticationRepository extends GetxController {
       return userCredential;
 
     } on FirebaseAuthException catch (e) {
-      throw MyFirebaseAuthException(e.code).message;
+      throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
-      throw MyFirebaseException(e.code).message;
+      throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
-      throw const MyFormatException();
+      throw const FFormatException();
     } on PlatformException catch (e) {
-      throw MyPlatformException(e.code).message;
+      throw FPlatformException(e.code).message;
     } catch (e) {
       if (kDebugMode) print('Something went wrong: $e');
       return null;
@@ -261,18 +328,33 @@ class AuthenticationRepository extends GetxController {
 
       Get.offAll(() => const LoginScreen());
     } on FirebaseAuthException catch (e) {
-      throw MyFirebaseAuthException(e.code).message;
+      throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
-      throw MyFirebaseException(e.code).message;
+      throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
-      throw const MyFormatException();
+      throw const FFormatException();
     } on PlatformException catch (e) {
-      throw MyPlatformException(e.code).message;
+      throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
     }
   }
 
   /// [DeleteUser] - Remove user Auth and Firestore Account
-
+  Future<void> deleteAccount() async {
+    try {
+      await UserRepository.instance.removeUserRecord(_auth.currentUser!.uid);
+      await _auth.currentUser?.delete();
+    } on FirebaseAuthException catch (e) {
+      throw FFirebaseAuthException(e.code).message;
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } on FormatException catch (_) {
+      throw const FFormatException();
+    } on PlatformException catch (e) {
+      throw FPlatformException(e.code).message;
+    } catch (e) {
+      throw 'Something went wrong. Please try again.';
+    }
+  }
 }

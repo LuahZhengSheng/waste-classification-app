@@ -15,24 +15,24 @@ class SuccessScreen extends StatelessWidget {
     return Scaffold(
       body: SingleChildScrollView(
         child: Padding(
-          padding: MySpacingStyle.paddingWithAppBarHeight * 2,
+          padding: FSpacingStyle.paddingWithAppBarHeight * 2,
           child: Column(
             children: [
               /// Image
               Image(
                 image: AssetImage(image),
-                width: MyDeviceUtils.getScreenWidth() * 0.6,
+                width: FDeviceUtils.getScreenWidth() * 0.6,
               ),
-              const SizedBox(height: MySizes.spaceBtwSections),
+              const SizedBox(height: FSizes.spaceBtwSections),
 
               /// Title & Subtitle
               Text(title, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
-              const SizedBox(height: MySizes.spaceBtwItems),
+              const SizedBox(height: FSizes.spaceBtwItems),
               Text(subTitle, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
-              const SizedBox(height: MySizes.spaceBtwSections),
+              const SizedBox(height: FSizes.spaceBtwSections),
 
               /// Buttons
-              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: onPressed, child: const Text(MyTexts.tContinue))),
+              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: onPressed, child: const Text(FTexts.tContinue))),
             ],
           ),
         ),

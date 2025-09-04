@@ -1,10 +1,10 @@
 
 /// This class contains all the App Images in String formats.
-class MyImages {
+class FImages {
 
   // -- App Logos
-  static const String darkAppLogo = "assets/logos/logo.png";
-  static const String lightAppLogo = "assets/logos/logo.png";
+  static const String darkAppLogo = "assets/logos/dark_logo.png";
+  static const String lightAppLogo = "assets/logos/dark_logo.png";
 
   // -- Social Logos
   static const String google = "assets/logos/google-icon.png";
@@ -16,12 +16,12 @@ class MyImages {
   static const String onBoardingImage3 = "assets/images/on_boarding_images/on_boarding_3.png";
 
   // -- Animations
-  static const String productsIllustration = "assets/images/animations/sammy-line-workout.gif";
-  static const String productsSaleIllustration = "assets/images/animations/sammy-line-sale.png";
-  static const String staticSuccessIllustration = "assets/images/animations/sammy-line-success.png";
-  static const String deliveredInPlaneIllustration = "assets/images/animations/sammy-line-come-back-later.png";
-  static const String deliveredEmailIllustration = "assets/images/animations/sammy-line-man-receives-a-mail.png";
-  static const String verifyIllustration = "assets/images/animations/sammy-line-travel-backpack-with-passport-and-air-ticket.gif";
+  static const String productsIllustration = "assets/images/animations/samF-line-workout.gif";
+  static const String productsSaleIllustration = "assets/images/animations/samF-line-sale.png";
+  static const String staticSuccessIllustration = "assets/images/animations/samF-line-success.png";
+  static const String deliveredInPlaneIllustration = "assets/images/animations/samF-line-come-back-later.png";
+  static const String deliveredEmailIllustration = "assets/images/animations/samF-line-man-receives-a-mail.png";
+  static const String verifyIllustration = "assets/images/animations/samF-line-travel-backpack-with-passport-and-air-ticket.gif";
 
   // -- Lottie Animations
   static String cartAnimation = "assets/images/animations/lady-adding-product-in-cart-animation.json";
@@ -40,4 +40,12 @@ class MyImages {
   static String loadingJuggleAnimation = "assets/images/animations/141397-loading-juggle.json";
   static String cloudUploadingAnimation = "assets/images/animations/cloud-uploading-animation.json";
   static String loaderAnimation = "assets/images/animations/loader-animation.json";
+
+  // -- User Profile Image
+  static String user = "assets/images/user/user1.png";
+
+  // -- Banners
+  static String promoBanner1 = "assets/images/banners/promo-banner-1.png";
+  static String promoBanner2 = "assets/images/banners/promo-banner-1.png";
+  static String promoBanner3 = "assets/images/banners/promo-banner-1.png";
 }

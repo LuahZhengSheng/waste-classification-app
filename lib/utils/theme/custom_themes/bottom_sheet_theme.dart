@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// -- Light & Dark Bottom Sheet Themes
-class MyBottomSheetTheme {
-  MyBottomSheetTheme._();  // To avoid creating instances
+class FBottomSheetTheme {
+  FBottomSheetTheme._();  // To avoid creating instances
 
   /// -- Light Theme
   static BottomSheetThemeData lightBottomSheetTheme = BottomSheetThemeData(

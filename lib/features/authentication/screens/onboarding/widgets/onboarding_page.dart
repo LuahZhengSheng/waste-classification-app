@@ -12,12 +12,12 @@ class OnBoardingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(MySizes.defaultSpace),
+      padding: const EdgeInsets.all(FSizes.defaultSpace),
       child: Column(
         children: [
           Image(
-            width: MyDeviceUtils.getScreenWidth() * 0.8,
-            height: MyDeviceUtils.getScreenHeight() * 0.6,
+            width: FDeviceUtils.getScreenWidth() * 0.8,
+            height: FDeviceUtils.getScreenHeight() * 0.6,
             image: AssetImage(image),
           ),
           Text(
@@ -25,7 +25,7 @@ class OnBoardingPage extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineMedium,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: MySizes.spaceBtwItems),
+          const SizedBox(height: FSizes.spaceBtwItems),
           Text(
             subTitle,
             style: Theme.of(context).textTheme.bodyMedium,

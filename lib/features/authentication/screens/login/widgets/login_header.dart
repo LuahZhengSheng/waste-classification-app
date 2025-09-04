@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:fyp/utils/constants/image_strings.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 
-class MyLoginHeader extends StatelessWidget {
-  const MyLoginHeader({
+class FLoginHeader extends StatelessWidget {
+  const FLoginHeader({
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    final dark = MyHelperFunctions.isDarkMode(context);
+    final dark = FHelperFunctions.isDarkMode(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -17,7 +17,7 @@ class MyLoginHeader extends StatelessWidget {
         Image(
           height: 150,
           image: AssetImage(
-              dark ? MyImages.lightAppLogo : MyImages.darkAppLogo),
+              dark ? FImages.lightAppLogo : FImages.darkAppLogo),
         ),
       ],
     );

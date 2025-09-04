@@ -27,29 +27,29 @@ class SignupController extends GetxController {
   void signup() async {
     try {
       // Start Loading
-      MyFullScreenLoader.openLoadingDialog('We are processing your information...', MyImages.docerAnimation);
+      FFullScreenLoader.openLoadingDialog('We are processing your information...', FImages.docerAnimation);
 
       // Check Internet Connectivity
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
-        MyFullScreenLoader.stopLoading();
+        FFullScreenLoader.stopLoading();
         return;
       }
 
       // Form Validation
       if (!signupFormKey.currentState!.validate()) {
-        MyFullScreenLoader.stopLoading();
+        FFullScreenLoader.stopLoading();
         return;
       }
 
       // Privacy Policy Check
       if (!privacyPolicy.value) {
-        MyLoaders.warningSnackBar(
+        FLoaders.warningSnackBar(
           title: 'Accept Privacy Policy',
           message: 'In order to create account, you must have to read and accept the Privacy Policy & Terms of Use.',
         );
 
-        MyFullScreenLoader.stopLoading();
+        FFullScreenLoader.stopLoading();
         return;
       }
 
@@ -58,30 +58,30 @@ class SignupController extends GetxController {
           email.text.trim(), password.text.trim());
 
       // Save Authenticated user data in the Firebase Firestore
-      final newUser = UserModel(
-        id: userCredential.user!.uid,
-        firstName: firstName.text.trim(),
-        lastName: lastName.text.trim(),
-        username: username.text.trim(),
-        email: email.text.trim(),
-        phoneNumber: phoneNumber.text.trim(),
-        profilePicture: '',
-      );
-
-      final userRepository = Get.put(UserRepository());
-      await userRepository.saveUserRecord(newUser);
+      // final newUser = UserModel(
+      //   id: userCredential.user!.uid,
+      //   firstName: firstName.text.trim(),
+      //   lastName: lastName.text.trim(),
+      //   username: username.text.trim(),
+      //   email: email.text.trim(),
+      //   phoneNumber: phoneNumber.text.trim(),
+      //   profilePicture: '',
+      // );
+      //
+      // final userRepository = Get.put(UserRepository());
+      // await userRepository.saveUserRecord(newUser);
 
       // Show Success Message
-      MyLoaders.successSnackBar(title: 'Congratulations', message: 'Your account has been created! Verify email to continue.');
+      FLoaders.successSnackBar(title: 'Congratulations', message: 'Your account has been created! Verify email to continue.');
 
-      MyFullScreenLoader.stopLoading();
+      FFullScreenLoader.stopLoading();
 
       // Move to Verify Email Screen
       Get.to(() => VerifyEmailScreen(email: email.text.trim()));
     } catch (e) {
-      MyFullScreenLoader.stopLoading();
+      FFullScreenLoader.stopLoading();
       // Show some Generic Error to the user
-      MyLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
     }
   }
 }

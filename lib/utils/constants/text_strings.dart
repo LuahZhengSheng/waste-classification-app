@@ -1,6 +1,6 @@
 
 /// This class contains all the App Texts in String formats.
-class MyTexts {
+class FTexts {
 
   // -- GLOBAL Texts
   static const String and = "and";
@@ -25,6 +25,7 @@ class MyTexts {
   static const String email = "E-Mail";
   static const String password = "Password";
   static const String newPassword = "New Password";
+  static const String confirmPassword = "Confirm Password";
   static const String username = "Username";
   static const String phoneNo = "Phone Number";
   static const String rememberMe = "Remember Me";

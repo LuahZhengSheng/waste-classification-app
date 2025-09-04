@@ -12,11 +12,11 @@ class OnBoardingNextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = MyHelperFunctions.isDarkMode(context);
+    final dark = FHelperFunctions.isDarkMode(context);
 
     return Positioned(
-      right: MySizes.defaultSpace,
-      bottom: MyDeviceUtils.getBottomNavigationBarHeight(),
+      right: FSizes.defaultSpace,
+      bottom: FDeviceUtils.getBottomNavigationBarHeight(),
       child: ElevatedButton(
         onPressed: () => OnBoardingController.instance.nextPage(),
         style: ElevatedButton.styleFrom(

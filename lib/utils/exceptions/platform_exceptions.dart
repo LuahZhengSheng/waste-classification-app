@@ -1,8 +1,8 @@
 /// Exception class for handling various platform-related errors.
-class MyPlatformException implements Exception {
+class FPlatformException implements Exception {
   final String code;
 
-  MyPlatformException(this.code);
+  FPlatformException(this.code);
 
   String get message {
     switch (code) {

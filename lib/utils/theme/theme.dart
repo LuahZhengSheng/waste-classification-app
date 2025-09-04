@@ -9,40 +9,74 @@ import 'package:fyp/utils/theme/custom_themes/text_field_theme.dart';
 import 'package:fyp/utils/theme/custom_themes/text_theme.dart';
 
 /// -- Light & Dark App Themes
-class MyAppTheme {
-  MyAppTheme._();
+class FAppTheme {
+  FAppTheme._();
 
   /// -- Light Theme
   static ThemeData lightTheme = ThemeData(
-    useMaterial3: true,
-    fontFamily: 'Poppins',
-    brightness: Brightness.light,
-    primaryColor: Colors.green,
-    scaffoldBackgroundColor: Colors.white,
-    appBarTheme: MyAppBarTheme.lightAppBarTheme,
-    textTheme: MyTextTheme.lightTextTheme,
-    chipTheme: MyChipTheme.lightChipTheme,
-    checkboxTheme: MyCheckboxTheme.lightCheckboxTheme,
-    bottomSheetTheme: MyBottomSheetTheme.lightBottomSheetTheme,
-    inputDecorationTheme: MyTextFormFieldTheme.lightInputDecorationTheme,
-    elevatedButtonTheme: MyElevatedButtonTheme.lightElevatedButtonTheme,
-    outlinedButtonTheme: MyOutlinedButtonTheme.lightOutlinedButtonTheme
+      useMaterial3: true,
+      fontFamily: 'Poppins',
+      brightness: Brightness.light,
+      primaryColor: Colors.green,
+      scaffoldBackgroundColor: Colors.white,
+      appBarTheme: FAppBarTheme.lightAppBarTheme,
+      textTheme: FTextTheme.lightTextTheme,
+      chipTheme: FChipTheme.lightChipTheme,
+      checkboxTheme: FCheckboxTheme.lightCheckboxTheme,
+      bottomSheetTheme: FBottomSheetTheme.lightBottomSheetTheme,
+      inputDecorationTheme: FTextFormFieldTheme.lightInputDecorationTheme,
+      elevatedButtonTheme: FElevatedButtonTheme.lightElevatedButtonTheme,
+      outlinedButtonTheme: FOutlinedButtonTheme.lightOutlinedButtonTheme
   );
 
   /// -- Dark Theme
   static ThemeData darkTheme = ThemeData(
+      useMaterial3: true,
+      fontFamily: 'Poppins',
+      brightness: Brightness.dark,
+      primaryColor: Colors.green,
+      scaffoldBackgroundColor: Colors.black,
+      appBarTheme: FAppBarTheme.darkAppBarTheme,
+      textTheme: FTextTheme.darkTextTheme,
+      chipTheme: FChipTheme.darkChipTheme,
+      checkboxTheme: FCheckboxTheme.darkCheckboxTheme,
+      bottomSheetTheme: FBottomSheetTheme.darkBottomSheetTheme,
+      inputDecorationTheme: FTextFormFieldTheme.darkInputDecorationTheme,
+      elevatedButtonTheme: FElevatedButtonTheme.darkElevatedButtonTheme,
+      outlinedButtonTheme: FOutlinedButtonTheme.darkOutlinedButtonTheme
+  );
+
+  /// -- Admin Light Theme
+  static ThemeData adminLightTheme = ThemeData(
+    useMaterial3: true,
+    fontFamily: 'Poppins',
+    brightness: Brightness.light,
+    primaryColor: Colors.indigo,
+    scaffoldBackgroundColor: Colors.grey[50],
+    appBarTheme: FAppBarTheme.adminLightAppBarTheme,
+    textTheme: FTextTheme.lightTextTheme,
+    chipTheme: FChipTheme.adminLightChipTheme,
+    checkboxTheme: FCheckboxTheme.adminLightCheckboxTheme,
+    bottomSheetTheme: FBottomSheetTheme.lightBottomSheetTheme,
+    inputDecorationTheme: FTextFormFieldTheme.lightInputDecorationTheme,
+    elevatedButtonTheme: FElevatedButtonTheme.adminLightElevatedButtonTheme,
+    outlinedButtonTheme: FOutlinedButtonTheme.adminLightOutlinedButtonTheme,
+  );
+
+  /// -- Admin Dark Theme
+  static ThemeData adminDarkTheme = ThemeData(
     useMaterial3: true,
     fontFamily: 'Poppins',
     brightness: Brightness.dark,
-    primaryColor: Colors.green,
-    scaffoldBackgroundColor: Colors.black,
-    appBarTheme: MyAppBarTheme.darkAppBarTheme,
-    textTheme: MyTextTheme.darkTextTheme,
-    chipTheme: MyChipTheme.darkChipTheme,
-    checkboxTheme: MyCheckboxTheme.darkCheckboxTheme,
-    bottomSheetTheme: MyBottomSheetTheme.darkBottomSheetTheme,
-    inputDecorationTheme: MyTextFormFieldTheme.darkInputDecorationTheme,
-    elevatedButtonTheme: MyElevatedButtonTheme.darkElevatedButtonTheme,
-    outlinedButtonTheme: MyOutlinedButtonTheme.darkOutlinedButtonTheme
+    primaryColor: Color(0xFF6C72FF),
+    scaffoldBackgroundColor: Color(0xFF101935),
+    appBarTheme: FAppBarTheme.adminDarkAppBarTheme,
+    textTheme: FTextTheme.darkTextTheme,
+    chipTheme: FChipTheme.adminDarkChipTheme,
+    checkboxTheme: FCheckboxTheme.adminDarkCheckboxTheme,
+    bottomSheetTheme: FBottomSheetTheme.darkBottomSheetTheme,
+    inputDecorationTheme: FTextFormFieldTheme.adminDarkInputDecorationTheme,
+    elevatedButtonTheme: FElevatedButtonTheme.adminDarkElevatedButtonTheme,
+    outlinedButtonTheme: FOutlinedButtonTheme.adminDarkOutlinedButtonTheme,
   );
 }

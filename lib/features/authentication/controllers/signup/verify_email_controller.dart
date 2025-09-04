@@ -23,11 +23,11 @@ class VerifyEmailController extends GetxController {
   sendEmailVerification() async {
     try {
       await AuthenticationRepository.instance.sendEmailVerification();
-      MyLoaders.successSnackBar(
+      FLoaders.successSnackBar(
           title: 'Email Send',
           message: 'Please check your inbox and verify your email.');
     } catch (e) {
-      MyLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
     }
   }
 
@@ -42,9 +42,9 @@ class VerifyEmailController extends GetxController {
           timer.cancel();
           Get.off(
             () => SuccessScreen(
-              image: MyImages.successfullyRegisterAnimation,
-              title: MyTexts.yourAccountCreatedTitle,
-              subTitle: MyTexts.yourAccountCreatedSubTitle,
+              image: FImages.successfullyRegisterAnimation,
+              title: FTexts.yourAccountCreatedTitle,
+              subTitle: FTexts.yourAccountCreatedSubTitle,
               onPressed: () => AuthenticationRepository.instance.screenRedirect(),
             ),
           );
@@ -59,9 +59,9 @@ class VerifyEmailController extends GetxController {
     if (currentUser != null && currentUser.emailVerified) {
       Get.off(
         () => SuccessScreen(
-          image: MyImages.successfullyRegisterAnimation,
-          title: MyTexts.yourAccountCreatedTitle,
-          subTitle: MyTexts.yourAccountCreatedSubTitle,
+          image: FImages.successfullyRegisterAnimation,
+          title: FTexts.yourAccountCreatedTitle,
+          subTitle: FTexts.yourAccountCreatedSubTitle,
           onPressed: () => AuthenticationRepository.instance.screenRedirect(),
         ),
       );

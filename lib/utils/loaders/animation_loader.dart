@@ -3,9 +3,9 @@ import 'package:lottie/lottie.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 
-/// A widget for displaying an animated Loading indicator with optional text and action button.
-class MyAnimationLoaderWidget extends StatelessWidget {
-  /// Default constructor for the MyAnimationLoaderWidget.
+/// A widgets for displaying an animated Loading indicator with optional text and action button.
+class FAnimationLoaderWidget extends StatelessWidget {
+  /// Default constructor for the FAnimationLoaderWidget.
   ///
   /// Parameters:
   /// - text: The text to be displayed below the animation.
@@ -13,7 +13,7 @@ class MyAnimationLoaderWidget extends StatelessWidget {
   /// - showAction: Whether to show an action button below the text.
   /// - actionText: The text to be displayed on the action button.
   /// - onActionPressed: Callback function to be executed when the action button is pressed.
-  const MyAnimationLoaderWidget(
+  const FAnimationLoaderWidget(
       {super.key,
       required this.text,
       required this.animation,
@@ -36,26 +36,26 @@ class MyAnimationLoaderWidget extends StatelessWidget {
           Lottie.asset(animation,
               width: MediaQuery.of(context).size.width *
                   0.8), // Display Lottie animation
-          const SizedBox(height: MySizes.defaultSpace),
+          const SizedBox(height: FSizes.defaultSpace),
           Text(
             text,
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: MySizes.defaultSpace),
+          const SizedBox(height: FSizes.defaultSpace),
           showAction
               ? SizedBox(
                   width: 250,
                   child: OutlinedButton(
                     onPressed: onActionPressed,
                     style: OutlinedButton.styleFrom(
-                        backgroundColor: MyColors.dark),
+                        backgroundColor: FColors.dark),
                     child: Text(
                       actionText!,
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium!
-                          .apply(color: MyColors.light),
+                          .apply(color: FColors.light),
                     ),
                   ))
               : const SizedBox(),

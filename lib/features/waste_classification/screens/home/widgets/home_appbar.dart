@@ -4,23 +4,23 @@ import 'package:fyp/common/widgets/contents/notification/menu_icon.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/text_strings.dart';
 
-class MyHomeAppBar extends StatelessWidget {
-  const MyHomeAppBar({
+class FHomeAppBar extends StatelessWidget {
+  const FHomeAppBar({
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    return MyAppBar(
+    return FAppBar(
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(MyTexts.homeAppbarTitle, style: Theme.of(context).textTheme.labelMedium!.apply(color: MyColors.grey)),
-          Text(MyTexts.homeAppbarSubTitle, style: Theme.of(context).textTheme.headlineSmall!.apply(color: MyColors.white)),
+          Text(FTexts.homeAppbarTitle, style: Theme.of(context).textTheme.labelMedium!.apply(color: FColors.grey)),
+          Text(FTexts.homeAppbarSubTitle, style: Theme.of(context).textTheme.headlineSmall!.apply(color: FColors.white)),
         ],
       ),
       actions: [
-        MyCartCounterIcon(onPressed: (){}, iconColor: MyColors.white),
+        FCartCounterIcon(onPressed: (){}, iconColor: FColors.white),
       ],
     );
   }

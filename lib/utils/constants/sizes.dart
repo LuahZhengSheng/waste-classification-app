@@ -1,5 +1,5 @@
 
-class MySizes {
+class FSizes {
   // Padding and Margin Sizes
   static const double xs = 4.0;
   static const double sm = 8.0;
@@ -26,6 +26,7 @@ class MySizes {
 
   // AppBar Sizes
   static const double appBarHeight = 56.0;
+  static const double appBarFontSize = 28.0;
 
   // Image Sizes
   static const double imageThumbSize = 80.0;

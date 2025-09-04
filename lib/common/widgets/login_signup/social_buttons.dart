@@ -5,8 +5,8 @@ import 'package:fyp/utils/constants/image_strings.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:get/get.dart';
 
-class MySocialButtons extends StatelessWidget {
-  const MySocialButtons({
+class FSocialButtons extends StatelessWidget {
+  const FSocialButtons({
     super.key,
   });
 
@@ -19,29 +19,29 @@ class MySocialButtons extends StatelessWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: MyColors.grey),
+            border: Border.all(color: FColors.grey),
             borderRadius: BorderRadius.circular(100),
           ),
           child: IconButton(
               onPressed: () => controller.googleSignIn(),
               icon: const Image(
-                width: MySizes.iconMd,
-                height: MySizes.iconMd,
-                image: AssetImage(MyImages.google),
+                width: FSizes.iconMd,
+                height: FSizes.iconMd,
+                image: AssetImage(FImages.google),
               )),
         ),
-        const SizedBox(width: MySizes.spaceBtwItems),
+        const SizedBox(width: FSizes.spaceBtwItems),
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: MyColors.grey),
+            border: Border.all(color: FColors.grey),
             borderRadius: BorderRadius.circular(100),
           ),
           child: IconButton(
               onPressed: () => controller.facebookSignIn(),
               icon: const Image(
-                width: MySizes.iconMd,
-                height: MySizes.iconMd,
-                image: AssetImage(MyImages.facebook),
+                width: FSizes.iconMd,
+                height: FSizes.iconMd,
+                image: AssetImage(FImages.facebook),
               )),
         ),
       ],

@@ -29,34 +29,34 @@ class VerifyEmailScreen extends StatelessWidget {
       body: SingleChildScrollView(
         // Padding to Give Default Equal Space on all sides in all screens
         child: Padding(
-          padding: const EdgeInsets.all(MySizes.defaultSpace),
+          padding: const EdgeInsets.all(FSizes.defaultSpace),
           child: Column(
             children: [
               /// Image
               Image(
-                image: const AssetImage(MyImages.deliveredEmailIllustration),
-                width: MyDeviceUtils.getScreenWidth() * 0.6,
+                image: const AssetImage(FImages.deliveredEmailIllustration),
+                width: FDeviceUtils.getScreenWidth() * 0.6,
               ),
-              const SizedBox(height: MySizes.spaceBtwSections),
+              const SizedBox(height: FSizes.spaceBtwSections),
 
               /// Title & Subtitle
-              Text(MyTexts.confirmEmail, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
-              const SizedBox(height: MySizes.spaceBtwItems),
+              Text(FTexts.confirmEmail, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
+              const SizedBox(height: FSizes.spaceBtwItems),
               Text(email ?? '', style: Theme.of(context).textTheme.labelLarge, textAlign: TextAlign.center),
-              const SizedBox(height: MySizes.spaceBtwItems),
-              Text(MyTexts.confirmEmailSubTitle, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
-              const SizedBox(height: MySizes.spaceBtwSections),
+              const SizedBox(height: FSizes.spaceBtwItems),
+              Text(FTexts.confirmEmailSubTitle, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
+              const SizedBox(height: FSizes.spaceBtwSections),
 
               /// Buttons
               SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                       onPressed: () => controller.checkEmailVerificationStatus(),
-                      child: const Text(MyTexts.tContinue),
+                      child: const Text(FTexts.tContinue),
                   ),
               ),
-              const SizedBox(height: MySizes.spaceBtwItems),
-              SizedBox(width: double.infinity, child: TextButton(onPressed: () => controller.sendEmailVerification(), child: const Text(MyTexts.resendEmail))),
+              const SizedBox(height: FSizes.spaceBtwItems),
+              SizedBox(width: double.infinity, child: TextButton(onPressed: () => controller.sendEmailVerification(), child: const Text(FTexts.resendEmail))),
             ],
           ),
         ),

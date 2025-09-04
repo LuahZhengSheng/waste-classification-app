@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 
-class MySpacingStyle {
+class FSpacingStyle {
   static const EdgeInsetsGeometry paddingWithAppBarHeight = EdgeInsets.only(
-    top: MySizes.appBarHeight,
-    left: MySizes.defaultSpace,
-    bottom: MySizes.defaultSpace,
-    right: MySizes.defaultSpace,
+    top: FSizes.appBarHeight,
+    left: FSizes.defaultSpace,
+    bottom: FSizes.defaultSpace,
+    right: FSizes.defaultSpace,
   );
 }

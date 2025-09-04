@@ -3,7 +3,9 @@ import 'package:fyp/common/widgets/custom_shapes/containers/primary_header_conta
 import 'package:fyp/common/widgets/custom_shapes/containers/search_container.dart';
 import 'package:fyp/common/widgets/image_text_widgets/vertical_image_text.dart';
 import 'package:fyp/common/widgets/texts/section_heading.dart';
+import 'package:fyp/features/personalization/screens/notification/widgets/notification_icon.dart';
 import 'package:fyp/features/waste_classification/screens/home/widgets/home_appbar.dart';
+import 'package:fyp/features/waste_classification/screens/home/widgets/slider.dart';
 import 'package:fyp/utils/constants/image_strings.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 
@@ -16,56 +18,64 @@ class HomeScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-
             /// Header
-            MyPrimaryHeaderContainer(
-                child: Column(
-                  children: [
+            FPrimaryHeaderContainer(
+              child: Column(
+                children: [
+                  /// -- Appbar
+                  const FHomeAppBar(),
+                  const SizedBox(height: FSizes.spaceBtwSections),
 
-                    /// -- Appbar
-                    const MyHomeAppBar(),
-                    const SizedBox(height: MySizes.spaceBtwSections),
+                  /// -- Searchbar
+                  const FSearchContainer(text: 'Search Waste'),
+                  const SizedBox(height: FSizes.spaceBtwSections),
 
-                    /// -- Searchbar
-                    const MySearchContainer(text: 'Search Waste'),
-                    const SizedBox(height: MySizes.spaceBtwSections),
+                  /// -- Searchbar
+                  const NotificationIcon(),
+                  const SizedBox(height: FSizes.spaceBtwSections),
 
-                    /// Categories
-                    Padding(
-                      padding: const EdgeInsets.only(
-                          left: MySizes.defaultSpace),
-                      child: Column(
-                        children: [
+                  /// Categories
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: FSizes.defaultSpace),
+                    child: Column(
+                      children: [
+                        /// -- Headings
+                        const FSectionHeading(title: 'Popular Categories', showActionButton: false, textColor: Colors.white),
+                        const SizedBox(height: FSizes.spaceBtwItems),
 
-                          /// -- Headings
-                          const MySectionHeading(
-                              title: 'Popular Categories',
-                              showActionButton: false,
-                              textColor: Colors.white),
-                          const SizedBox(height: MySizes.spaceBtwSections),
-
-                          /// -- Categories
-                          SizedBox(
-                            height: 80,
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: 6,
-                              scrollDirection: Axis.horizontal,
-                              itemBuilder: (_, index) {
-                                return MyVerticalImageText(image: MyImages.facebook, title: 'Waste', onTap: (){});
-                              },
-                            ),
+                        /// -- Categories
+                        SizedBox(
+                          width: 350,
+                          height: 80,
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: 6,
+                            scrollDirection: Axis.horizontal,
+                            itemBuilder: (_, index) {
+                              return FVerticalImageText(image: FImages.google, title: 'Waste', onTap: () {});
+                            },
                           ),
-                        ],
-                      ),
-                    )
-                  ],
-                )),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: FSizes.spaceBtwSections),
+                ],
+              ),
+            ),
+
+            /// Body
+            const Padding(
+              padding: EdgeInsets.all(FSizes.defaultSpace),
+              child: FSlider(),
+            )
           ],
         ),
       ),
     );
   }
 }
+
+
 
 

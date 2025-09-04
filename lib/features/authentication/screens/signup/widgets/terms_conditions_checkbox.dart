@@ -6,15 +6,15 @@ import 'package:fyp/utils/constants/text_strings.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:get/get.dart';
 
-class MyTermsAndConditionCheckbox extends StatelessWidget {
-  const MyTermsAndConditionCheckbox({
+class FTermsAndConditionCheckbox extends StatelessWidget {
+  const FTermsAndConditionCheckbox({
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(SignupController());
-    final dark = MyHelperFunctions.isDarkMode(context);
+    final dark = FHelperFunctions.isDarkMode(context);
 
     return Row(
       children: [
@@ -24,21 +24,21 @@ class MyTermsAndConditionCheckbox extends StatelessWidget {
           child: Obx(() => Checkbox(
             value: controller.privacyPolicy.value,
             onChanged: (value) => controller.privacyPolicy.value = !controller.privacyPolicy.value))),
-        const SizedBox(width: MySizes.spaceBtwItems),
+        const SizedBox(width: FSizes.spaceBtwItems),
         Text.rich(
           TextSpan(
               children: [
-                TextSpan(text: '${MyTexts.iAgreeTo} ', style: Theme.of(context).textTheme.bodySmall),
-                TextSpan(text: MyTexts.privacyPolicy, style: Theme.of(context).textTheme.bodyMedium!.apply(
-                  color: dark ? MyColors.white : MyColors.primary,
+                TextSpan(text: '${FTexts.iAgreeTo} ', style: Theme.of(context).textTheme.bodySmall),
+                TextSpan(text: FTexts.privacyPolicy, style: Theme.of(context).textTheme.bodyMedium!.apply(
+                  color: dark ? FColors.white : FColors.primary,
                   decoration: TextDecoration.underline,
-                  decorationColor: dark ? MyColors.white : MyColors.primary,
+                  decorationColor: dark ? FColors.white : FColors.primary,
                 )),
-                TextSpan(text: ' ${MyTexts.and} ', style: Theme.of(context).textTheme.bodySmall),
-                TextSpan(text: '${MyTexts.termsOfUse} ', style: Theme.of(context).textTheme.bodyMedium!.apply(
-                  color: dark ? MyColors.white : MyColors.primary,
+                TextSpan(text: ' ${FTexts.and} ', style: Theme.of(context).textTheme.bodySmall),
+                TextSpan(text: '${FTexts.termsOfUse} ', style: Theme.of(context).textTheme.bodyMedium!.apply(
+                  color: dark ? FColors.white : FColors.primary,
                   decoration: TextDecoration.underline,
-                  decorationColor: dark ? MyColors.white : MyColors.primary,
+                  decorationColor: dark ? FColors.white : FColors.primary,
                 )),
               ]
           ),

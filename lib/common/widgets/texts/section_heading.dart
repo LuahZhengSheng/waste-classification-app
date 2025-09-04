@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class MySectionHeading extends StatelessWidget {
-  const MySectionHeading({
+class FSectionHeading extends StatelessWidget {
+  const FSectionHeading({
     super.key,
     this.onPressed,
     this.textColor,
@@ -19,15 +19,12 @@ class MySectionHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text('Popular Categories',
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall!
-                .apply(color: textColor),
+        Text(
+            title,
+            style: Theme.of(context).textTheme.headlineSmall!.apply(color: textColor),
             maxLines: 1,
             overflow: TextOverflow.ellipsis),
-        if (showActionButton)
-          TextButton(onPressed: () {}, child: Text(buttonTitle)),
+        if (showActionButton) TextButton(onPressed: () {}, child: Text(buttonTitle)),
       ],
     );
   }

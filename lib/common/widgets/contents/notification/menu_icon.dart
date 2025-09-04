@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:iconsax/iconsax.dart';
 
-class MyCartCounterIcon extends StatelessWidget {
-  const MyCartCounterIcon({
+class FCartCounterIcon extends StatelessWidget {
+  const FCartCounterIcon({
     super.key, required this.iconColor, required this.onPressed,
   });
 
@@ -21,11 +21,11 @@ class MyCartCounterIcon extends StatelessWidget {
             width: 18,
             height: 18,
             decoration: BoxDecoration(
-              color: MyColors.black,
+              color: FColors.black,
               borderRadius: BorderRadius.circular(100),
             ),
             child: Center(
-              child: Text('2', style: Theme.of(context).textTheme.labelLarge!.apply(color: MyColors.white, fontSizeFactor: 0.8)),
+              child: Text('2', style: Theme.of(context).textTheme.labelLarge!.apply(color: FColors.white, fontSizeFactor: 0.8)),
             ),
           ),
         )
