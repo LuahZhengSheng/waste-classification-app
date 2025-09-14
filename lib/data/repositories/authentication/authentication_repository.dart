@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +19,9 @@ import 'package:fyp/utils/exceptions/platform_exceptions.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+
+import '../../../features/admin/screens/admin_layout.dart';
+import '../../../features/recycling_center/screens/home/home.dart';
 
 class AuthenticationRepository extends GetxController {
   static AuthenticationRepository get instance => Get.find();
@@ -45,12 +49,32 @@ class AuthenticationRepository extends GetxController {
     if (user != null) {
       // ✅ 已登录
       if (user.emailVerified) {
+        // 获取用户角色（假设角色信息存储在Firestore中）
+        // final userDoc = await FirebaseFirestore.instance
+        //     .collection('users')
+        //     .doc(user.uid)
+        //     .get();
+
+        // final String role = userDoc.data()?['role'] ?? 'user'; // 默认角色为 'user'
+        final String role = "admin"; // 默认角色为 'user'
+
+        print(role);
+
         if (kIsWeb) {
-          // 👉 Web 用 Sidebar
-          Get.offAll(() => UserManagementScreen());
+          // 👉 Web 用 Sidebar（可根据角色调整）
+          Get.offAll(() => UserManagementPage());
         } else {
-          // 👉 App 用 Navigation Menu
-          Get.offAll(() => const NavigationMenu());
+          // 👉 App 用 Navigation Menu，根据角色重定向到不同页面
+          switch (role) {
+            case 'user':
+              Get.offAll(() => const NavigationMenu());
+              break;
+            case 'center_staff':
+              Get.offAll(() => const StaffHomeScreen());
+              break;
+            default: // 普通用户
+              Get.offAll(() => const NavigationMenu());
+          }
         }
       } else {
         // 账号存在但还没验证邮箱
@@ -77,8 +101,6 @@ class AuthenticationRepository extends GetxController {
     }
   }
 
-
-
   // /// Function to Show Relevant Screen
   // Future<void> screenRedirect() async {
   //   final User? user = _auth.currentUser;
@@ -101,9 +123,11 @@ class AuthenticationRepository extends GetxController {
 /* --------------------------- Email & Password sign-in --------------------------- */
 
   /// [EmailAuthentication] - Login
-  Future<UserCredential> loginWithEmailAndPassword(String email, String password) async {
+  Future<UserCredential> loginWithEmailAndPassword(
+      String email, String password) async {
     try {
-      return await _auth.signInWithEmailAndPassword(email: email, password: password);
+      return await _auth.signInWithEmailAndPassword(
+          email: email, password: password);
     } on FirebaseAuthException catch (e) {
       throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
@@ -118,9 +142,11 @@ class AuthenticationRepository extends GetxController {
   }
 
   /// [EmailAuthentication] - Register
-  Future<UserCredential> registerWithEmailAndPassword(String email, String password) async {
+  Future<UserCredential> registerWithEmailAndPassword(
+      String email, String password) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      return await _auth.createUserWithEmailAndPassword(
+          email: email, password: password);
     } on FirebaseAuthException catch (e) {
       throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
@@ -152,11 +178,13 @@ class AuthenticationRepository extends GetxController {
   }
 
   /// [ReAuthenticate] - ReAuthenticate User
-  Future<void> reAuthenticateWithEmailAndPassword(String email, String password) async {
+  Future<void> reAuthenticateWithEmailAndPassword(
+      String email, String password) async {
     try {
       // Create a credential
-      AuthCredential credential = EmailAuthProvider.credential(email: email, password: password);
-      
+      AuthCredential credential =
+          EmailAuthProvider.credential(email: email, password: password);
+
       // ReAuthenticate
       await _auth.currentUser!.reauthenticateWithCredential(credential);
     } on FirebaseAuthException catch (e) {
@@ -198,7 +226,8 @@ class AuthenticationRepository extends GetxController {
       final GoogleSignInAccount? userAccount = await GoogleSignIn().signIn();
 
       // Obtain the auth details from the request
-      final GoogleSignInAuthentication? googleAuth = await userAccount?.authentication;
+      final GoogleSignInAuthentication? googleAuth =
+          await userAccount?.authentication;
 
       // Create a new credential
       final credentials = GoogleAuthProvider.credential(
@@ -208,7 +237,6 @@ class AuthenticationRepository extends GetxController {
 
       // Once signed in, return the UserCredential
       return await _auth.signInWithCredential(credentials);
-
     } on FirebaseAuthException catch (e) {
       throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
@@ -231,7 +259,9 @@ class AuthenticationRepository extends GetxController {
       final LoginResult loginResult = await FacebookAuth.instance.login();
 
       // Create a credential from the access token
-      final OAuthCredential facebookAuthCredential = FacebookAuthProvider.credential('${loginResult.accessToken?.tokenString}');
+      final OAuthCredential facebookAuthCredential =
+          FacebookAuthProvider.credential(
+              '${loginResult.accessToken?.tokenString}');
 
       // return await currentUser?.linkWithCredential(facebookAuthCredential);
       //
@@ -253,7 +283,6 @@ class AuthenticationRepository extends GetxController {
 
       // Once signed in, return the UserCredential
       return FirebaseAuth.instance.signInWithCredential(facebookAuthCredential);
-
     } on FirebaseAuthException catch (e) {
       throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
@@ -285,18 +314,19 @@ class AuthenticationRepository extends GetxController {
       }
 
       // 获取 Google 登录凭证
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final OAuthCredential googleCredential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
       // 将 Google 登录凭证链接到当前用户
-      final UserCredential userCredential = await currentUser.linkWithCredential(googleCredential);
+      final UserCredential userCredential =
+          await currentUser.linkWithCredential(googleCredential);
 
       // 返回合并后的用户凭证
       return userCredential;
-
     } on FirebaseAuthException catch (e) {
       throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
@@ -310,7 +340,6 @@ class AuthenticationRepository extends GetxController {
       return null;
     }
   }
-
 
 /* --------------------------- Federated identity & social sign-in --------------------------- */
 

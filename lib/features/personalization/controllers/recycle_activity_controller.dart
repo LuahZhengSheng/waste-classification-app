@@ -1,7 +1,7 @@
 import 'package:fyp/features/personalization/controllers/activity_detail_controller.dart';
 import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
 import 'package:fyp/features/personalization/screens/recycle_activity/activity_detail.dart';
-import 'package:fyp/features/recycling_center/models/waste_category.dart';
+import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -129,7 +129,7 @@ class RecycleActivityController extends GetxController {
       RecyclingActivity(
         activityId: '1',
         userId: currentUserId,
-        centerId: 'center1',
+        centerStaffId: 'center1',
         wasteObject: 'Plastic bottles',
         wasteCategoryId: '1',
         weight: 2.5,
@@ -141,7 +141,7 @@ class RecycleActivityController extends GetxController {
       RecyclingActivity(
         activityId: '2',
         userId: currentUserId,
-        centerId: 'center1',
+        centerStaffId: 'center1',
         wasteObject: 'Cardboard boxes',
         wasteCategoryId: '2',
         weight: 5.0,
@@ -153,7 +153,7 @@ class RecycleActivityController extends GetxController {
       RecyclingActivity(
         activityId: '3',
         userId: currentUserId,
-        centerId: 'center2',
+        centerStaffId: 'center2',
         wasteObject: 'Glass bottles',
         wasteCategoryId: '3',
         weight: 1.8,
@@ -165,7 +165,7 @@ class RecycleActivityController extends GetxController {
       RecyclingActivity(
         activityId: '4',
         userId: currentUserId,
-        centerId: 'center1',
+        centerStaffId: 'center1',
         wasteObject: 'Aluminum cans',
         wasteCategoryId: '4',
         weight: 0.8,
@@ -177,7 +177,7 @@ class RecycleActivityController extends GetxController {
       RecyclingActivity(
         activityId: '5',
         userId: currentUserId,
-        centerId: 'center3',
+        centerStaffId: 'center3',
         wasteObject: 'Old smartphone',
         wasteCategoryId: '5',
         weight: 0.2,
@@ -189,7 +189,7 @@ class RecycleActivityController extends GetxController {
       RecyclingActivity(
         activityId: '6',
         userId: currentUserId,
-        centerId: 'center1',
+        centerStaffId: 'center1',
         wasteObject: 'Food containers',
         wasteCategoryId: '1',
         weight: 3.2,
@@ -201,7 +201,7 @@ class RecycleActivityController extends GetxController {
       RecyclingActivity(
         activityId: '7',
         userId: currentUserId,
-        centerId: 'center2',
+        centerStaffId: 'center2',
         wasteObject: 'Newspapers',
         wasteCategoryId: '2',
         weight: 4.5,
@@ -213,7 +213,7 @@ class RecycleActivityController extends GetxController {
       RecyclingActivity(
         activityId: '8',
         userId: currentUserId,
-        centerId: 'center1',
+        centerStaffId: 'center1',
         wasteObject: 'Wine bottles',
         wasteCategoryId: '3',
         weight: 2.1,

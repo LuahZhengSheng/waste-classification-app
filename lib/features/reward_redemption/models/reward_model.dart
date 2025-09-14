@@ -11,6 +11,7 @@ class RewardModel {
   int pointsNeeded;
   int quantity;
   DateTime validUntil;
+  int redemptionCount;
   DateTime createdAt;
   String status;
   List<RedemptionModel> redemptions;
@@ -25,6 +26,7 @@ class RewardModel {
     required this.pointsNeeded,
     required this.quantity,
     required this.validUntil,
+    required this.redemptionCount,
     required this.createdAt,
     required this.status,
     this.redemptions = const [],
@@ -40,6 +42,7 @@ class RewardModel {
     pointsNeeded: 0,
     quantity: 0,
     validUntil: DateTime.now(),
+    redemptionCount: 0,
     createdAt: DateTime.now(),
     status: 'active',
     redemptions: [],
@@ -56,6 +59,7 @@ class RewardModel {
       'pointsNeeded': pointsNeeded,
       'quantity': quantity,
       'validUntil': validUntil.toIso8601String(),
+      'redemptionCount': redemptionCount,
       'createdAt': createdAt.toIso8601String(),
       'status': status,
       'redemptions': redemptions.map((redemption) => redemption.toJson()).toList(),
@@ -75,6 +79,7 @@ class RewardModel {
         pointsNeeded: data['pointsNeeded'] ?? 0,
         quantity: data['quantity'] ?? 0,
         validUntil: DateTime.parse(data['validUntil'] ?? DateTime.now().toIso8601String()),
+        redemptionCount: data['redemptionCount'] ?? 0,
         createdAt: DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
         status: data['status'] ?? 'active',
         redemptions: (data['redemptions'] as List<dynamic>?)
@@ -97,6 +102,7 @@ class RewardModel {
       pointsNeeded: json['pointsNeeded'] ?? 0,
       quantity: json['quantity'] ?? 0,
       validUntil: DateTime.parse(json['validUntil'] ?? DateTime.now().toIso8601String()),
+      redemptionCount: json['redemptionCount'] ?? 0,
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
       status: json['status'] ?? 'active',
       redemptions: (json['redemptions'] as List<dynamic>?)
@@ -225,6 +231,7 @@ class RewardModel {
     int? pointsNeeded,
     int? quantity,
     DateTime? validUntil,
+    int? redemptionCount,
     DateTime? createdAt,
     String? status,
     List<RedemptionModel>? redemptions,
@@ -238,6 +245,7 @@ class RewardModel {
       pointsNeeded: pointsNeeded ?? this.pointsNeeded,
       quantity: quantity ?? this.quantity,
       validUntil: validUntil ?? this.validUntil,
+      redemptionCount: redemptionCount ?? this.quantity,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
       redemptions: redemptions ?? this.redemptions,

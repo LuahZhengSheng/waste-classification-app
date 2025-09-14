@@ -20,7 +20,7 @@ class FImages {
   static const String productsSaleIllustration = "assets/images/animations/samF-line-sale.png";
   static const String staticSuccessIllustration = "assets/images/animations/samF-line-success.png";
   static const String deliveredInPlaneIllustration = "assets/images/animations/samF-line-come-back-later.png";
-  static const String deliveredEmailIllustration = "assets/images/animations/samF-line-man-receives-a-mail.png";
+  static const String deliveredEmailIllustration = "assets/images/animations/sammy-line-man-receives-a-mail.png";
   static const String verifyIllustration = "assets/images/animations/samF-line-travel-backpack-with-passport-and-air-ticket.gif";
 
   // -- Lottie Animations

@@ -4,7 +4,7 @@ import 'package:fyp/utils/formatters/formatter.dart';
 class RecyclingActivity {
   String activityId;
   String userId;
-  String centerId;
+  String centerStaffId;
   String wasteObject;
   String wasteCategoryId;
   double weight;
@@ -17,7 +17,7 @@ class RecyclingActivity {
   RecyclingActivity({
     required this.activityId,
     required this.userId,
-    required this.centerId,
+    required this.centerStaffId,
     required this.wasteObject,
     required this.wasteCategoryId,
     required this.weight,
@@ -31,7 +31,7 @@ class RecyclingActivity {
   static RecyclingActivity empty() => RecyclingActivity(
     activityId: '',
     userId: '',
-    centerId: '',
+    centerStaffId: '',
     wasteObject: '',
     wasteCategoryId: '',
     weight: 0.0,
@@ -46,7 +46,7 @@ class RecyclingActivity {
     return {
       'activityId': activityId,
       'userId': userId,
-      'centerId': centerId,
+      'centerStaffId': centerStaffId,
       'wasteObject': wasteObject,
       'wasteCategoryId': wasteCategoryId,
       'weight': weight,
@@ -64,7 +64,7 @@ class RecyclingActivity {
       return RecyclingActivity(
         activityId: document.id,
         userId: data['userId'] ?? '',
-        centerId: data['centerId'] ?? '',
+        centerStaffId: data['centerStaffId'] ?? '',
         wasteObject: data['wasteObject'] ?? '',
         wasteCategoryId: data['wasteCategoryId'] ?? '',
         weight: (data['weight'] ?? 0.0).toDouble(),
@@ -83,7 +83,7 @@ class RecyclingActivity {
     return RecyclingActivity(
       activityId: json['activityId'] ?? '',
       userId: json['userId'] ?? '',
-      centerId: json['centerId'] ?? '',
+      centerStaffId: json['centerStaffId'] ?? '',
       wasteObject: json['wasteObject'] ?? '',
       wasteCategoryId: json['wasteCategoryId'] ?? '',
       weight: (json['weight'] ?? 0.0).toDouble(),
@@ -97,7 +97,7 @@ class RecyclingActivity {
   /// Factory method to create a new recycling activity
   factory RecyclingActivity.createNew({
     required String userId,
-    required String centerId,
+    required String centerStaffId,
     required String wasteObject,
     required String wasteCategoryId,
     required double weight,
@@ -109,7 +109,7 @@ class RecyclingActivity {
     return RecyclingActivity(
       activityId: '', // Will be set by Firebase
       userId: userId,
-      centerId: centerId,
+      centerStaffId: centerStaffId,
       wasteObject: wasteObject,
       wasteCategoryId: wasteCategoryId,
       weight: weight,
@@ -144,7 +144,7 @@ class RecyclingActivity {
   /// Helper method to check if activity data is valid
   bool isValid() {
     return userId.isNotEmpty &&
-        centerId.isNotEmpty &&
+        centerStaffId.isNotEmpty &&
         wasteObject.isNotEmpty &&
         weight > 0 &&
         supportImage.isNotEmpty;
@@ -235,7 +235,7 @@ class RecyclingActivity {
   /// Override toString for debugging purposes
   @override
   String toString() {
-    return 'RecyclingActivity(activityId: $activityId, userId: $userId, centerId: $centerId, wasteObject: $wasteObject, weight: $weight, points: $pointsEarned, status: $status)';
+    return 'RecyclingActivity(activityId: $activityId, userId: $userId, centerStaffId: $centerStaffId, wasteObject: $wasteObject, weight: $weight, points: $pointsEarned, status: $status)';
   }
 
   /// Override equality operator
@@ -254,7 +254,7 @@ class RecyclingActivity {
   RecyclingActivity copyWith({
     String? activityId,
     String? userId,
-    String? centerId,
+    String? centerStaffId,
     String? wasteObject,
     String? wasteCategoryId,
     double? weight,
@@ -266,7 +266,7 @@ class RecyclingActivity {
     return RecyclingActivity(
       activityId: activityId ?? this.activityId,
       userId: userId ?? this.userId,
-      centerId: centerId ?? this.centerId,
+      centerStaffId: centerStaffId ?? this.centerStaffId,
       wasteObject: wasteObject ?? this.wasteObject,
       wasteCategoryId: wasteCategoryId ?? this.wasteCategoryId,
       weight: weight ?? this.weight,

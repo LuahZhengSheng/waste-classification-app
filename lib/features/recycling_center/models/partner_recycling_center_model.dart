@@ -1,13 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
 
+import '../../event/models/location_model.dart';
+
 class PartnerRecyclingCenter {
-  String centerId;
-  String name;
-  String email;
-  String phoneNo;
-  String website;
-  DateTime createdAt;
+  final String centerId;
+  final String name;
+  final String email;
+  final String phoneNo;
+  final String website;
+  final Location centerLocation;
+  final String image;
+  final Map<String, Map<String, DateTime>> operatingHours;
+  final int numberOfStaff;
+  final DateTime createdAt;
+  final String status;
 
   /// Constructor
   PartnerRecyclingCenter({
@@ -16,7 +23,12 @@ class PartnerRecyclingCenter {
     required this.email,
     required this.phoneNo,
     required this.website,
+    required this.centerLocation,
+    required this.image,
+    required this.operatingHours,
+    required this.numberOfStaff,
     required this.createdAt,
+    required this.status,
   });
 
   /// Static function to create empty center model
@@ -26,7 +38,12 @@ class PartnerRecyclingCenter {
     email: '',
     phoneNo: '',
     website: '',
+    centerLocation: Location.empty(),
+    image: '',
+    operatingHours: {},
+    numberOfStaff: 0,
     createdAt: DateTime.now(),
+    status: 'inactive', // 默认状态
   );
 
   /// Convert model to JSON structure for storing data in Firebase
@@ -37,8 +54,25 @@ class PartnerRecyclingCenter {
       'email': email,
       'phoneNo': phoneNo,
       'website': website,
+      'centerLocation': centerLocation,
+      'image': image,
+      'operatingHours': _operatingHoursToJson(operatingHours),
+      'numberOfStaff': numberOfStaff,
       'createdAt': createdAt.toIso8601String(),
+      'status': status,
     };
+  }
+
+  /// Helper method to convert operating hours to JSON
+  Map<String, dynamic> _operatingHoursToJson(Map<String, Map<String, DateTime>> hours) {
+    final Map<String, dynamic> result = {};
+    hours.forEach((day, times) {
+      result[day] = {
+        'open': times['open']?.toIso8601String(),
+        'close': times['close']?.toIso8601String(),
+      };
+    });
+    return result;
   }
 
   /// Factory method to create from a Firebase document snapshot
@@ -51,11 +85,32 @@ class PartnerRecyclingCenter {
         email: data['email'] ?? '',
         phoneNo: data['phoneNo'] ?? '',
         website: data['website'] ?? '',
+        centerLocation: Location.fromJson(Map<String, dynamic>.from(data['location'] ?? {})),
+        image: data['image'] ?? '',
+        operatingHours: _operatingHoursFromJson(data['operatingHours'] ?? {}),
+        numberOfStaff: (data['numberOfStaff'] as num?)?.toInt() ?? 0,
         createdAt: DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
+        status: data['status'] ?? 'inactive',
       );
     } else {
       return PartnerRecyclingCenter.empty();
     }
+  }
+
+  /// Helper method to convert JSON to operating hours
+  static Map<String, Map<String, DateTime>> _operatingHoursFromJson(dynamic json) {
+    final Map<String, Map<String, DateTime>> result = {};
+    if (json is Map<String, dynamic>) {
+      json.forEach((day, times) {
+        if (times is Map<String, dynamic>) {
+          result[day] = {
+            'open': times['open'] != null ? DateTime.parse(times['open']) : DateTime.now(),
+            'close': times['close'] != null ? DateTime.parse(times['close']) : DateTime.now(),
+          };
+        }
+      });
+    }
+    return result;
   }
 
   /// Factory method to create from a JSON map
@@ -66,7 +121,12 @@ class PartnerRecyclingCenter {
       email: json['email'] ?? '',
       phoneNo: json['phoneNo'] ?? '',
       website: json['website'] ?? '',
+      centerLocation: Location.fromJson(json['location'] ?? {}),
+      image: json['image'] ?? '',
+      operatingHours: _operatingHoursFromJson(json['operatingHours'] ?? {}),
+      numberOfStaff: json['numberOfStaff']?.toInt() ?? 0,
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      status: json['status'] ?? 'inactive',
     );
   }
 
@@ -76,6 +136,11 @@ class PartnerRecyclingCenter {
     required String email,
     required String phoneNo,
     required String website,
+    required Location centerLocation, // 新增
+    required String image, // 新增
+    required Map<String, Map<String, DateTime>> operatingHours, // 新增
+    required int numberOfStaff,
+    required String status, // 新增
   }) {
     return PartnerRecyclingCenter(
       centerId: '', // Will be set by Firebase
@@ -83,7 +148,12 @@ class PartnerRecyclingCenter {
       email: email,
       phoneNo: phoneNo,
       website: website,
+      centerLocation: centerLocation,
+      image: image,
+      operatingHours: operatingHours,
+      numberOfStaff: numberOfStaff,
       createdAt: DateTime.now(),
+      status: status,
     );
   }
 
@@ -92,7 +162,8 @@ class PartnerRecyclingCenter {
     return name.isNotEmpty &&
         email.isNotEmpty &&
         phoneNo.isNotEmpty &&
-        website.isNotEmpty;
+        website.isNotEmpty &&
+        status.isNotEmpty; // 新增状态验证
   }
 
   /// Helper method to validate email format
@@ -134,7 +205,7 @@ class PartnerRecyclingCenter {
   /// Override toString for debugging purposes
   @override
   String toString() {
-    return 'PartnerRecyclingCenter(centerId: $centerId, name: $name, email: $email, phoneNo: $phoneNo, website: $website)';
+    return 'PartnerRecyclingCenter(centerId: $centerId, name: $name, email: $email, phoneNo: $phoneNo, website: $website, status: $status)';
   }
 
   /// Override equality operator
@@ -156,7 +227,12 @@ class PartnerRecyclingCenter {
     String? email,
     String? phoneNo,
     String? website,
+    Location? centerLocation, // 新增
+    String? image, // 新增
+    Map<String, Map<String, DateTime>>? operatingHours, // 新增
+    int? numberOfStaff,
     DateTime? createdAt,
+    String? status, // 新增
   }) {
     return PartnerRecyclingCenter(
       centerId: centerId ?? this.centerId,
@@ -164,7 +240,12 @@ class PartnerRecyclingCenter {
       email: email ?? this.email,
       phoneNo: phoneNo ?? this.phoneNo,
       website: website ?? this.website,
+      centerLocation: centerLocation ?? this.centerLocation,
+      image: image ?? this.image,
+      operatingHours: operatingHours ?? this.operatingHours,
+      numberOfStaff: numberOfStaff ?? this.numberOfStaff,
       createdAt: createdAt ?? this.createdAt,
+      status: status ?? this.status,
     );
   }
 
@@ -176,5 +257,31 @@ class PartnerRecyclingCenter {
   /// Helper method to check if center is newly created (within 7 days)
   bool get isNewCenter {
     return ageInDays < 7;
+  }
+
+  /// Helper method to check if center is active
+  bool get isActive {
+    return status == 'active';
+  }
+
+  /// Helper method to check if center is open now
+  bool get isOpenNow {
+    final now = DateTime.now();
+    final today = now.weekday;
+    final days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    final todaySchedule = operatingHours[days[today - 1]];
+
+    if (todaySchedule == null) return false;
+
+    final openTime = todaySchedule['open'];
+    final closeTime = todaySchedule['close'];
+
+    if (openTime == null || closeTime == null) return false;
+
+    final currentTime = DateTime(now.year, now.month, now.day, now.hour, now.minute);
+    final open = DateTime(now.year, now.month, now.day, openTime.hour, openTime.minute);
+    final close = DateTime(now.year, now.month, now.day, closeTime.hour, closeTime.minute);
+
+    return currentTime.isAfter(open) && currentTime.isBefore(close);
   }
 }

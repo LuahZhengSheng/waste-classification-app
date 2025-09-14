@@ -19,6 +19,7 @@ class Event {
   final int maxParticipants;
   final int registeredCount;
   final DateTime createdAt;
+  final bool isPublish;
   final String status;
   final List<EventRegistration> eventRegistrations;
 
@@ -36,6 +37,7 @@ class Event {
     required this.maxParticipants,
     this.registeredCount = 0,
     required this.createdAt,
+    this.isPublish = false,
     this.status = 'active',
     this.eventRegistrations = const [],
   });
@@ -264,6 +266,7 @@ class Event {
     int? maxParticipants,
     int? registeredCount,
     DateTime? createdAt,
+    bool? isPublish,
     String? status,
     List<EventRegistration>? eventRegistrations,
   }) {
@@ -281,6 +284,7 @@ class Event {
       maxParticipants: maxParticipants ?? this.maxParticipants,
       registeredCount: registeredCount ?? this.registeredCount,
       createdAt: createdAt ?? this.createdAt,
+      isPublish: isPublish ?? this.isPublish,
       status: status ?? this.status,
       eventRegistrations: eventRegistrations ?? this.eventRegistrations,
     );

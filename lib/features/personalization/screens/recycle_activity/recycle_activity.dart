@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fyp/features/personalization/controllers/recycle_activity_controller.dart';
 import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
 import 'package:fyp/features/personalization/screens/recycle_activity/activity_detail.dart';
-import 'package:fyp/features/recycling_center/models/waste_category.dart';
+import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
 import 'package:fyp/utils/loaders/circular_loader.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -498,13 +498,13 @@ class RecycleHistoryScreen extends StatelessWidget {
               )),
               const SizedBox(width: FSizes.sm),
               // Status Filter Chip
-              Obx(() => _buildEnhancedFilterChip(
-                label: 'Status: ${controller.selectedStatusFilter.value}',
-                selected: controller.selectedStatusFilter.value != 'All',
-                onTap: () => _showStatusFilterOptions(controller),
-                color: FColors.secondary,
-                dark: dark,
-              )),
+              // Obx(() => _buildEnhancedFilterChip(
+              //   label: 'Status: ${controller.selectedStatusFilter.value}',
+              //   selected: controller.selectedStatusFilter.value != 'All',
+              //   onTap: () => _showStatusFilterOptions(controller),
+              //   color: FColors.secondary,
+              //   dark: dark,
+              // )),
             ],
           ),
         ),
@@ -671,7 +671,7 @@ class RecycleHistoryScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    _buildEnhancedStatusChip(activity.status, activity.statusColor, dark),
+                    // _buildEnhancedStatusChip(activity.status, activity.statusColor, dark),
                   ],
                 ),
                 const SizedBox(height: FSizes.md),
@@ -902,36 +902,36 @@ class RecycleHistoryScreen extends StatelessWidget {
               }).toList(),
             ),
             const SizedBox(height: FSizes.spaceBtwItems),
-            Text('Status:', style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            )),
-            const SizedBox(height: FSizes.sm),
-            Wrap(
-              spacing: FSizes.sm,
-              runSpacing: FSizes.sm,
-              children: controller.statusFilterOptions.map((option) {
-                return Obx(() => FilterChip(
-                  label: Text(option),
-                  selected: controller.selectedStatusFilter.value == option,
-                  onSelected: (_) {
-                    controller.setStatusFilter(option);
-                    Get.back();
-                  },
-                  selectedColor: FColors.secondary.withOpacity(0.2),
-                  checkmarkColor: FColors.secondary,
-                  backgroundColor: FHelperFunctions.isDarkMode(context)
-                      ? FColors.darkContainer
-                      : FColors.lightContainer,
-                  side: BorderSide(
-                    color: controller.selectedStatusFilter.value == option
-                        ? FColors.secondary
-                        : (FHelperFunctions.isDarkMode(context)
-                        ? FColors.borderPrimary.withOpacity(0.2)
-                        : FColors.borderPrimary),
-                  ),
-                ));
-              }).toList(),
-            ),
+            // Text('Status:', style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            //   fontWeight: FontWeight.w600,
+            // )),
+            // const SizedBox(height: FSizes.sm),
+            // Wrap(
+            //   spacing: FSizes.sm,
+            //   runSpacing: FSizes.sm,
+            //   children: controller.statusFilterOptions.map((option) {
+            //     return Obx(() => FilterChip(
+            //       label: Text(option),
+            //       selected: controller.selectedStatusFilter.value == option,
+            //       onSelected: (_) {
+            //         controller.setStatusFilter(option);
+            //         Get.back();
+            //       },
+            //       selectedColor: FColors.secondary.withOpacity(0.2),
+            //       checkmarkColor: FColors.secondary,
+            //       backgroundColor: FHelperFunctions.isDarkMode(context)
+            //           ? FColors.darkContainer
+            //           : FColors.lightContainer,
+            //       side: BorderSide(
+            //         color: controller.selectedStatusFilter.value == option
+            //             ? FColors.secondary
+            //             : (FHelperFunctions.isDarkMode(context)
+            //             ? FColors.borderPrimary.withOpacity(0.2)
+            //             : FColors.borderPrimary),
+            //       ),
+            //     ));
+            //   }).toList(),
+            // ),
             const SizedBox(height: FSizes.md),
           ],
         ),
@@ -1021,120 +1021,120 @@ class RecycleHistoryScreen extends StatelessWidget {
     );
   }
 
-  void _showStatusFilterOptions(RecycleActivityController controller) {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(FSizes.defaultSpace),
-        decoration: BoxDecoration(
-          color: FHelperFunctions.isDarkMode(Get.context!) ? FColors.dark : FColors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(FSizes.cardRadiusLg)),
-          boxShadow: [
-            BoxShadow(
-              color: FColors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: FColors.grey,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: FSizes.md),
-            Text(
-              'Filter by Status',
-              style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: FSizes.md),
-            ...controller.statusFilterOptions.map((option) {
-              Color statusColor;
-              switch (option.toLowerCase()) {
-                case 'pending':
-                  statusColor = FColors.warning;
-                  break;
-                case 'approved':
-                  statusColor = FColors.success;
-                  break;
-                case 'rejected':
-                  statusColor = FColors.error;
-                  break;
-                case 'completed':
-                  statusColor = FColors.info;
-                  break;
-                default:
-                  statusColor = FColors.darkGrey;
-              }
-
-              return Obx(() => Container(
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: controller.selectedStatusFilter.value == option
-                      ? statusColor.withOpacity(0.1)
-                      : Colors.transparent,
-                ),
-                child: ListTile(
-                  title: Row(
-                    children: [
-                      Text(
-                        option,
-                        style: TextStyle(
-                          fontWeight: controller.selectedStatusFilter.value == option
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          color: controller.selectedStatusFilter.value == option
-                              ? statusColor
-                              : null,
-                        ),
-                      ),
-                      if (option != 'All') ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  leading: Radio<String>(
-                    value: option,
-                    groupValue: controller.selectedStatusFilter.value,
-                    onChanged: (value) {
-                      if (value != null) {
-                        controller.setStatusFilter(value);
-                        Get.back();
-                      }
-                    },
-                    activeColor: statusColor,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  onTap: () {
-                    controller.setStatusFilter(option);
-                    Get.back();
-                  },
-                ),
-              ));
-            }).toList(),
-          ],
-        ),
-      ),
-    );
-  }
+  // void _showStatusFilterOptions(RecycleActivityController controller) {
+  //   Get.bottomSheet(
+  //     Container(
+  //       padding: const EdgeInsets.all(FSizes.defaultSpace),
+  //       decoration: BoxDecoration(
+  //         color: FHelperFunctions.isDarkMode(Get.context!) ? FColors.dark : FColors.white,
+  //         borderRadius: const BorderRadius.vertical(top: Radius.circular(FSizes.cardRadiusLg)),
+  //         boxShadow: [
+  //           BoxShadow(
+  //             color: FColors.black.withOpacity(0.1),
+  //             blurRadius: 10,
+  //             offset: const Offset(0, -2),
+  //           ),
+  //         ],
+  //       ),
+  //       child: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         children: [
+  //           Container(
+  //             width: 40,
+  //             height: 4,
+  //             decoration: BoxDecoration(
+  //               color: FColors.grey,
+  //               borderRadius: BorderRadius.circular(2),
+  //             ),
+  //           ),
+  //           const SizedBox(height: FSizes.md),
+  //           // Text(
+  //           //   'Filter by Status',
+  //           //   style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
+  //           //     fontWeight: FontWeight.bold,
+  //           //   ),
+  //           // ),
+  //           const SizedBox(height: FSizes.md),
+  //           ...controller.statusFilterOptions.map((option) {
+  //             Color statusColor;
+  //             switch (option.toLowerCase()) {
+  //               case 'pending':
+  //                 statusColor = FColors.warning;
+  //                 break;
+  //               case 'approved':
+  //                 statusColor = FColors.success;
+  //                 break;
+  //               case 'rejected':
+  //                 statusColor = FColors.error;
+  //                 break;
+  //               case 'completed':
+  //                 statusColor = FColors.info;
+  //                 break;
+  //               default:
+  //                 statusColor = FColors.darkGrey;
+  //             }
+  //
+  //             return Obx(() => Container(
+  //               margin: const EdgeInsets.symmetric(vertical: 2),
+  //               decoration: BoxDecoration(
+  //                 borderRadius: BorderRadius.circular(8),
+  //                 color: controller.selectedStatusFilter.value == option
+  //                     ? statusColor.withOpacity(0.1)
+  //                     : Colors.transparent,
+  //               ),
+  //               child: ListTile(
+  //                 title: Row(
+  //                   children: [
+  //                     Text(
+  //                       option,
+  //                       style: TextStyle(
+  //                         fontWeight: controller.selectedStatusFilter.value == option
+  //                             ? FontWeight.w600
+  //                             : FontWeight.normal,
+  //                         color: controller.selectedStatusFilter.value == option
+  //                             ? statusColor
+  //                             : null,
+  //                       ),
+  //                     ),
+  //                     if (option != 'All') ...[
+  //                       const SizedBox(width: 8),
+  //                       Container(
+  //                         width: 8,
+  //                         height: 8,
+  //                         decoration: BoxDecoration(
+  //                           color: statusColor,
+  //                           shape: BoxShape.circle,
+  //                         ),
+  //                       ),
+  //                     ],
+  //                   ],
+  //                 ),
+  //                 leading: Radio<String>(
+  //                   value: option,
+  //                   groupValue: controller.selectedStatusFilter.value,
+  //                   onChanged: (value) {
+  //                     if (value != null) {
+  //                       controller.setStatusFilter(value);
+  //                       Get.back();
+  //                     }
+  //                   },
+  //                   activeColor: statusColor,
+  //                 ),
+  //                 shape: RoundedRectangleBorder(
+  //                   borderRadius: BorderRadius.circular(8),
+  //                 ),
+  //                 onTap: () {
+  //                   controller.setStatusFilter(option);
+  //                   Get.back();
+  //                 },
+  //               ),
+  //             ));
+  //           }).toList(),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   void _showDeleteConfirmation(RecyclingActivity activity, RecycleActivityController controller) {
     Get.dialog(

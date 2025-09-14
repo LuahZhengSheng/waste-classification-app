@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/features/personalization/controllers/activity_detail_controller.dart';
 import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
-import 'package:fyp/features/recycling_center/models/waste_category.dart';
+import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/device/device_utility.dart';

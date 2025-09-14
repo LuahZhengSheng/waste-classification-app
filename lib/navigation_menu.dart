@@ -4,11 +4,12 @@ import 'package:fyp/features/personalization/screens/home/home.dart';
 import 'package:fyp/features/personalization/screens/recycle_activity/recycle_activity.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fyp/features/community/screens/posts/post_list_screen.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 
+import 'data/repositories/authentication/authentication_repository.dart';
 import 'features/event/screens/event/event.dart';
+import 'features/waste_classification/screens/waste_category_guideline/waste_category_guide.dart';
 
 class NavigationMenu extends StatelessWidget {
   const NavigationMenu({super.key});
@@ -24,20 +25,31 @@ class NavigationMenu extends StatelessWidget {
     return Scaffold(
       bottomNavigationBar: Obx(
         // Reactive widgets that rebuilds when selectedIndex changes
-            () => NavigationBar(
+        () => NavigationBar(
           height: 70, // Navigation bar height
           elevation: 0, // No shadow
           selectedIndex: controller.selectedIndex.value, // Current active tab
           onDestinationSelected: (index) =>
-          controller.selectedIndex.value = index, // Change active tab
-          backgroundColor: dark ? FColors.black : FColors.white, // Background color
-          indicatorColor: Colors.transparent, // No highlight background on selection
-          destinations: const [
-            NavigationDestination(icon: Icon(Iconsax.home), label: 'Home'),
-            NavigationDestination(icon: Icon(Iconsax.calendar), label: 'Event'),
-            NavigationDestination(icon: Icon(Iconsax.repeat), label: 'Scan & Sort'),
-            NavigationDestination(icon: Icon(Iconsax.people), label: 'Community'),
-            NavigationDestination(icon: Icon(Iconsax.user), label: 'Profile'),
+              controller.selectedIndex.value = index, // Change active tab
+          backgroundColor:
+              dark ? FColors.black : FColors.white, // Background color
+          indicatorColor:
+              Colors.transparent, // No highlight background on selection
+          destinations: [
+            const NavigationDestination(icon: Icon(Iconsax.home), label: 'Home'),
+            const NavigationDestination(icon: Icon(Iconsax.calendar), label: 'Event'),
+            const NavigationDestination(
+                icon: Icon(Iconsax.repeat), label: 'Scan & Sort'),
+            const NavigationDestination(
+                icon: Icon(Iconsax.people), label: 'Community'),
+            const NavigationDestination(icon: Icon(Iconsax.user), label: 'Profile'),
+            // NavigationDestination(
+            //   icon: IconButton(
+            //     onPressed: () => AuthenticationRepository.instance.logout(),
+            //     icon: const Icon(Iconsax.logout),
+            //   ),
+            //   label: 'Logout',
+            // ),
           ],
         ),
       ),
@@ -55,7 +67,7 @@ class NavigationController extends GetxController {
   final screens = [
     const HomeScreen(),
     const EventsScreen(),
-    Container(),
+    const WasteCategoryGuideScreen(),
     const PostsScreen(),
     const RecycleHistoryScreen(),
     // const EventsScreen(),       // Events page

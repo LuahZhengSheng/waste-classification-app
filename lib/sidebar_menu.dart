@@ -1,463 +1,333 @@
-  import 'package:flutter/material.dart';
-  import 'package:fyp/utils/constants/colors.dart';
-  import 'package:get/get.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:iconsax/iconsax.dart';
+import 'package:fyp/utils/constants/colors.dart';
+import 'package:fyp/utils/constants/sizes.dart';
+import 'package:fyp/utils/helpers/helper_functions.dart';
 
-  class SidebarMenu extends StatefulWidget {
-    const SidebarMenu({super.key});
+class AdminSidebarMenu extends StatelessWidget {
+  const AdminSidebarMenu({super.key});
 
-    @override
-    State<SidebarMenu> createState() => _SidebarMenuState();
-  }
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.find<AdminSidebarMenuController>();
+    final dark = FHelperFunctions.isDarkMode(context);
 
-  class _SidebarMenuState extends State<SidebarMenu> with SingleTickerProviderStateMixin {
-    late AnimationController _animationController;
-    late Animation<double> _animation;
-    bool _isHovering = false;
-
-    @override
-    void initState() {
-      super.initState();
-      _animationController = AnimationController(
-        duration: const Duration(milliseconds: 200),
-        vsync: this,
-      );
-      _animation = CurvedAnimation(
-        parent: _animationController,
+    return Obx(() => MouseRegion(
+      onEnter: (_) => controller.onHover(true),
+      onExit: (_) => controller.onHover(false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
-      );
-    }
-
-    @override
-    void dispose() {
-      _animationController.dispose();
-      super.dispose();
-    }
-
-    @override
-    Widget build(BuildContext context) {
-      final controller = Get.put(SidebarController());
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-
-      return MouseRegion(
-        onEnter: (_) {
-          if (!controller.isManuallyExpanded) {
-            setState(() => _isHovering = true);
-            _animationController.forward();
-          }
-        },
-        onExit: (_) {
-          if (!controller.isManuallyExpanded) {
-            setState(() => _isHovering = false);
-            _animationController.reverse();
-          }
-        },
-        child: Obx(() {
-          final isExpanded = controller.isManuallyExpanded || _isHovering;
-
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: isExpanded ? 280 : 80, // 增加收起时的宽度到80px
-            height: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                    ? [
-                  FColors.adminDarkSurface,
-                  FColors.adminDarkSurface.withOpacity(0.95),
-                ]
-                    : [
-                  FColors.adminLightSurface,
-                  FColors.adminLightSurfaceVariant,
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: FColors.adminShadow.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(4, 0),
-                ),
-              ],
+        width: controller.shouldShowExpanded ? 280 : 70,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+          border: Border(
+            right: BorderSide(
+              color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+              width: 1,
             ),
-            child: Column(
-              children: [
-                _buildLogo(controller, isDark, isExpanded),
-                Expanded(
-                  child: _buildMenuItems(controller, isDark, isExpanded),
-                ),
-                _buildBottomSection(controller, isDark, isExpanded),
-              ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: FColors.adminShadow,
+              blurRadius: 10,
+              offset: const Offset(2, 0),
             ),
-          );
-        }),
-      );
-    }
-
-    Widget _buildLogo(SidebarController controller, bool isDark, bool isExpanded) {
-      return Container(
-        height: 72,
-        padding: EdgeInsets.symmetric(horizontal: isExpanded ? 24 : 16),
-        child: Row(
+          ],
+        ),
+        child: Column(
           children: [
-            // Logo icon container
+            // Logo and Pin Button
             Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                    isDark ? FColors.adminDarkAccent : FColors.adminLightAccent,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                        .withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+              height: 70,
+              padding: const EdgeInsets.all(FSizes.md),
+              child: Row(
+                children: [
+                  // Logo - 始终显示
+                  Container(
+                    decoration: BoxDecoration(
+                      color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Iconsax.code,
+                      color: FColors.white,
+                      size: 25,
+                    ),
                   ),
+
+                  // 只在实际有足够空间时显示文字和Pin按钮 (关键修复)
+                  if (controller.shouldShowExpanded && controller.currentWidth > 270) ...[
+                    const SizedBox(width: FSizes.md),
+                    Expanded(
+                      child: Text(
+                        'Admin Panel',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+
+                    GestureDetector(
+                      onTap: controller.togglePin,
+                      child: Icon(
+                        controller.isPinned.value ? Iconsax.lock : Iconsax.unlock,
+                        size: 20,
+                        color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                      ),
+                    ),
+
+                    // IconButton(
+                    //   onPressed: controller.togglePin,
+                    //   icon: Icon(
+                    //     controller.isPinned.value ? Iconsax.lock : Iconsax.unlock,
+                    //     size: 20,
+                    //   ),
+                    //   color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                    //   // tooltip: controller.isPinned.value ? 'Unpin Sidebar' : 'Pin Sidebar',
+                    // ),
+                  ],
                 ],
               ),
-              child: const Icon(
-                Icons.dashboard_rounded,
-                color: Colors.white,
-                size: 22,
+            ),
+
+            // Divider
+            Divider(
+              color: dark ? FColors.adminDarkDivider : FColors.adminLightDivider,
+              height: 1,
+              thickness: 1,
+            ),
+
+            // Menu Items
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: FSizes.sm),
+                itemCount: controller.menuItems.length,
+                itemBuilder: (context, index) {
+                  final item = controller.menuItems[index];
+                  final isSelected = controller.selectedRoute.value == item.route;
+
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: 2),
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      child: InkWell(
+                        onTap: () => controller.selectRoute(item.route),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          height: 48,
+                          padding: const EdgeInsets.all(FSizes.sm),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (dark ? FColors.adminDarkSelected : FColors.adminLightSelected)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              // Icon
+                              Icon(
+                                _getIconData(item.icon),
+                                color: isSelected
+                                    ? (dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
+                                    : (dark ? FColors.adminDarkIcon : FColors.adminLightIcon),
+                                size: 20,
+                              ),
+
+                              // Title (only show when expanded and has enough space)
+                              if (controller.shouldShowExpanded && controller.currentWidth > 200) ...[
+                                const SizedBox(width: FSizes.md),
+                                Expanded(
+                                  child: Text(
+                                    item.title,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: isSelected
+                                          ? (dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
+                                          : (dark ? FColors.adminDarkText : FColors.adminLightText),
+                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-            if (isExpanded) ...[
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'DashStack',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? FColors.adminDarkText : FColors.adminLightText,
-                        letterSpacing: -0.5,
+
+            // Bottom section - 只在展开且有足够空间时显示
+            if (controller.shouldShowExpanded && controller.currentWidth > 200) ...[
+              Divider(
+                color: dark ? FColors.adminDarkDivider : FColors.adminLightDivider,
+                height: 1,
+                thickness: 1,
+              ),
+
+              Container(
+                padding: const EdgeInsets.all(FSizes.md),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    onTap: () {
+                      // Add logout logic here
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(FSizes.sm),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Iconsax.logout,
+                            color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: FSizes.md),
+                          Expanded(
+                            child: Text(
+                              'Logout',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
                     ),
-                    Text(
-                      'Admin Panel',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: isDark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                        letterSpacing: 0.2,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
           ],
         ),
-      );
-    }
-
-    Widget _buildMenuItems(SidebarController controller, bool isDark, bool isExpanded) {
-      return ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8), // 减少水平padding
-        itemCount: controller.menuItems.length,
-        itemBuilder: (context, index) {
-          final item = controller.menuItems[index];
-          final isSelected = controller.selectedMenuItem == item.title;
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: _buildMenuItem(item, isSelected, isDark, isExpanded, controller),
-          );
-        },
-      );
-    }
-
-    Widget _buildMenuItem(
-        SidebarMenuItem item,
-        bool isSelected,
-        bool isDark,
-        bool isExpanded,
-        SidebarController controller,
-        ) {
-      return Tooltip(
-        message: isExpanded ? '' : item.title,
-        waitDuration: const Duration(milliseconds: 500),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => controller.selectMenuItem(item.title),
-            borderRadius: BorderRadius.circular(12),
-            hoverColor: isDark
-                ? FColors.adminDarkHover.withOpacity(0.5)
-                : FColors.adminLightHover.withOpacity(0.5),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.symmetric(
-                horizontal: isExpanded ? 16 : 8, // 减少收起时的水平padding
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? LinearGradient(
-                  colors: [
-                    (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                        .withOpacity(0.1),
-                    (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                        .withOpacity(0.05),
-                  ],
-                )
-                    : null,
-                color: !isSelected ? Colors.transparent : null,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected
-                      ? (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                      .withOpacity(0.3)
-                      : Colors.transparent,
-                  width: 1.5,
-                ),
-              ),
-              child: isExpanded
-                  ? _buildExpandedMenuItem(item, isSelected, isDark)
-                  : _buildCollapsedMenuItem(item, isSelected, isDark),
-            ),
-          ),
-        ),
-      );
-    }
-
-    Widget _buildExpandedMenuItem(SidebarMenuItem item, bool isSelected, bool isDark) {
-      return Row(
-        children: [
-          // Icon with smaller container
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                  .withOpacity(0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              item.icon,
-              size: 20,
-              color: isSelected
-                  ? (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                  : (isDark ? FColors.adminDarkIcon : FColors.adminLightIcon),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              item.title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected
-                    ? (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                    : (isDark ? FColors.adminDarkText : FColors.adminLightText),
-                letterSpacing: -0.2,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-          if (item.badge != null) ...[
-            const SizedBox(width: 8),
-            Container(
-              constraints: const BoxConstraints(
-                minWidth: 20,
-                maxWidth: 30,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: isDark ? FColors.adminDarkError : FColors.adminLightError,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                item.badge!,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-
-    Widget _buildCollapsedMenuItem(SidebarMenuItem item, bool isSelected, bool isDark) {
-      return Center(
-        child: Container(
-          width: 40, // 固定宽度
-          height: 40, // 固定高度
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                .withOpacity(0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            item.icon,
-            size: 20,
-            color: isSelected
-                ? (isDark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                : (isDark ? FColors.adminDarkIcon : FColors.adminLightIcon),
-          ),
-        ),
-      );
-    }
-
-    Widget _buildBottomSection(SidebarController controller, bool isDark, bool isExpanded) {
-      return Container(
-        padding: EdgeInsets.all(isExpanded ? 16 : 8), // 减少收起时的padding
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: isDark ? FColors.adminDarkDivider : FColors.adminLightDivider,
-              width: 1,
-            ),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Manual Expand/Collapse Button
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: controller.toggleManualExpand,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: EdgeInsets.all(isExpanded ? 12 : 8),
-                  child: isExpanded
-                      ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        controller.isManuallyExpanded
-                            ? Icons.menu_open_rounded
-                            : Icons.menu_rounded,
-                        size: 20,
-                        color: isDark ? FColors.adminDarkIcon : FColors.adminLightIcon,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          controller.isManuallyExpanded ? 'Collapse' : 'Pin Sidebar',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                  )
-                      : Center(
-                    child: Icon(
-                      controller.isManuallyExpanded
-                          ? Icons.menu_open_rounded
-                          : Icons.menu_rounded,
-                      size: 20,
-                      color: isDark ? FColors.adminDarkIcon : FColors.adminLightIcon,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+      ),
+    ));
   }
 
-  class SidebarController extends GetxController {
-    // Sidebar state
-    final RxBool _isManuallyExpanded = false.obs;
-    bool get isManuallyExpanded => _isManuallyExpanded.value;
-
-    // Selected menu item
-    final RxString _selectedMenuItem = 'Dashboard'.obs;
-    String get selectedMenuItem => _selectedMenuItem.value;
-
-    // Menu items with optional badges
-    final List<SidebarMenuItem> menuItems = [
-      SidebarMenuItem(
-        title: 'Dashboard',
-        icon: Icons.dashboard_rounded,
-        route: '/dashboard',
-      ),
-      SidebarMenuItem(
-        title: 'User Management',
-        icon: Icons.people_rounded,
-        route: '/users',
-      ),
-      SidebarMenuItem(
-        title: 'Products',
-        icon: Icons.inventory_2_rounded,
-        route: '/products',
-      ),
-      SidebarMenuItem(
-        title: 'Orders',
-        icon: Icons.shopping_cart_rounded,
-        route: '/orders',
-        badge: '12',
-      ),
-      SidebarMenuItem(
-        title: 'Analytics',
-        icon: Icons.analytics_rounded,
-        route: '/analytics',
-      ),
-      SidebarMenuItem(
-        title: 'Reports',
-        icon: Icons.description_rounded,
-        route: '/reports',
-      ),
-      SidebarMenuItem(
-        title: 'Settings',
-        icon: Icons.settings_rounded,
-        route: '/settings',
-      ),
-    ];
-
-    void toggleManualExpand() {
-      _isManuallyExpanded.value = !_isManuallyExpanded.value;
-    }
-
-    void selectMenuItem(String title) {
-      _selectedMenuItem.value = title;
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'dashboard':
+        return Iconsax.element_4;
+      case 'people':
+        return Iconsax.people;
+      case 'event':
+        return Iconsax.calendar;
+      case 'category':
+        return Iconsax.category;
+      case 'analytics':
+        return Iconsax.chart_2;
+      case 'settings':
+        return Iconsax.setting_2;
+      default:
+        return Iconsax.element_4;
     }
   }
+}
 
-  class SidebarMenuItem {
-    final String title;
-    final IconData icon;
-    final String route;
-    final String? badge;
+class AdminSidebarMenuController extends GetxController {
+  // Observable variables for sidebar state
+  final RxBool isExpanded = false.obs;
+  final RxBool isPinned = false.obs;
+  final RxBool isHovered = false.obs;
+  final RxString selectedRoute = 'dashboard'.obs;
+  final RxDouble currentWidth = 70.0.obs; // 添加当前宽度追踪
 
-    SidebarMenuItem({
-      required this.title,
-      required this.icon,
-      required this.route,
-      this.badge,
+  // Sidebar menu items
+  final List<SidebarItem> menuItems = [
+    SidebarItem(
+      icon: 'dashboard',
+      title: 'Dashboard',
+      route: 'dashboard',
+    ),
+    SidebarItem(
+      icon: 'people',
+      title: 'User Management',
+      route: 'user_management',
+    ),
+    SidebarItem(
+      icon: 'event',
+      title: 'Event Management',
+      route: 'event_management',
+    ),
+    SidebarItem(
+      icon: 'category',
+      title: 'Category Management',
+      route: 'category_management',
+    ),
+    SidebarItem(
+      icon: 'analytics',
+      title: 'Analytics',
+      route: 'analytics',
+    ),
+    SidebarItem(
+      icon: 'settings',
+      title: 'Settings',
+      route: 'settings',
+    ),
+  ];
+
+  // Computed property for sidebar visibility
+  bool get shouldShowExpanded => isPinned.value || isHovered.value;
+
+  // Methods
+  void onHover(bool hovering) {
+    isHovered.value = hovering;
+    if (!isPinned.value) {
+      isExpanded.value = hovering;
+    }
+    // 更新当前宽度
+    updateCurrentWidth();
+  }
+
+  void togglePin() {
+    isPinned.value = !isPinned.value;
+    isExpanded.value = isPinned.value;
+    updateCurrentWidth();
+  }
+
+  void updateCurrentWidth() {
+    // 使用延迟来匹配动画时间
+    Future.delayed(const Duration(milliseconds: 50), () {
+      currentWidth.value = shouldShowExpanded ? 300 : 70;
     });
   }
+
+  void selectRoute(String route) {
+    selectedRoute.value = route;
+    // Add navigation logic here
+    // Get.toNamed('/admin/$route');
+  }
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Set initial expanded state based on pin status
+    isExpanded.value = isPinned.value;
+    updateCurrentWidth();
+  }
+}
+
+class SidebarItem {
+  final String icon;
+  final String title;
+  final String route;
+
+  SidebarItem({
+    required this.icon,
+    required this.title,
+    required this.route,
+  });
+}

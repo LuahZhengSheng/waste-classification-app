@@ -39,6 +39,7 @@ dependencies:
   # Icons
   iconsax: ^0.0.8
   cupertino_icons: ^1.0.8
+  iconsax_flutter: ^1.0.1
 
   # State Management
   get: ^4.6.6
@@ -50,6 +51,8 @@ dependencies:
   flutter_rating_bar: ^4.0.1
   cloud_functions: ^6.0.0
   cached_network_image: ^3.4.1
+  flutter_vector_icons: ^2.0.0
+  fl_chart: ^1.0.0
 
   #------------------ ./ PACKAGES END ------------------#
 

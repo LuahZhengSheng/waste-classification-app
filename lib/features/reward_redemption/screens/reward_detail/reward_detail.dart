@@ -12,7 +12,8 @@ import 'package:fyp/utils/popups/loaders.dart';
 
 class RewardDetailScreen extends StatelessWidget {
   final RewardModel reward;
-  final RedemptionModel? redemption; // Optional redemption data if coming from My Rewards
+  final RedemptionModel?
+      redemption; // Optional redemption data if coming from My Rewards
 
   const RewardDetailScreen({
     super.key,
@@ -75,7 +76,8 @@ class RewardDetailScreen extends StatelessWidget {
                         const SizedBox(height: FSizes.spaceBtwItems),
 
                         /// Redemption Info (if redeemed)
-                        if (isRedeemed) _buildRedemptionInfo(userRedemption!, dark),
+                        if (isRedeemed)
+                          _buildRedemptionInfo(userRedemption!, dark),
                       ],
                     ),
                   ),
@@ -129,9 +131,9 @@ class RewardDetailScreen extends StatelessWidget {
               child: Text(
                 reward.title,
                 style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
-                  color: FColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: FColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -143,7 +145,8 @@ class RewardDetailScreen extends StatelessWidget {
 
   /// Build title and points section
   Widget _buildTitleSection(bool dark) {
-    final userRedemption = redemption ?? Get.find<RewardController>().getUserRedemption(reward);
+    final userRedemption =
+        redemption ?? Get.find<RewardController>().getUserRedemption(reward);
     final isRedeemed = userRedemption != null;
 
     return Column(
@@ -152,9 +155,9 @@ class RewardDetailScreen extends StatelessWidget {
         Text(
           reward.title,
           style: Theme.of(Get.context!).textTheme.headlineSmall?.copyWith(
-            color: dark ? FColors.white : FColors.black,
-            fontWeight: FontWeight.bold,
-          ),
+                color: dark ? FColors.white : FColors.black,
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: FSizes.sm),
         Row(
@@ -168,9 +171,9 @@ class RewardDetailScreen extends StatelessWidget {
             Text(
               '${reward.pointsNeeded} Points',
               style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
-                color: FColors.primary,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: FColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const Spacer(),
             Container(
@@ -182,28 +185,28 @@ class RewardDetailScreen extends StatelessWidget {
                 color: isRedeemed
                     ? FColors.success.withOpacity(0.1)
                     : reward.isAvailable
-                    ? FColors.success.withOpacity(0.1)
-                    : FColors.error.withOpacity(0.1),
+                        ? FColors.success.withOpacity(0.1)
+                        : FColors.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(FSizes.borderRadiusSm),
                 border: Border.all(
                   color: isRedeemed
                       ? FColors.success
                       : reward.isAvailable
-                      ? FColors.success
-                      : FColors.error,
+                          ? FColors.success
+                          : FColors.error,
                   width: 1,
                 ),
               ),
               child: Text(
                 isRedeemed ? 'REDEEMED' : reward.statusDisplayText,
                 style: Theme.of(Get.context!).textTheme.labelSmall?.copyWith(
-                  color: isRedeemed
-                      ? FColors.success
-                      : reward.isAvailable
-                      ? FColors.success
-                      : FColors.error,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: isRedeemed
+                          ? FColors.success
+                          : reward.isAvailable
+                              ? FColors.success
+                              : FColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ),
           ],
@@ -233,16 +236,16 @@ class RewardDetailScreen extends StatelessWidget {
               Text(
                 'Valid Until',
                 style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
-                  color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                ),
+                      color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                    ),
               ),
               const Spacer(),
               Text(
                 reward.formattedValidUntil,
                 style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                  color: dark ? FColors.white : FColors.black,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: dark ? FColors.white : FColors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
@@ -258,16 +261,16 @@ class RewardDetailScreen extends StatelessWidget {
               Text(
                 'Available Quantity',
                 style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
-                  color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                ),
+                      color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                    ),
               ),
               const Spacer(),
               Text(
                 '${reward.remainingQuantity}',
                 style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                  color: dark ? FColors.white : FColors.black,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: dark ? FColors.white : FColors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
@@ -287,18 +290,18 @@ class RewardDetailScreen extends StatelessWidget {
                 Text(
                   'Your Points',
                   style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
-                    color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                  ),
+                        color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                      ),
                 ),
                 const Spacer(),
                 Text(
                   '$userPoints',
                   style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                    color: canAfford
-                        ? FColors.success
-                        : (dark ? FColors.white : FColors.black),
-                    fontWeight: FontWeight.w600,
-                  ),
+                        color: canAfford
+                            ? FColors.success
+                            : (dark ? FColors.white : FColors.black),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 if (canAfford) ...[
                   const SizedBox(width: FSizes.xs),
@@ -324,17 +327,17 @@ class RewardDetailScreen extends StatelessWidget {
         Text(
           'Description',
           style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
-            color: dark ? FColors.white : FColors.black,
-            fontWeight: FontWeight.w600,
-          ),
+                color: dark ? FColors.white : FColors.black,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: FSizes.sm),
         Text(
           reward.description,
           style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-            color: dark ? FColors.darkGrey : FColors.darkerGrey,
-            height: 1.5,
-          ),
+                color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                height: 1.5,
+              ),
         ),
       ],
     );
@@ -348,9 +351,9 @@ class RewardDetailScreen extends StatelessWidget {
         Text(
           'Terms & Conditions',
           style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
-            color: dark ? FColors.white : FColors.black,
-            fontWeight: FontWeight.w600,
-          ),
+                color: dark ? FColors.white : FColors.black,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: FSizes.sm),
         Container(
@@ -359,16 +362,18 @@ class RewardDetailScreen extends StatelessWidget {
             color: dark ? FColors.darkContainer : FColors.lightContainer,
             borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
             border: Border.all(
-              color: dark ? FColors.borderPrimary.withOpacity(0.1) : FColors.borderPrimary,
+              color: dark
+                  ? FColors.borderPrimary.withOpacity(0.1)
+                  : FColors.borderPrimary,
               width: 1,
             ),
           ),
           child: Text(
             reward.termsConditions,
             style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
-              color: dark ? FColors.darkGrey : FColors.darkerGrey,
-              height: 1.4,
-            ),
+                  color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                  height: 1.4,
+                ),
           ),
         ),
       ],
@@ -406,9 +411,9 @@ class RewardDetailScreen extends StatelessWidget {
               Text(
                 'Successfully Redeemed',
                 style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
-                  color: FColors.success,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: FColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
@@ -425,9 +430,12 @@ class RewardDetailScreen extends StatelessWidget {
                   children: [
                     Text(
                       'PIN Code:',
-                      style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                        color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                      ),
+                      style: Theme.of(Get.context!)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                            color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                          ),
                     ),
                     const Spacer(),
                     Container(
@@ -437,18 +445,22 @@ class RewardDetailScreen extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: FColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(FSizes.borderRadiusSm),
+                        borderRadius:
+                            BorderRadius.circular(FSizes.borderRadiusSm),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             userRedemption.formattedPinCode,
-                            style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
-                              color: FColors.primary,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                            ),
+                            style: Theme.of(Get.context!)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  color: FColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
                           ),
                           const SizedBox(width: FSizes.sm),
                           GestureDetector(
@@ -469,17 +481,21 @@ class RewardDetailScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Redeemed Date:',
-                      style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                        color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                      ),
+                      style: Theme.of(Get.context!)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                            color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                          ),
                     ),
                     const Spacer(),
                     Text(
                       userRedemption.formattedCreatedAt,
-                      style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                        color: dark ? FColors.white : FColors.black,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style:
+                          Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
+                                color: dark ? FColors.white : FColors.black,
+                                fontWeight: FontWeight.w600,
+                              ),
                     ),
                   ],
                 ),
@@ -488,9 +504,12 @@ class RewardDetailScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Status:',
-                      style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                        color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                      ),
+                      style: Theme.of(Get.context!)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                            color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                          ),
                     ),
                     const Spacer(),
                     Container(
@@ -499,8 +518,10 @@ class RewardDetailScreen extends StatelessWidget {
                         vertical: FSizes.xs,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(userRedemption.status).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(FSizes.borderRadiusSm),
+                        color: _getStatusColor(userRedemption.status)
+                            .withOpacity(0.1),
+                        borderRadius:
+                            BorderRadius.circular(FSizes.borderRadiusSm),
                         border: Border.all(
                           color: _getStatusColor(userRedemption.status),
                           width: 1,
@@ -508,10 +529,13 @@ class RewardDetailScreen extends StatelessWidget {
                       ),
                       child: Text(
                         userRedemption.statusDisplayText,
-                        style: Theme.of(Get.context!).textTheme.labelSmall?.copyWith(
-                          color: _getStatusColor(userRedemption.status),
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: Theme.of(Get.context!)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(
+                              color: _getStatusColor(userRedemption.status),
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ),
                   ],
@@ -553,41 +577,47 @@ class RewardDetailScreen extends StatelessWidget {
                   ? () => _showRedeemConfirmationDialog(controller)
                   : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: canRedeem ? FColors.primary : FColors.buttonDisabled,
+                backgroundColor:
+                    canRedeem ? FColors.primary : FColors.buttonDisabled,
                 foregroundColor: FColors.white,
                 disabledBackgroundColor: FColors.buttonDisabled,
                 disabledForegroundColor: FColors.white.withOpacity(0.7),
               ),
               child: isLoading
                   ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(FColors.white),
-                ),
-              )
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(FColors.white),
+                      ),
+                    )
                   : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    canRedeem ? Iconsax.gift : Iconsax.lock_1,
-                    size: 20,
-                  ),
-                  const SizedBox(width: FSizes.sm),
-                  Text(
-                    canRedeem
-                        ? 'Redeem Now'
-                        : controller.userPoints.value < reward.pointsNeeded
-                        ? 'Insufficient Points'
-                        : 'Unavailable',
-                    style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
-                      color: FColors.white,
-                      fontWeight: FontWeight.w600,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          canRedeem ? Iconsax.gift : Iconsax.lock_1,
+                          size: 20,
+                        ),
+                        const SizedBox(width: FSizes.sm),
+                        Text(
+                          canRedeem
+                              ? 'Redeem Now'
+                              : controller.userPoints.value <
+                                      reward.pointsNeeded
+                                  ? 'Insufficient Points'
+                                  : 'Unavailable',
+                          style: Theme.of(Get.context!)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                color: FColors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           );
         }),
@@ -622,9 +652,9 @@ class RewardDetailScreen extends StatelessWidget {
             Text(
               'Confirm Redemption',
               style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
-                color: dark ? FColors.white : FColors.black,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: dark ? FColors.white : FColors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ],
         ),
@@ -635,8 +665,8 @@ class RewardDetailScreen extends StatelessWidget {
             Text(
               'Are you sure you want to redeem this reward?',
               style: Theme.of(Get.context!).textTheme.bodyLarge?.copyWith(
-                color: dark ? FColors.darkGrey : FColors.darkerGrey,
-              ),
+                    color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                  ),
             ),
             const SizedBox(height: FSizes.md),
             Container(
@@ -650,27 +680,35 @@ class RewardDetailScreen extends StatelessWidget {
                 children: [
                   Text(
                     reward.title,
-                    style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
-                      color: dark ? FColors.white : FColors.black,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style:
+                        Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
+                              color: dark ? FColors.white : FColors.black,
+                              fontWeight: FontWeight.w600,
+                            ),
                   ),
                   const SizedBox(height: FSizes.sm),
                   Row(
                     children: [
                       Text(
                         'Points Required:',
-                        style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                          color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                        ),
+                        style: Theme.of(Get.context!)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color:
+                                  dark ? FColors.darkGrey : FColors.darkerGrey,
+                            ),
                       ),
                       const Spacer(),
                       Text(
                         '${reward.pointsNeeded}',
-                        style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                          color: FColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(Get.context!)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color: FColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ),
@@ -678,18 +716,25 @@ class RewardDetailScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Your Balance:',
-                        style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                          color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                        ),
+                        style: Theme.of(Get.context!)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color:
+                                  dark ? FColors.darkGrey : FColors.darkerGrey,
+                            ),
                       ),
                       const Spacer(),
                       Obx(() => Text(
-                        '${controller.userPoints.value}',
-                        style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                          color: dark ? FColors.white : FColors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )),
+                            '${controller.userPoints.value}',
+                            style: Theme.of(Get.context!)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: dark ? FColors.white : FColors.black,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          )),
                     ],
                   ),
                   const Divider(),
@@ -697,18 +742,25 @@ class RewardDetailScreen extends StatelessWidget {
                     children: [
                       Text(
                         'After Redemption:',
-                        style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                          color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                        ),
+                        style: Theme.of(Get.context!)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color:
+                                  dark ? FColors.darkGrey : FColors.darkerGrey,
+                            ),
                       ),
                       const Spacer(),
                       Obx(() => Text(
-                        '${controller.userPoints.value - reward.pointsNeeded}',
-                        style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                          color: FColors.warning,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )),
+                            '${controller.userPoints.value - reward.pointsNeeded}',
+                            style: Theme.of(Get.context!)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: FColors.warning,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          )),
                     ],
                   ),
                 ],
@@ -742,7 +794,12 @@ class RewardDetailScreen extends StatelessWidget {
               backgroundColor: FColors.primary,
               foregroundColor: FColors.white,
             ),
-            child: const Text('Confirm Redeem'),
+            child: const Text(
+              'Redeem',
+              style: TextStyle(
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),
@@ -777,9 +834,9 @@ class RewardDetailScreen extends StatelessWidget {
             Text(
               'Redemption Successful!',
               style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
-                color: dark ? FColors.white : FColors.black,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: dark ? FColors.white : FColors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -790,8 +847,8 @@ class RewardDetailScreen extends StatelessWidget {
             Text(
               'Your reward has been redeemed successfully. Please save your PIN code:',
               style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
-                color: dark ? FColors.darkGrey : FColors.darkerGrey,
-              ),
+                    color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: FSizes.md),
@@ -814,9 +871,12 @@ class RewardDetailScreen extends StatelessWidget {
                 children: [
                   Text(
                     'Your PIN Code',
-                    style: Theme.of(Get.context!).textTheme.titleSmall?.copyWith(
-                      color: dark ? FColors.darkGrey : FColors.darkerGrey,
-                    ),
+                    style: Theme.of(Get.context!)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(
+                          color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                        ),
                   ),
                   const SizedBox(height: FSizes.sm),
                   Row(
@@ -824,11 +884,14 @@ class RewardDetailScreen extends StatelessWidget {
                     children: [
                       Text(
                         redemption.formattedPinCode,
-                        style: Theme.of(Get.context!).textTheme.headlineMedium?.copyWith(
-                          color: FColors.primary,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 4,
-                        ),
+                        style: Theme.of(Get.context!)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
+                              color: FColors.primary,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 4,
+                            ),
                       ),
                       const SizedBox(width: FSizes.md),
                       GestureDetector(
@@ -837,7 +900,8 @@ class RewardDetailScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(FSizes.sm),
                           decoration: BoxDecoration(
                             color: FColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(FSizes.borderRadiusSm),
+                            borderRadius:
+                                BorderRadius.circular(FSizes.borderRadiusSm),
                           ),
                           child: Icon(
                             Iconsax.copy,
@@ -855,8 +919,8 @@ class RewardDetailScreen extends StatelessWidget {
             Text(
               'Present this PIN code to redeem your reward at the merchant.',
               style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
-                color: dark ? FColors.darkGrey : FColors.darkerGrey,
-              ),
+                    color: dark ? FColors.darkGrey : FColors.darkerGrey,
+                  ),
               textAlign: TextAlign.center,
             ),
           ],

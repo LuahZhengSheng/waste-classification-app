@@ -9,6 +9,8 @@ import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../reward_redemption/screens/my_reward_point/my_reward_point.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -168,59 +170,90 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildRewardPointsCard(HomeController controller, bool isDark) {
-    return Obx(() => Container(
-      padding: const EdgeInsets.all(FSizes.lg),
-      decoration: BoxDecoration(
-        color: isDark ? FColors.darkContainer : const Color(0xFFE8F5E8),
-        borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'My Reward Points',
-            style: TextStyle(
-              fontSize: 18,
-              color: FColors.primary.withOpacity(0.8),
-              fontWeight: FontWeight.w500,
+    return Obx(() => GestureDetector(
+      // onTap: () => Get.to(() => const MyRewardPointsScreen()),
+      onTap: () => Get.to(() => const RewardRedemptionScreen()),
+      child: Container(
+        padding: const EdgeInsets.all(FSizes.lg),
+        decoration: BoxDecoration(
+          color: isDark ? FColors.darkContainer : const Color(0xFFE8F5E8),
+          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+          boxShadow: [
+            BoxShadow(
+              color: FColors.primary.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
-          ),
-          const SizedBox(height: FSizes.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${controller.rewardPoints.value.toString()} Points',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: FColors.primary,
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Get.to(RewardRedemptionScreen()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: FColors.primary,
-                  foregroundColor: FColors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(FSizes.buttonRadius * 2),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: FSizes.xl,
-                    vertical: FSizes.md,
-                  ),
-                ),
-                child: const Text(
-                  'Redeem',
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'My Reward Points',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 18,
+                    color: FColors.primary.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                Icon(
+                  Iconsax.arrow_right_3,
+                  color: FColors.primary.withOpacity(0.6),
+                  size: FSizes.iconSm,
+                ),
+              ],
+            ),
+            const SizedBox(height: FSizes.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${controller.rewardPoints.value.toString()} Points',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: FColors.primary,
+                      ),
+                    ),
+                    Text(
+                      'Tap to view history',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: FColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FSizes.md,
+                    vertical: FSizes.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: FColors.primary,
+                    borderRadius: BorderRadius.circular(FSizes.buttonRadius),
+                  ),
+                  child: Text(
+                    'Redeem',
+                    style: TextStyle(
+                      color: FColors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     ));
   }

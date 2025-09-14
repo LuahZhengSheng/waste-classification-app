@@ -1,7 +1,7 @@
 import 'package:fyp/utils/popups/loaders.dart';
 import 'package:get/get.dart';
 import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
-import 'package:fyp/features/recycling_center/models/waste_category.dart';
+import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 

@@ -30,15 +30,15 @@ class MyRewardsScreen extends StatelessWidget {
             color: dark ? FColors.white : FColors.black,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () => controller.refreshData(),
-            icon: Icon(
-              Iconsax.refresh,
-              color: dark ? FColors.white : FColors.black,
-            ),
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     onPressed: () => controller.refreshData(),
+        //     icon: Icon(
+        //       Iconsax.refresh,
+        //       color: dark ? FColors.white : FColors.black,
+        //     ),
+        //   ),
+        // ],
         bottom: TabBar(
           controller: controller.tabController,
           labelColor: FColors.primary,
@@ -188,15 +188,15 @@ class MyRewardsScreen extends StatelessWidget {
           border: isNearExpiry
               ? Border.all(color: FColors.warning, width: 2)
               : Border.all(color: dark ? FColors.borderPrimary.withOpacity(0.1) : FColors.borderPrimary),
-          boxShadow: [
-            BoxShadow(
-              color: dark
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          // boxShadow: [
+          //   BoxShadow(
+          //     color: dark
+          //         ? Colors.white.withOpacity(0.05)
+          //         : Colors.black.withOpacity(0.1),
+          //     blurRadius: 8,
+          //     offset: const Offset(0, 2),
+          //   ),
+          // ],
         ),
         child: Column(
           children: [
@@ -257,11 +257,11 @@ class MyRewardsScreen extends StatelessWidget {
                       horizontal: FSizes.sm,
                       vertical: FSizes.xs,
                     ),
-                    decoration: BoxDecoration(
-                      color: FColors.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(FSizes.borderRadiusSm),
-                      border: Border.all(color: FColors.success, width: 1),
-                    ),
+                    // decoration: BoxDecoration(
+                    //   color: FColors.success.withOpacity(0.1),
+                    //   borderRadius: BorderRadius.circular(FSizes.borderRadiusSm),
+                    //   border: Border.all(color: FColors.success, width: 1),
+                    // ),
                     child: Text(
                       'ACTIVE',
                       style: Theme.of(Get.context!).textTheme.labelSmall?.copyWith(
@@ -285,10 +285,6 @@ class MyRewardsScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: dark ? FColors.dark : FColors.lightContainer,
                       borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                      border: Border.all(
-                        color: FColors.primary.withOpacity(0.3),
-                        width: 1,
-                      ),
                     ),
                     child: Column(
                       children: [
@@ -371,20 +367,20 @@ class MyRewardsScreen extends StatelessWidget {
                     ),
       
                   /// Use Now Button
-                  const SizedBox(height: FSizes.md),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showUseConfirmationDialog(redemption, reward, controller, dark),
-                      icon: const Icon(Iconsax.tick_circle),
-                      label: const Text('Mark as Used'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: FColors.primary,
-                        foregroundColor: FColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: FSizes.sm),
-                      ),
-                    ),
-                  ),
+                  // const SizedBox(height: FSizes.md),
+                  // SizedBox(
+                  //   width: double.infinity,
+                  //   child: ElevatedButton.icon(
+                  //     onPressed: () => _showUseConfirmationDialog(redemption, reward, controller, dark),
+                  //     icon: const Icon(Iconsax.tick_circle),
+                  //     label: const Text('Mark as Used'),
+                  //     style: ElevatedButton.styleFrom(
+                  //       backgroundColor: FColors.primary,
+                  //       foregroundColor: FColors.white,
+                  //       padding: const EdgeInsets.symmetric(vertical: FSizes.sm),
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
