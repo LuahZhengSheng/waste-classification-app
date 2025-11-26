@@ -102,7 +102,7 @@ class AddActivityFormController extends GetxController {
     }
 
     final basePoints = selectedCategory.value!.basePoints;
-    final totalPoints = (weight * basePoints).round();
+    final totalPoints = (weight * basePoints!).round();
     calculatedPoints.value = totalPoints;
   }
 

@@ -8,6 +8,7 @@ class Achievement {
   final String category;
   final int maxLevel;
   final DateTime createdAt;
+  final String status; // 新增状态属性
   final List<AchievementLevel> achievementLevels;
 
   Achievement({
@@ -16,6 +17,7 @@ class Achievement {
     required this.category,
     required this.maxLevel,
     required this.createdAt,
+    required this.status, // 新增状态属性
     this.achievementLevels = const [],
   });
 
@@ -27,6 +29,7 @@ class Achievement {
       category: '',
       maxLevel: 0,
       createdAt: DateTime(0),
+      status: 'active', // 默认状态
       achievementLevels: [],
     );
   }
@@ -39,6 +42,7 @@ class Achievement {
       'category': category,
       'maxLevel': maxLevel,
       'createdAt': Timestamp.fromDate(createdAt),
+      'status': status, // 新增状态属性
       'achievementLevels': achievementLevels.map((level) => level.toJson()).toList(),
     };
   }
@@ -61,6 +65,7 @@ class Achievement {
       category: data['category'] ?? '',
       maxLevel: data['maxLevel'] ?? 0,
       createdAt: getTimestamp('createdAt').toDate(),
+      status: data['status'] ?? 'active', // 新增状态属性，默认值
       achievementLevels: levelsList,
     );
   }
@@ -87,6 +92,7 @@ class Achievement {
       category: map['category'] ?? '',
       maxLevel: map['maxLevel'] ?? 0,
       createdAt: getDateTime(map['createdAt']),
+      status: map['status'] ?? 'active', // 新增状态属性，默认值
       achievementLevels: levelsList,
     );
   }
@@ -98,6 +104,7 @@ class Achievement {
     String? category,
     int? maxLevel,
     DateTime? createdAt,
+    String? status, // 新增状态属性
     List<AchievementLevel>? achievementLevels,
   }) {
     return Achievement(
@@ -106,6 +113,7 @@ class Achievement {
       category: category ?? this.category,
       maxLevel: maxLevel ?? this.maxLevel,
       createdAt: createdAt ?? this.createdAt,
+      status: status ?? this.status, // 新增状态属性
       achievementLevels: achievementLevels ?? this.achievementLevels,
     );
   }

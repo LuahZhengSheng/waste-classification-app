@@ -1,5 +1,4 @@
 /// Event-related enumerations
-
 /// Time filter options for events
 enum TimeFilter {
   allTime,
@@ -23,6 +22,24 @@ extension TimeFilterExtension on TimeFilter {
         return 'This Month';
       case TimeFilter.thisYear:
         return 'This Year';
+    }
+  }
+}
+
+/// Event publish for filtering
+enum EventPublishFilter {
+  published,
+  unpublished,
+}
+
+/// Extension for EventPublishFilter
+extension EventPublishFilterExtension on EventPublishFilter {
+  String get displayName {
+    switch (this) {
+      case EventPublishFilter.published:
+        return 'Published Events';
+      case EventPublishFilter.unpublished:
+        return 'Unpublished Events';
     }
   }
 }
@@ -63,12 +80,12 @@ enum RegistrationStatus {
 extension RegistrationStatusExtension on RegistrationStatus {
   String get displayName {
     switch (this) {
+      case RegistrationStatus.cancelled:
+        return 'Cancelled by Organizer';
       case RegistrationStatus.notRegistered:
         return 'Not Registered';
       case RegistrationStatus.registered:
         return 'Registered';
-      case RegistrationStatus.cancelled:
-        return 'Cancelled';
       case RegistrationStatus.waitlisted:
         return 'Waitlisted';
     }
@@ -77,24 +94,24 @@ extension RegistrationStatusExtension on RegistrationStatus {
 
 /// Event attendance status
 enum AttendanceStatus {
+  cancelled,
   upcoming,
   ongoing,
   completed,
-  cancelled,
 }
 
 /// Extension to get display name for AttendanceStatus
 extension AttendanceStatusExtension on AttendanceStatus {
   String get displayName {
     switch (this) {
+      case AttendanceStatus.cancelled:
+        return 'Cancelled by Organizer';
       case AttendanceStatus.upcoming:
         return 'Upcoming';
       case AttendanceStatus.ongoing:
         return 'Ongoing';
       case AttendanceStatus.completed:
         return 'Completed';
-      case AttendanceStatus.cancelled:
-        return 'Cancelled';
     }
   }
 }

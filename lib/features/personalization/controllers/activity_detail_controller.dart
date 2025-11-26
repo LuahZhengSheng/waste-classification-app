@@ -144,13 +144,12 @@ class ActivityDetailController extends GetxController {
           email: user.email,
           phoneNo: user.phoneNo ?? '',
           profileImg: user.profileImg ?? '',
-          loginAttemptCount: user.loginAttemptCount ?? 0,
           role: user.role,
-          isVerified: user.isVerified ?? false,
-          isActive: user.isActive ?? true,
-          lastFailedLogin: user.lastFailedLogin,
+          isVerified: user.isVerified,
+          isActive: user.isActive,
           centerId: '', // 无法从用户数据获取
-          joinDate: user.joinDate ?? DateTime.now(),
+          joinDate: user.joinDate,
+          isBanned: user.isActive
         );
         print('✅ Fallback staff user loaded: ${user.username}');
       } else {

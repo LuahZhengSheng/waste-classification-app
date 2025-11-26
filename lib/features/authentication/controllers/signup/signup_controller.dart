@@ -71,10 +71,10 @@ class SignupController extends GetxController {
         userId: userCredential.user!.uid,
         username: username.text.trim(),
         email: email.text.trim(),
-        loginAttemptCount: 0,
         role: 'user', // Default role for new users
         isVerified: false,
         isActive: true,
+        isBanned: false,
         joinDate: DateTime.now(), // This will be updated with server time in Firestore
         rewardPoint: 0,
         monthlyRewardPoint: 0,

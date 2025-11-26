@@ -1,8 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../utils/helpers/helper_functions.dart';
 import 'location_model.dart';
-import 'address_model.dart';
-import 'geopoint_model.dart';
 import 'event_registration_model.dart';
 import 'dart:math' as math;
 
@@ -44,53 +42,6 @@ class Event {
     this.eventRegistrations = const [],
   });
 
-  /// Creates an empty Event instance
-  static Event empty() => Event(
-    eventId: '',
-    title: '',
-    description: '',
-    contactEmail: '',
-    contactPhoneNo: '',
-    location: Location.empty(),
-    poster: '',
-    startDateTime: DateTime.now(),
-    endDateTime: DateTime.now(),
-    registrationDeadline: DateTime.now(),
-    maxParticipants: 0,
-    registeredCount: 0,
-    createdAt: DateTime.now(),
-    status: 'active',
-    eventRegistrations: [],
-  );
-
-  /// Creates Event instance from JSON map
-  factory Event.fromJson(Map<String, dynamic> json) {
-    return Event(
-      eventId: json['eventId'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      contactEmail: json['contactEmail'] ?? '',
-      contactPhoneNo: json['contactPhoneNo'] ?? '',
-      location: Location.fromJson(json['location'] ?? {}),
-      poster: json['poster'] ?? '',
-      startDateTime: DateTime.parse(
-          json['startDateTime'] ?? DateTime.now().toIso8601String()),
-      endDateTime: DateTime.parse(
-          json['endDateTime'] ?? DateTime.now().toIso8601String()),
-      registrationDeadline: DateTime.parse(
-          json['registrationDeadline'] ?? DateTime.now().toIso8601String()),
-      maxParticipants: json['maxParticipants']?.toInt() ?? 0,
-      registeredCount: json['registeredCount']?.toInt() ?? 0,
-      createdAt: DateTime.parse(
-          json['createdAt'] ?? DateTime.now().toIso8601String()),
-      status: json['status'] ?? 'active',
-      eventRegistrations: (json['eventRegistrations'] as List<dynamic>?)
-          ?.map((reg) => EventRegistration.fromJson(reg))
-          .toList() ??
-          [],
-    );
-  }
-
   /// Creates Event instance from Firebase DocumentSnapshot
   factory Event.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
@@ -131,30 +82,8 @@ class Event {
     );
   }
 
-  /// Converts Event instance to JSON map
-  Map<String, dynamic> toJson() {
-    return {
-      'eventId': eventId,
-      'title': title,
-      'description': description,
-      'contactEmail': contactEmail,
-      'contactPhoneNo': contactPhoneNo,
-      'location': location.toJson(),
-      'poster': poster,
-      'startDateTime': startDateTime.toIso8601String(),
-      'endDateTime': endDateTime.toIso8601String(),
-      'registrationDeadline': registrationDeadline.toIso8601String(),
-      'maxParticipants': maxParticipants,
-      'registeredCount': registeredCount,
-      'createdAt': createdAt.toIso8601String(),
-      'status': status,
-      'eventRegistrations':
-      eventRegistrations.map((reg) => reg.toJson()).toList(),
-    };
-  }
-
   /// Converts Event instance to Firestore map (with Timestamps)
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toJson() {
     return {
       'title': title,
       'description': description,
@@ -170,6 +99,65 @@ class Event {
       'createdAt': Timestamp.fromDate(createdAt),
       'status': status,
     };
+  }
+
+  /// Creates an empty Event instance
+  static Event empty() => Event(
+    eventId: '',
+    title: '',
+    description: '',
+    contactEmail: '',
+    contactPhoneNo: '',
+    location: Location.empty(),
+    poster: '',
+    startDateTime: DateTime.now(),
+    endDateTime: DateTime.now(),
+    registrationDeadline: DateTime.now(),
+    maxParticipants: 0,
+    registeredCount: 0,
+    createdAt: DateTime.now(),
+    status: 'active',
+    eventRegistrations: [],
+  );
+
+
+  /// Creates a copy of Event with updated fields
+  Event copyWith({
+    String? eventId,
+    String? title,
+    String? description,
+    String? contactEmail,
+    String? contactPhoneNo,
+    Location? location,
+    String? poster,
+    DateTime? startDateTime,
+    DateTime? endDateTime,
+    DateTime? registrationDeadline,
+    int? maxParticipants,
+    int? registeredCount,
+    DateTime? createdAt,
+    bool? isPublish,
+    String? status,
+    List<EventRegistration>? eventRegistrations,
+  }) {
+    return Event(
+      eventId: eventId ?? this.eventId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      contactEmail: contactEmail ?? this.contactEmail,
+      contactPhoneNo: contactPhoneNo ?? this.contactPhoneNo,
+      location: location ?? this.location,
+      poster: poster ?? this.poster,
+      startDateTime: startDateTime ?? this.startDateTime,
+      endDateTime: endDateTime ?? this.endDateTime,
+      registrationDeadline: registrationDeadline ?? this.registrationDeadline,
+      maxParticipants: maxParticipants ?? this.maxParticipants,
+      registeredCount: registeredCount ?? this.registeredCount,
+      createdAt: createdAt ?? this.createdAt,
+      isPublish: isPublish ?? this.isPublish,
+      status: status ?? this.status,
+      eventRegistrations: eventRegistrations ?? this.eventRegistrations,
+    );
   }
 
   /// Returns formatted start date and time
@@ -228,8 +216,14 @@ class Event {
     return DateTime.now().isAfter(registrationDeadline);
   }
 
+  /// Checks if event is cancelled by organizer
+  bool get isCancelledByOrganizer {
+    return status == 'cancelled' || status == 'deleted';
+  }
+
   /// Returns event status text
   String get statusText {
+    if (isCancelledByOrganizer) return 'Cancelled by Organizer';
     if (hasEnded) return 'Ended';
     if (hasStarted) return 'In Progress';
     if (isRegistrationClosed) return 'Registration Closed';
@@ -278,45 +272,6 @@ class Event {
     }
   }
 
-  /// Creates a copy of Event with updated fields
-  Event copyWith({
-    String? eventId,
-    String? title,
-    String? description,
-    String? contactEmail,
-    String? contactPhoneNo,
-    Location? location,
-    String? poster,
-    DateTime? startDateTime,
-    DateTime? endDateTime,
-    DateTime? registrationDeadline,
-    int? maxParticipants,
-    int? registeredCount,
-    DateTime? createdAt,
-    bool? isPublish,
-    String? status,
-    List<EventRegistration>? eventRegistrations,
-  }) {
-    return Event(
-      eventId: eventId ?? this.eventId,
-      title: title ?? this.title,
-      description: description ?? this.description,
-      contactEmail: contactEmail ?? this.contactEmail,
-      contactPhoneNo: contactPhoneNo ?? this.contactPhoneNo,
-      location: location ?? this.location,
-      poster: poster ?? this.poster,
-      startDateTime: startDateTime ?? this.startDateTime,
-      endDateTime: endDateTime ?? this.endDateTime,
-      registrationDeadline: registrationDeadline ?? this.registrationDeadline,
-      maxParticipants: maxParticipants ?? this.maxParticipants,
-      registeredCount: registeredCount ?? this.registeredCount,
-      createdAt: createdAt ?? this.createdAt,
-      isPublish: isPublish ?? this.isPublish,
-      status: status ?? this.status,
-      eventRegistrations: eventRegistrations ?? this.eventRegistrations,
-    );
-  }
-
   @override
   String toString() {
     return 'Event(eventId: $eventId, title: $title, description: $description, contactEmail: $contactEmail, contactPhoneNo: $contactPhoneNo, location: $location, poster: $poster, startDateTime: $startDateTime, endDateTime: $endDateTime, registrationDeadline: $registrationDeadline, maxParticipants: $maxParticipants, registeredCount: $registeredCount, createdAt: $createdAt, status: $status, eventRegistrations: $eventRegistrations)';
@@ -359,5 +314,29 @@ class Event {
     registeredCount.hashCode ^
     createdAt.hashCode ^
     status.hashCode;
+  }
+
+  /// Get days remaining until registration deadline
+  int get daysUntilDeadline {
+    final now = DateTime.now();
+    if (now.isAfter(registrationDeadline)) return 0;
+    return registrationDeadline.difference(now).inDays;
+  }
+
+  /// Get formatted days remaining text
+  String get daysUntilDeadlineText {
+    final days = daysUntilDeadline;
+    if (days == 0) return 'Today';
+    if (days == 1) return '1 day';
+    return '$days days';
+  }
+
+  /// Get computed status based on dates (upcoming/ongoing/completed)
+  String get computedStatus {
+    if (status == 'cancelled') return 'cancelled';
+    if (status == 'deleted') return 'deleted';
+    if (hasEnded) return 'completed';
+    if (hasStarted) return 'ongoing';
+    return 'upcoming';
   }
 }

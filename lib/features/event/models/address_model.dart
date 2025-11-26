@@ -6,6 +6,7 @@ class Address {
   final String city;
   final String state;
   final String? fullAddress;
+  final String? placeId; // ✅ 新增 Google Place ID
 
   const Address({
     required this.unitNo,
@@ -14,6 +15,7 @@ class Address {
     required this.city,
     required this.state,
     this.fullAddress,
+    this.placeId, // ✅ 新增
   });
 
   /// Creates an empty Address instance
@@ -34,6 +36,7 @@ class Address {
       city: json['city'] ?? '',
       state: json['state'] ?? '',
       fullAddress: json['fullAddress'],
+      placeId: json['placeId'], // ✅ 新增
     );
   }
 
@@ -49,6 +52,10 @@ class Address {
 
     if (fullAddress != null && fullAddress!.isNotEmpty) {
       json['fullAddress'] = fullAddress!;
+    }
+
+    if (placeId != null && placeId!.isNotEmpty) {
+      json['placeId'] = placeId!; // ✅ 新增
     }
 
     return json;
@@ -67,6 +74,9 @@ class Address {
   /// 专门获取 Google 地址的方法（如果有）
   String? get googleAddress => fullAddress;
 
+  /// 检查是否有 Google Place ID
+  bool get hasPlaceId => placeId != null && placeId!.isNotEmpty;
+
   /// Creates a copy of Address with updated fields
   Address copyWith({
     String? unitNo,
@@ -75,6 +85,7 @@ class Address {
     String? city,
     String? state,
     String? fullAddress,
+    String? placeId, // ✅ 新增
   }) {
     return Address(
       unitNo: unitNo ?? this.unitNo,
@@ -83,6 +94,7 @@ class Address {
       city: city ?? this.city,
       state: state ?? this.state,
       fullAddress: fullAddress ?? this.fullAddress,
+      placeId: placeId ?? this.placeId, // ✅ 新增
     );
   }
 
@@ -100,7 +112,8 @@ class Address {
         other.postcode == postcode &&
         other.city == city &&
         other.state == state &&
-        other.fullAddress == fullAddress;
+        other.fullAddress == fullAddress &&
+        other.placeId == placeId; // ✅ 新增
   }
 
   @override
@@ -110,6 +123,7 @@ class Address {
     postcode.hashCode ^
     city.hashCode ^
     state.hashCode ^
-    fullAddress.hashCode;
+    fullAddress.hashCode ^
+    placeId.hashCode; // ✅ 新增
   }
 }

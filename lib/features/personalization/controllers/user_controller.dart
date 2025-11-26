@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fyp/data/repositories/authentication/authentication_repository.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
@@ -58,8 +57,8 @@ class UserController extends GetxController {
           profileImg: userCredentials.user!.photoURL ?? '',
           isActive: true,
           isVerified: false,
+          isBanned: false,
           joinDate: DateTime.now(),
-          loginAttemptCount: 0,
           notifications: [],
           rewardPoint: 0,
           role: 'user',

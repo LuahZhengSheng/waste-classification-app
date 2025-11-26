@@ -58,9 +58,9 @@ class RewardModel {
       'rewardImage': rewardImage,
       'pointsNeeded': pointsNeeded,
       'quantity': quantity,
-      'validUntil': validUntil.toIso8601String(),
+      'validUntil': Timestamp.fromDate(validUntil),
       'redemptionCount': redemptionCount,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt),
       'status': status,
     };
   }
@@ -77,9 +77,9 @@ class RewardModel {
         rewardImage: data['rewardImage'] ?? '',
         pointsNeeded: data['pointsNeeded'] ?? 0,
         quantity: data['quantity'] ?? 0,
-        validUntil: (data['validUntil'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        validUntil: (data['validUntil'] as Timestamp).toDate(),
         redemptionCount: data['redemptionCount'] ?? 0,
-        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
         status: data['status'] ?? 'active',
         redemptions: (data['redemptions'] as List<dynamic>?)
             ?.map((redemptionData) => RedemptionModel.fromJson(redemptionData))
@@ -124,7 +124,7 @@ class RewardModel {
 
   /// Helper method to get remaining quantity
   int get remainingQuantity {
-    return quantity - redemptions.length;
+    return quantity - redemptionCount;
   }
 
   /// Helper method to get total redemptions count
@@ -244,7 +244,7 @@ class RewardModel {
       pointsNeeded: pointsNeeded ?? this.pointsNeeded,
       quantity: quantity ?? this.quantity,
       validUntil: validUntil ?? this.validUntil,
-      redemptionCount: redemptionCount ?? this.quantity,
+      redemptionCount: redemptionCount ?? this.redemptionCount,  // 修正这里
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
       redemptions: redemptions ?? this.redemptions,

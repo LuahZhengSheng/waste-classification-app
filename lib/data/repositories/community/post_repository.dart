@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/services.dart';
@@ -65,38 +67,148 @@ class PostRepository extends GetxController {
     }
   }
 
+  /// Get all posts using Future (instead of Stream)
+  Future<List<PostModel>> getAllPosts() async {
+    try {
+      final snapshot = await _db
+          .collection("posts")
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      final posts = <PostModel>[];
+
+      print('=== DEBUG: Firestore Posts Query (Future) ===');
+      print('Total documents in snapshot: ${snapshot.docs.length}');
+
+      for (var doc in snapshot.docs) {
+        try {
+          print('--- Processing post ${doc.id} ---');
+          print('Document data: ${doc.data()}');
+
+          var post = PostModel.fromSnapshot(doc);
+
+          // 打印帖子的关键信息，特别是 isDisabled 字段
+          print('Post ID: ${post.postId}');
+          print('User ID: ${post.userId}');
+          print('Content: ${post.content.substring(0, min(50, post.content.length))}...');
+          print('Post Type: ${post.postType}');
+          print('isDisabled: ${post.isDisabled}');
+          print('Created At: ${post.createdAt}');
+          print('Media count: ${post.media.length}');
+
+          // Convert storage paths to URLs
+          if (post.media.isNotEmpty) {
+            print('Converting media paths to URLs...');
+            final urls = await getMediaUrls(post.media, post.userId);
+            post = post.copyWith(media: urls);
+            print('Media URLs converted: ${urls.length}');
+          }
+
+          posts.add(post);
+          print('✓ Successfully processed post ${post.postId}\n');
+        } catch (e) {
+          print('✗ Error processing post ${doc.id}: $e');
+          print('Document data that caused error: ${doc.data()}');
+          // Skip this post and continue with others
+        }
+      }
+
+      // 在返回前打印总结信息
+      print('=== DEBUG: Posts Processing Summary ===');
+      print('Total posts successfully processed: ${posts.length}');
+      print('Disabled posts count: ${posts.where((p) => p.isDisabled).length}');
+      print('Active posts count: ${posts.where((p) => !p.isDisabled).length}');
+
+      // 打印所有帖子的 isDisabled 状态
+      print('All posts isDisabled status:');
+      for (var post in posts) {
+        print('  - ${post.postId}: isDisabled = ${post.isDisabled}');
+      }
+      print('=== DEBUG: End of Posts Query ===\n');
+
+      return posts;
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } on FormatException catch (_) {
+      throw const FFormatException();
+    } on PlatformException catch (e) {
+      throw FPlatformException(e.code).message;
+    } catch (e) {
+      throw 'Failed to load posts: $e';
+    }
+  }
+
+  /// Stream to listen to posts count changes only
+  Stream<int> getPostsCountStream() {
+    return _db
+        .collection("posts")
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
   /// Stream to get all posts in real-time (with media URLs)
   Stream<List<PostModel>> getAllPostsStream() {
     return _db
         .collection("posts")
-        .where('isDisabled', isEqualTo: false)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
       final posts = <PostModel>[];
 
+      print('=== DEBUG: Firestore Posts Query ===');
+      print('Total documents in snapshot: ${snapshot.docs.length}');
+
       for (var doc in snapshot.docs) {
         try {
+          print('--- Processing post ${doc.id} ---');
+          print('Document data: ${doc.data()}');
+
           var post = PostModel.fromSnapshot(doc);
+
+          // 打印帖子的关键信息，特别是 isDisabled 字段
+          print('Post ID: ${post.postId}');
+          print('User ID: ${post.userId}');
+          print('Content: ${post.content.substring(0, min(50, post.content.length))}...');
+          print('Post Type: ${post.postType}');
+          print('isDisabled: ${post.isDisabled}');
+          print('Created At: ${post.createdAt}');
+          print('Media count: ${post.media.length}');
 
           // Convert storage paths to URLs
           if (post.media.isNotEmpty) {
+            print('Converting media paths to URLs...');
             final urls = await getMediaUrls(post.media, post.userId);
             post = post.copyWith(media: urls);
+            print('Media URLs converted: ${urls.length}');
           }
 
           posts.add(post);
+          print('✓ Successfully processed post ${post.postId}\n');
         } catch (e) {
-          print('Error processing post ${doc.id}: $e');
+          print('✗ Error processing post ${doc.id}: $e');
+          print('Document data that caused error: ${doc.data()}');
           // Skip this post and continue with others
         }
       }
+
+      // 在返回前打印总结信息
+      print('=== DEBUG: Posts Processing Summary ===');
+      print('Total posts successfully processed: ${posts.length}');
+      print('Disabled posts count: ${posts.where((p) => p.isDisabled).length}');
+      print('Active posts count: ${posts.where((p) => !p.isDisabled).length}');
+
+      // 打印所有帖子的 isDisabled 状态
+      print('All posts isDisabled status:');
+      for (var post in posts) {
+        print('  - ${post.postId}: isDisabled = ${post.isDisabled}');
+      }
+      print('=== DEBUG: End of Posts Query ===\n');
 
       return posts;
     });
   }
 
-  /// Stream to get single post by ID (with media URLs)
+  /// Stream to get single post by ID (with media URLs) - 用于实时更新单个帖子
   Stream<PostModel?> getPostByIdStream(String postId) {
     return _db
         .collection("posts")
@@ -117,6 +229,7 @@ class PostRepository extends GetxController {
       return null;
     });
   }
+
 
   /// Stream to get posts by type (with media URLs)
   Stream<List<PostModel>> getPostsByTypeStream(String postType) {
@@ -393,6 +506,95 @@ class PostRepository extends GetxController {
       throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
+    }
+  }
+
+  /// Get total posts count
+  Future<int> getPostsCount({bool isDisabled = false}) async {
+    try {
+      final snapshot = await _db
+          .collection("posts")
+          .where('isDisabled', isEqualTo: isDisabled)
+          .count()
+          .get();
+
+      return snapshot.count ?? 0;
+    } catch (e) {
+      throw 'Failed to get posts count: $e';
+    }
+  }
+
+  /// Stream posts with pagination
+  Stream<List<PostModel>> getPostsStreamPaginated({
+    required int limit,
+    required int offset,
+    bool isDisabled = false,
+  }) {
+    return _db
+        .collection("posts")
+        .where('isDisabled', isEqualTo: isDisabled)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      // Skip documents based on offset
+      final docs = snapshot.docs.skip(offset).take(limit).toList();
+      final posts = <PostModel>[];
+
+      for (var doc in docs) {
+        try {
+          var post = PostModel.fromSnapshot(doc);
+
+          // Convert storage paths to URLs
+          if (post.media.isNotEmpty) {
+            final urls = await getMediaUrls(post.media, post.userId);
+            post = post.copyWith(media: urls);
+          }
+
+          posts.add(post);
+        } catch (e) {
+          print('Error processing post ${doc.id}: $e');
+        }
+      }
+
+      return posts;
+    });
+  }
+
+  /// Toggle post disabled status
+  Future<void> togglePostDisabledStatus(String postId, bool isDisabled) async {
+    try {
+      await _db.collection("posts").doc(postId).update({
+        'isDisabled': isDisabled,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      throw 'Failed to update post status: $e';
+    }
+  }
+
+  /// Get post details with comments (limited)
+  Future<PostModel> getPostWithComments(String postId, {int commentLimit = 10}) async {
+    try {
+      final postDoc = await _db.collection("posts").doc(postId).get();
+
+      if (!postDoc.exists) {
+        throw 'Post not found';
+      }
+
+      var post = PostModel.fromSnapshot(postDoc);
+
+      // Convert storage paths to URLs
+      if (post.media.isNotEmpty) {
+        final urls = await getMediaUrls(post.media, post.userId);
+        post = post.copyWith(media: urls);
+      }
+
+      return post;
+    } catch (e) {
+      throw 'Failed to get post details: $e';
     }
   }
 }

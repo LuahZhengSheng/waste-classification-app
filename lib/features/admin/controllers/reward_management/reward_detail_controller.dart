@@ -1,29 +1,117 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../data/repositories/reward_redemption/redemption_repository.dart';
+import '../../../../data/repositories/reward_redemption/reward_repository.dart';
 import '../../../../utils/constants/colors.dart';
-import '../../../../utils/helpers/helper_functions.dart';
-import '../../../reward_redemption/models/reward_model.dart';
+import '../../../../utils/popups/admin_loaders.dart';
 import '../../../reward_redemption/models/redemption_model.dart';
+import '../../../reward_redemption/models/reward_model.dart';
 
 class RewardDetailsController extends GetxController {
   final RewardModel initialReward;
 
-  // Constructor to receive the reward
-  RewardDetailsController({required RewardModel reward}) : initialReward = reward;
+  RewardDetailsController({required RewardModel reward})
+      : initialReward = reward;
+
+  // Repositories
+  final _rewardRepo = Get.put(RewardRepository());
+  final _redemptionRepo = Get.put(RedemptionRepository());
+
+  // Stream subscriptions
+  StreamSubscription<RewardModel>? _rewardSubscription;
+  StreamSubscription<int>? _redemptionCountSubscription;
 
   // Observables
   late Rx<RewardModel> reward;
   final RxList<RedemptionModel> redemptions = <RedemptionModel>[].obs;
   final RxBool isLoadingRedemptions = false.obs;
+  final RxInt currentRedemptionCount = 0.obs;
+  final RxBool showNewRedemptionNotification = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     reward = initialReward.obs;
+    _listenToReward();
+    _listenToRedemptionCount();
     loadRedemptions();
   }
 
-  /// Get the computed status of the reward based on various conditions
+  @override
+  void onClose() {
+    _rewardSubscription?.cancel();
+    _redemptionCountSubscription?.cancel();
+    super.onClose();
+  }
+
+  /// Listen to reward updates
+  void _listenToReward() {
+    _rewardSubscription =
+        _rewardRepo.getRewardByIdStream(initialReward.rewardId).listen(
+              (updatedReward) {
+            reward.value = updatedReward;
+          },
+          onError: (error) {
+            print('Error listening to reward: $error');
+          },
+        );
+  }
+
+  /// Listen to redemption count changes
+  void _listenToRedemptionCount() {
+    _redemptionCountSubscription = _redemptionRepo
+        .getRedemptionCountByRewardIdStream(initialReward.rewardId)
+        .listen(
+          (count) {
+        // 只在有变化且不是初始加载时显示通知
+        if (count != currentRedemptionCount.value && currentRedemptionCount.value > 0) {
+          showNewRedemptionNotification.value = true;
+
+          if (count > currentRedemptionCount.value) {
+            print('🆕 New redemption added: ${currentRedemptionCount.value} -> $count');
+          } else {
+            print('🗑️ Redemption removed: ${currentRedemptionCount.value} -> $count');
+          }
+        }
+        currentRedemptionCount.value = count;
+      },
+      onError: (error) {
+        print('Error listening to redemption count: $error');
+      },
+    );
+  }
+
+  /// Load redemptions (future get)
+  Future<void> loadRedemptions() async {
+    try {
+      isLoadingRedemptions.value = true;
+      final redemptionList = await _redemptionRepo
+          .getRedemptionsByRewardId(initialReward.rewardId);
+      redemptions.assignAll(redemptionList);
+      currentRedemptionCount.value = redemptionList.length;
+    } catch (e) {
+      print('$e');
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to load redemptions: ${e.toString()}',
+      );
+    } finally {
+      isLoadingRedemptions.value = false;
+    }
+  }
+
+  /// Refresh redemptions
+  Future<void> refreshRedemptions() async {
+    showNewRedemptionNotification.value = false;
+    await loadRedemptions();
+    FAdminLoaders.successSnackBar(
+      title: 'Refreshed',
+      message: 'Redemptions updated successfully',
+    );
+  }
+
+  /// Get computed status
   String getComputedStatus() {
     if (reward.value.status == 'inactive') {
       return 'inactive';
@@ -40,159 +128,99 @@ class RewardDetailsController extends GetxController {
     return 'active';
   }
 
-  /// Load redemptions for this specific reward
-  Future<void> loadRedemptions() async {
-    try {
-      isLoadingRedemptions.value = true;
-
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Generate mock redemptions for this reward
-      redemptions.value = _generateMockRedemptions();
-
-    } catch (e) {
-      FHelperFunctions.showSnackBar('Error loading redemptions: ${e.toString()}');
-    } finally {
-      isLoadingRedemptions.value = false;
-    }
-  }
-
-  /// Generate mock redemption data
-  List<RedemptionModel> _generateMockRedemptions() {
-    final now = DateTime.now();
-    final List<RedemptionModel> mockRedemptions = [];
-
-    // Generate redemptions based on the reward's redemption count
-    for (int i = 0; i < reward.value.redemptionCount; i++) {
-      final createdAt = now.subtract(Duration(days: (i * 2) + 1, hours: i * 3));
-
-      mockRedemptions.add(
-        RedemptionModel(
-          redemptionId: 'redemption_${reward.value.rewardId}_$i',
-          userId: 'user_${1000 + i}',
-          rewardId: reward.value.rewardId,
-          pinCode: _generatePinCode(),
-          createdAt: createdAt,
-          status: _getRandomRedemptionStatus(),
-        ),
-      );
-    }
-
-    // Sort by creation date (newest first)
-    mockRedemptions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-    return mockRedemptions;
-  }
-
-  /// Generate a random 6-digit PIN code
-  String _generatePinCode() {
-    final codes = ['123456', '789012', '345678', '901234', '567890', '234567', '678901', '890123'];
-    return codes[(DateTime.now().millisecond % codes.length)];
-  }
-
-  /// Get a random redemption status for mock data
-  String _getRandomRedemptionStatus() {
-    final statuses = ['pending', 'used', 'expired'];
-    return statuses[DateTime.now().millisecond % statuses.length];
-  }
-
-  /// Toggle the reward status between active and inactive
+  /// Toggle reward status
   Future<void> toggleRewardStatus() async {
     try {
+      print('Toggle status called - current status: ${reward.value.status}');
       final newStatus = reward.value.status == 'active' ? 'inactive' : 'active';
+      print('Attempting to change to: $newStatus');
 
       // If activating, check constraints
       if (newStatus == 'active') {
-        if (!_canActivateReward()) {
+        print('Checking activation constraints...');
+        final canActivate = _canActivateReward();
+        print('Can activate: $canActivate');
+
+        if (!canActivate) {
+          print('Activation blocked due to constraints');
           return;
         }
       }
 
-      // Update the reward status
-      reward.value = reward.value.copyWith(status: newStatus);
+      print('Proceeding with status update...');
+      await _rewardRepo.updateRewardStatus(reward.value.rewardId, newStatus);
 
-      // Simulate API call
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Show success message
       final message = newStatus == 'active'
           ? 'Reward activated successfully'
           : 'Reward deactivated successfully';
-      FHelperFunctions.showSnackBar(message);
-
+      FAdminLoaders.successSnackBar(
+        title: 'Success',
+        message: message,
+      );
+      print('Status update completed successfully');
     } catch (e) {
-      FHelperFunctions.showSnackBar('Error updating reward status: ${e.toString()}');
+      print('Error during status update: $e');
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to update reward status: ${e.toString()}',
+      );
     }
   }
 
-  /// Check if the reward can be activated
+  /// Check if reward can be activated
   bool _canActivateReward() {
     final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
 
-    // Check if quantity is available
-    if (reward.value.quantity <= 0) {
-      FHelperFunctions.showAlert(
-        'Cannot Activate Reward',
-        'Reward cannot be activated because quantity is 0. Please update the quantity first.',
-      );
+    if (reward.value.remainingQuantity <= 0) {
+      print('❌ Activation failed: remaining quantity is 0');
+
+      // 先关闭可能存在的 snackbar
+      if (Get.isSnackbarOpen) {
+        Get.closeCurrentSnackbar();
+      }
+
+      // 添加延迟确保关闭完成
+      Future.delayed(Duration.zero, () {
+        FAdminLoaders.warningSnackBar(
+          title: 'Cannot Activate Reward',
+          message: 'Reward cannot be activated because remaining quantity is 0. Please update the quantity first.',
+        );
+      });
+
       return false;
     }
 
-    // Check if reward hasn't expired
-    if (reward.value.validUntil.isBefore(now)) {
-      FHelperFunctions.showAlert(
-        'Cannot Activate Reward',
-        'Reward cannot be activated because the valid until date has passed. Please update the expiry date first.',
-      );
+    if (reward.value.validUntil.isBefore(tomorrow)) {
+      print('❌ Activation failed: valid until date is too soon');
+
+      // 先关闭可能存在的 snackbar
+      if (Get.isSnackbarOpen) {
+        Get.closeCurrentSnackbar();
+      }
+
+      // 添加延迟确保关闭完成
+      Future.delayed(Duration.zero, () {
+        FAdminLoaders.warningSnackBar(
+          title: 'Cannot Activate Reward',
+          message: 'Reward cannot be activated because the valid until date must be at least 1 day from now. Please update the expiry date first.',
+        );
+      });
+
       return false;
     }
 
+    print('✅ Activation constraints passed');
     return true;
   }
 
-  /// Refresh reward data
-  Future<void> refreshReward() async {
-    try {
-      // Simulate API call to get updated reward data
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // In a real app, you would fetch the updated reward from the API
-      // For now, we'll just reload the redemptions
-      await loadRedemptions();
-
-      FHelperFunctions.showSnackBar('Reward data refreshed');
-
-    } catch (e) {
-      FHelperFunctions.showSnackBar('Error refreshing reward data: ${e.toString()}');
-    }
+  /// Edit reward
+  void editReward() {
+    // Navigate to edit reward screen
+    print('Edit reward: ${reward.value.title}');
   }
 
-  /// Get reward availability text
-  String getAvailabilityText() {
-    final computedStatus = getComputedStatus();
-
-    switch (computedStatus) {
-      case 'active':
-        return 'Available for redemption';
-      case 'inactive':
-        return 'Not available for redemption';
-      case 'expired':
-        return 'Expired and no longer available';
-      case 'out_of_stock':
-        return 'Out of stock';
-      default:
-        return 'Status unknown';
-    }
-  }
-
-  /// Get the percentage of stock remaining
-  double getStockPercentage() {
-    if (reward.value.quantity == 0) return 0.0;
-    return (reward.value.remainingQuantity / reward.value.quantity).clamp(0.0, 1.0);
-  }
-
-  /// Get stock status color based on remaining quantity
+  /// Get stock status color
   Color getStockStatusColor(bool dark) {
     final remaining = reward.value.remainingQuantity;
 
@@ -203,106 +231,5 @@ class RewardDetailsController extends GetxController {
     } else {
       return dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
     }
-  }
-
-  /// Get time until expiry
-  String getTimeUntilExpiry() {
-    final now = DateTime.now();
-    final validUntil = reward.value.validUntil;
-
-    if (validUntil.isBefore(now)) {
-      return 'Expired';
-    }
-
-    final difference = validUntil.difference(now);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays} days remaining';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} hours remaining';
-    } else {
-      return 'Expires soon';
-    }
-  }
-
-  /// Filter redemptions by status
-  List<RedemptionModel> getRedemptionsByStatus(String status) {
-    return redemptions.where((redemption) => redemption.status == status).toList();
-  }
-
-  /// Get pending redemptions count
-  int get pendingRedemptionsCount {
-    return redemptions.where((r) => r.status == 'pending').length;
-  }
-
-  /// Get used redemptions count
-  int get usedRedemptionsCount {
-    return redemptions.where((r) => r.status == 'used').length;
-  }
-
-  /// Get expired redemptions count
-  int get expiredRedemptionsCount {
-    return redemptions.where((r) => r.status == 'expired').length;
-  }
-
-  /// Export redemption data (for future implementation)
-  Future<void> exportRedemptionData() async {
-    try {
-      // TODO: Implement export functionality
-      FHelperFunctions.showSnackBar('Export functionality will be implemented soon');
-    } catch (e) {
-      FHelperFunctions.showSnackBar('Error exporting data: ${e.toString()}');
-    }
-  }
-
-  /// Get redemption statistics
-  Map<String, dynamic> getRedemptionStatistics() {
-    return {
-      'total': redemptions.length,
-      'pending': pendingRedemptionsCount,
-      'used': usedRedemptionsCount,
-      'expired': expiredRedemptionsCount,
-      'redemptionRate': reward.value.quantity > 0
-          ? (redemptions.length / reward.value.quantity * 100).toStringAsFixed(1)
-          : '0.0',
-    };
-  }
-
-  /// Check if reward needs attention (low stock, expiring soon, etc.)
-  bool get needsAttention {
-    final now = DateTime.now();
-    final daysUntilExpiry = reward.value.validUntil.difference(now).inDays;
-
-    return reward.value.remainingQuantity <= 10 ||
-        (daysUntilExpiry <= 7 && daysUntilExpiry > 0) ||
-        reward.value.status == 'inactive';
-  }
-
-  /// Get attention message for the reward
-  String? getAttentionMessage() {
-    if (!needsAttention) return null;
-
-    final now = DateTime.now();
-    final daysUntilExpiry = reward.value.validUntil.difference(now).inDays;
-
-    if (reward.value.status == 'inactive') {
-      return 'This reward is currently inactive';
-    }
-
-    if (reward.value.remainingQuantity <= 10) {
-      return 'Low stock: Only ${reward.value.remainingQuantity} items remaining';
-    }
-
-    if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
-      return 'Expiring soon: $daysUntilExpiry days remaining';
-    }
-
-    return null;
-  }
-
-  @override
-  void onClose() {
-    // Clean up any resources if needed
-    super.onClose();
   }
 }

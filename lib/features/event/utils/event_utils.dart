@@ -74,14 +74,14 @@ class EventUtils {
   /// Get status color based on event state
   static Color getStatusColor(AttendanceStatus status) {
     switch (status) {
+      case AttendanceStatus.cancelled:
+        return FColors.cancelled;
       case AttendanceStatus.upcoming:
         return FColors.upcoming;
       case AttendanceStatus.ongoing:
         return FColors.ongoing;
       case AttendanceStatus.completed:
         return FColors.completed;
-      case AttendanceStatus.cancelled:
-        return FColors.cancelled;
     }
   }
 

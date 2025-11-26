@@ -214,4 +214,40 @@ class CommentRepository extends GetxController {
       throw 'Something went wrong. Please try again.';
     }
   }
+
+  /// Stream comments with pagination
+  Stream<List<Comment>> getCommentsStreamPaginated({
+    required String postId,
+    required int limit,
+    required int offset,
+  }) {
+    return _db
+        .collection("comments")
+        .where('postId', isEqualTo: postId)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+      // Skip documents based on offset
+      final docs = snapshot.docs.skip(offset).take(limit).toList();
+      return docs
+          .map((doc) => Comment.fromSnapshot(doc as DocumentSnapshot<Map<String, dynamic>>))
+          .toList();
+    });
+  }
+
+  /// Get comments count for a post
+  Future<int> getCommentsCount(String postId) async {
+    try {
+      final snapshot = await _db
+          .collection("comments")
+          .where('postId', isEqualTo: postId)
+          .count()
+          .get();
+
+      return snapshot.count ?? 0;
+    } catch (e) {
+      throw 'Failed to get comments count: $e';
+    }
+  }
 }

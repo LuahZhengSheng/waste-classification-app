@@ -24,7 +24,14 @@ class EventHeaderWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = EventUtils.getEventStatus(event, isCancelled);
+    // 优先显示主办方取消状态
+    final bool showOrganizerCancelled = event.isCancelledByOrganizer;
+    final bool showUserCancelled = isCancelled && !showOrganizerCancelled;
+
+    // 根据状态决定显示的文本、图标和颜色
+    final String statusText = _getStatusText(showOrganizerCancelled, showUserCancelled);
+    final IconData statusIcon = _getStatusIcon(showOrganizerCancelled, showUserCancelled);
+    final Color statusColor = _getStatusColor(showOrganizerCancelled, showUserCancelled);
 
     return Container(
       height: 140,
@@ -67,11 +74,11 @@ class EventHeaderWidget extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: EventUtils.getStatusColor(status).withOpacity(0.95),
+                  color: statusColor.withOpacity(0.95),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: EventUtils.getStatusColor(status).withOpacity(0.3),
+                      color: statusColor.withOpacity(0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -81,13 +88,13 @@ class EventHeaderWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      EventUtils.getStatusIcon(status),
+                      statusIcon,
                       size: 12,
                       color: FColors.white,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      status.displayName,
+                      statusText,
                       style: const TextStyle(
                         color: FColors.white,
                         fontWeight: FontWeight.w600,
@@ -100,7 +107,7 @@ class EventHeaderWidget extends StatelessWidget {
             ),
 
           // Date Badge
-          if (showDateBadge)
+          if (showDateBadge && !showOrganizerCancelled) // 主办方取消时不显示日期徽章
             Positioned(
               top: 12,
               right: 12,
@@ -134,9 +141,39 @@ class EventHeaderWidget extends StatelessWidget {
                 ),
               ),
             ),
+
+          // 主办方取消时的覆盖层（可选，增加视觉提示）
+          if (showOrganizerCancelled)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  Color _getStatusColor(bool organizerCancelled, bool userCancelled) {
+    if (organizerCancelled) return FColors.error; // 红色表示主办方取消
+    if (userCancelled) return FColors.warning; // 橙色表示用户取消
+    return EventUtils.getStatusColor(EventUtils.getEventStatus(event, userCancelled));
+  }
+
+  IconData _getStatusIcon(bool organizerCancelled, bool userCancelled) {
+    if (organizerCancelled) return Iconsax.close_circle; // 主办方取消图标
+    if (userCancelled) return Iconsax.close_square; // 用户取消图标
+    return EventUtils.getStatusIcon(EventUtils.getEventStatus(event, userCancelled));
+  }
+
+  String _getStatusText(bool organizerCancelled, bool userCancelled) {
+    if (organizerCancelled) return 'Cancelled by Organizer';
+    if (userCancelled) return 'Cancelled by You';
+    return EventUtils.getEventStatus(event, userCancelled).displayName;
   }
 }
 

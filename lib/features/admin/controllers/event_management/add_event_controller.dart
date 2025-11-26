@@ -1,15 +1,25 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fyp/utils/helpers/helper_functions.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:uuid/uuid.dart';
 
-import '../../../../common/widgets/inputs/location_input_dialog.dart';
+import '../../../../data/repositories/event/event_repository.dart';
 import '../../../../utils/constants/colors.dart';
-import '../../../../utils/popups/loaders.dart';
+import '../../../../utils/helpers/helper_functions.dart';
+import '../../../../utils/popups/admin_loaders.dart';
 import '../../../event/models/event_model.dart';
 import '../../../event/models/location_model.dart';
 
 class AddEventController extends GetxController {
-  // Form key for validation
+  static AddEventController get instance => Get.find();
+
+  final EventRepository _eventRepository = Get.find();
+  final _uuid = const Uuid();
+
+  // Form key
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
   // Text controllers
@@ -21,6 +31,7 @@ class AddEventController extends GetxController {
 
   // Observables
   final RxBool isLoading = false.obs;
+  final RxBool isCompressing = false.obs;
   final Rx<DateTime?> selectedStartDate = Rx<DateTime?>(null);
   final Rx<TimeOfDay?> selectedStartTime = Rx<TimeOfDay?>(null);
   final Rx<DateTime?> selectedEndDate = Rx<DateTime?>(null);
@@ -28,7 +39,14 @@ class AddEventController extends GetxController {
   final Rx<DateTime?> selectedRegistrationDeadlineDate = Rx<DateTime?>(null);
   final Rx<TimeOfDay?> selectedRegistrationDeadlineTime = Rx<TimeOfDay?>(null);
   final Rx<Location?> selectedLocation = Rx<Location?>(null);
-  final RxString selectedPosterPath = ''.obs;
+  final RxnString selectedPosterPath = RxnString();
+  final RxnString selectedPosterName = RxnString();
+  final Rxn<Uint8List> selectedPosterBytes = Rxn<Uint8List>();
+
+  // Image compression settings
+  static const int imageQuality = 85;
+  static const int maxImageSizeMB = 5;
+  static const int maxImageSizeBytes = maxImageSizeMB * 1024 * 1024;
 
   @override
   void onInit() {
@@ -67,15 +85,18 @@ class AddEventController extends GetxController {
 
     if (picked != null) {
       selectedStartDate.value = picked;
-      // Auto-adjust end date if it's before start date
+
+      // 实时验证：如果结束日期在开始日期之前，重置结束日期
       if (selectedEndDate.value != null && selectedEndDate.value!.isBefore(picked)) {
         selectedEndDate.value = picked;
+        selectedEndTime.value = null;
       }
-      // Auto-adjust registration deadline if it's after start date
-      if (selectedRegistrationDeadlineDate.value != null &&
-          selectedRegistrationDeadlineDate.value!.isAfter(picked)) {
-        selectedRegistrationDeadlineDate.value = picked.subtract(const Duration(days: 1));
-      }
+
+      // 新增：验证注册截止时间
+      _validateRegistrationDeadline();
+
+      // 新增：验证事件时长
+      _validateEventDuration();
     }
   }
 
@@ -99,14 +120,29 @@ class AddEventController extends GetxController {
 
     if (picked != null) {
       selectedStartTime.value = picked;
+
+      // 新增：验证注册截止时间
+      _validateRegistrationDeadline();
+
+      // 新增：验证事件时长
+      _validateEventDuration();
     }
   }
 
   Future<void> selectEndDate() async {
+    DateTime initialDate;
+
+    if (selectedEndDate.value != null) {
+      initialDate = selectedEndDate.value!;
+    } else if (selectedStartDate.value != null) {
+      initialDate = selectedStartDate.value!;
+    } else {
+      initialDate = DateTime.now().add(const Duration(days: 1));
+    }
+
     final DateTime? picked = await showDatePicker(
       context: Get.context!,
-      initialDate: selectedEndDate.value ??
-          (selectedStartDate.value ?? DateTime.now().add(const Duration(days: 1))),
+      initialDate: initialDate,
       firstDate: selectedStartDate.value ?? DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
@@ -124,17 +160,55 @@ class AddEventController extends GetxController {
     );
 
     if (picked != null) {
+      // 实时验证：结束日期不能在开始日期之前
+      if (selectedStartDate.value != null && picked.isBefore(selectedStartDate.value!)) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Date',
+          message: 'End date cannot be before start date',
+        );
+        return;
+      }
+
       selectedEndDate.value = picked;
+
+      // 新增：验证事件时长
+      _validateEventDuration();
     }
   }
 
   Future<void> selectEndTime() async {
+    // 必须先选择开始日期和时间
+    if (selectedStartDate.value == null || selectedStartTime.value == null) {
+      FAdminLoaders.warningSnackBar(
+        title: 'Select Start Time First',
+        message: 'Please select start date and time first',
+      );
+      return;
+    }
+
+    // 必须先选择结束日期
+    if (selectedEndDate.value == null) {
+      FAdminLoaders.warningSnackBar(
+        title: 'Select End Date First',
+        message: 'Please select end date first',
+      );
+      return;
+    }
+
+    TimeOfDay initialTime;
+    if (selectedEndTime.value != null) {
+      initialTime = selectedEndTime.value!;
+    } else {
+      // 默认比开始时间晚2小时
+      initialTime = TimeOfDay(
+        hour: (selectedStartTime.value!.hour + 2) % 24,
+        minute: selectedStartTime.value!.minute,
+      );
+    }
+
     final TimeOfDay? picked = await showTimePicker(
       context: Get.context!,
-      initialTime: selectedEndTime.value ??
-          (selectedStartTime.value ?? TimeOfDay.now()).replacing(
-            hour: (selectedStartTime.value?.hour ?? TimeOfDay.now().hour) + 2,
-          ),
+      initialTime: initialTime,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -150,18 +224,75 @@ class AddEventController extends GetxController {
     );
 
     if (picked != null) {
+      final startDateTime = DateTime(
+        selectedStartDate.value!.year,
+        selectedStartDate.value!.month,
+        selectedStartDate.value!.day,
+        selectedStartTime.value!.hour,
+        selectedStartTime.value!.minute,
+      );
+
+      final endDateTime = DateTime(
+        selectedEndDate.value!.year,
+        selectedEndDate.value!.month,
+        selectedEndDate.value!.day,
+        picked.hour,
+        picked.minute,
+      );
+
+      // 实时验证：结束时间必须在开始时间之后
+      if (endDateTime.isBefore(startDateTime) || endDateTime.isAtSameMomentAs(startDateTime)) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Time',
+          message: 'End time must be after start time',
+        );
+        return;
+      }
+
+      // 实时验证：至少1小时间隔
+      final duration = endDateTime.difference(startDateTime);
+      if (duration.inHours < 1) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Time',
+          message: 'Event must last at least 1 hour',
+        );
+        return;
+      }
+
       selectedEndTime.value = picked;
     }
   }
 
   Future<void> selectRegistrationDeadlineDate() async {
+    // 计算合适的初始日期
+    DateTime initialDate;
+    if (selectedRegistrationDeadlineDate.value != null) {
+      initialDate = selectedRegistrationDeadlineDate.value!;
+    } else if (selectedStartDate.value != null) {
+      // 默认设置为开始日期前3天
+      initialDate = selectedStartDate.value!.subtract(const Duration(days: 3));
+      // 确保不早于今天
+      if (initialDate.isBefore(DateTime.now())) {
+        initialDate = DateTime.now();
+      }
+    } else {
+      initialDate = DateTime.now().add(const Duration(days: 1));
+    }
+
+    // 计算合适的最后日期
+    DateTime lastDate;
+    if (selectedStartDate.value != null) {
+      // 注册截止日期可以是开始日期当天（只要时间在开始时间之前）
+      lastDate = selectedStartDate.value!;
+    } else {
+      lastDate = DateTime.now().add(const Duration(days: 365));
+    }
+
     final DateTime? picked = await showDatePicker(
       context: Get.context!,
-      initialDate: selectedRegistrationDeadlineDate.value ??
-          (selectedStartDate.value?.subtract(const Duration(days: 3)) ??
-              DateTime.now().add(const Duration(days: 1))),
-      firstDate: DateTime.now(),
-      lastDate: selectedStartDate.value ?? DateTime.now().add(const Duration(days: 365)),
+      initialDate: initialDate,
+      firstDate: DateTime.now(), // 从今天开始
+      lastDate: lastDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -177,15 +308,92 @@ class AddEventController extends GetxController {
     );
 
     if (picked != null) {
+      // 实时验证：如果已选择开始日期，注册截止日期不能晚于开始日期
+      if (selectedStartDate.value != null && picked.isAfter(selectedStartDate.value!)) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Date',
+          message: 'Registration deadline must be on or before event start date',
+        );
+        return;
+      }
+
+      // 实时验证：注册截止日期不能是过去（考虑时间）
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final selectedDay = DateTime(picked.year, picked.month, picked.day);
+
+      if (selectedDay.isBefore(today)) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Date',
+          message: 'Registration deadline cannot be in the past',
+        );
+        return;
+      }
+
       selectedRegistrationDeadlineDate.value = picked;
+
+      // 如果选择了同一天作为开始日期，需要验证时间
+      if (selectedStartDate.value != null &&
+          selectedStartDate.value!.isAtSameMomentAs(picked) &&
+          selectedStartTime.value != null &&
+          selectedRegistrationDeadlineTime.value != null) {
+
+        final registrationDeadline = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          selectedRegistrationDeadlineTime.value!.hour,
+          selectedRegistrationDeadlineTime.value!.minute,
+        );
+
+        final startDateTime = DateTime(
+          selectedStartDate.value!.year,
+          selectedStartDate.value!.month,
+          selectedStartDate.value!.day,
+          selectedStartTime.value!.hour,
+          selectedStartTime.value!.minute,
+        );
+
+        // 如果注册截止时间不满足在开始时间之前，重置时间
+        if (!registrationDeadline.isBefore(startDateTime)) {
+          selectedRegistrationDeadlineTime.value = null;
+          FAdminLoaders.warningSnackBar(
+            title: 'Time Reset',
+            message: 'Please select a registration deadline time before start time',
+          );
+        }
+      }
     }
   }
 
   Future<void> selectRegistrationDeadlineTime() async {
+    // 必须先选择注册截止日期
+    if (selectedRegistrationDeadlineDate.value == null) {
+      FAdminLoaders.warningSnackBar(
+        title: 'Select Date First',
+        message: 'Please select registration deadline date first',
+      );
+      return;
+    }
+
+    TimeOfDay initialTime;
+    if (selectedRegistrationDeadlineTime.value != null) {
+      initialTime = selectedRegistrationDeadlineTime.value!;
+    } else if (selectedStartDate.value != null &&
+        selectedStartTime.value != null &&
+        selectedRegistrationDeadlineDate.value!.isAtSameMomentAs(selectedStartDate.value!)) {
+      // 如果是同一天，默认设置为开始时间前1小时
+      initialTime = TimeOfDay(
+        hour: (selectedStartTime.value!.hour - 1) % 24,
+        minute: selectedStartTime.value!.minute,
+      );
+    } else {
+      initialTime = const TimeOfDay(hour: 23, minute: 59);
+    }
+
     final TimeOfDay? picked = await showTimePicker(
       context: Get.context!,
-      initialTime: selectedRegistrationDeadlineTime.value ??
-          const TimeOfDay(hour: 23, minute: 59),
+      initialTime: initialTime,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -201,51 +409,276 @@ class AddEventController extends GetxController {
     );
 
     if (picked != null) {
+      final registrationDeadline = DateTime(
+        selectedRegistrationDeadlineDate.value!.year,
+        selectedRegistrationDeadlineDate.value!.month,
+        selectedRegistrationDeadlineDate.value!.day,
+        picked.hour,
+        picked.minute,
+      );
+
+      // 实时验证：注册截止时间不能是过去
+      if (registrationDeadline.isBefore(DateTime.now())) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Time',
+          message: 'Registration deadline cannot be in the past',
+        );
+        return;
+      }
+
+      // 如果已选择开始时间，检查注册截止时间是否在开始时间之前
+      if (selectedStartDate.value != null && selectedStartTime.value != null) {
+        final startDateTime = DateTime(
+          selectedStartDate.value!.year,
+          selectedStartDate.value!.month,
+          selectedStartDate.value!.day,
+          selectedStartTime.value!.hour,
+          selectedStartTime.value!.minute,
+        );
+
+        // 注册截止时间必须在开始时间之前
+        if (!registrationDeadline.isBefore(startDateTime)) {
+          FAdminLoaders.errorSnackBar(
+            title: 'Invalid Time',
+            message: 'Registration deadline must be before event start time',
+          );
+          return;
+        }
+      }
+
       selectedRegistrationDeadlineTime.value = picked;
     }
   }
 
-  // Location Selection
-  void showLocationDialog() {
-    final dark = FHelperFunctions.isDarkMode(Get.context!);
+  // 添加验证方法用于UI显示
+  bool isEndTimeValid() {
+    if (selectedStartDate.value == null ||
+        selectedStartTime.value == null ||
+        selectedEndDate.value == null ||
+        selectedEndTime.value == null) {
+      return true;
+    }
 
-    Get.dialog(
-      LocationInputDialog(
-        dark: dark,
-        initialLocation: selectedLocation.value,
-        onLocationSelected: (location) {
-          selectedLocation.value = location;
-        },
-      ),
-      barrierDismissible: false,
+    final startDateTime = DateTime(
+      selectedStartDate.value!.year,
+      selectedStartDate.value!.month,
+      selectedStartDate.value!.day,
+      selectedStartTime.value!.hour,
+      selectedStartTime.value!.minute,
     );
+
+    final endDateTime = DateTime(
+      selectedEndDate.value!.year,
+      selectedEndDate.value!.month,
+      selectedEndDate.value!.day,
+      selectedEndTime.value!.hour,
+      selectedEndTime.value!.minute,
+    );
+
+    return endDateTime.isAfter(startDateTime) &&
+        endDateTime.difference(startDateTime).inHours >= 1;
   }
 
-  // Poster Selection
+  bool isRegistrationDeadlineValid() {
+    if (selectedRegistrationDeadlineDate.value == null ||
+        selectedRegistrationDeadlineTime.value == null ||
+        selectedStartDate.value == null ||
+        selectedStartTime.value != null) {
+      return true;
+    }
+
+    final registrationDeadline = DateTime(
+      selectedRegistrationDeadlineDate.value!.year,
+      selectedRegistrationDeadlineDate.value!.month,
+      selectedRegistrationDeadlineDate.value!.day,
+      selectedRegistrationDeadlineTime.value!.hour,
+      selectedRegistrationDeadlineTime.value!.minute,
+    );
+
+    final startDateTime = DateTime(
+      selectedStartDate.value!.year,
+      selectedStartDate.value!.month,
+      selectedStartDate.value!.day,
+      selectedStartTime.value!.hour,
+      selectedStartTime.value!.minute,
+    );
+
+    return registrationDeadline.isBefore(startDateTime) &&
+        !registrationDeadline.isBefore(DateTime.now());
+  }
+
+  void _validateRegistrationDeadline() {
+    if (selectedRegistrationDeadlineDate.value != null &&
+        selectedRegistrationDeadlineTime.value != null &&
+        selectedStartDate.value != null &&
+        selectedStartTime.value != null) {
+
+      final registrationDeadline = DateTime(
+        selectedRegistrationDeadlineDate.value!.year,
+        selectedRegistrationDeadlineDate.value!.month,
+        selectedRegistrationDeadlineDate.value!.day,
+        selectedRegistrationDeadlineTime.value!.hour,
+        selectedRegistrationDeadlineTime.value!.minute,
+      );
+
+      final startDateTime = DateTime(
+        selectedStartDate.value!.year,
+        selectedStartDate.value!.month,
+        selectedStartDate.value!.day,
+        selectedStartTime.value!.hour,
+        selectedStartTime.value!.minute,
+      );
+
+      // 如果注册截止时间在开始时间之后，显示错误并重置注册截止时间
+      if (registrationDeadline.isAfter(startDateTime) ||
+          registrationDeadline.isAtSameMomentAs(startDateTime)) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Time Conflict',
+          message: 'Registration deadline must be before start time. Please adjust registration deadline.',
+        );
+
+        // 重置注册截止时间
+        selectedRegistrationDeadlineDate.value = null;
+        selectedRegistrationDeadlineTime.value = null;
+      }
+    }
+  }
+
+  void _validateEventDuration() {
+    if (selectedStartDate.value != null &&
+        selectedStartTime.value != null &&
+        selectedEndDate.value != null &&
+        selectedEndTime.value != null) {
+
+      final startDateTime = DateTime(
+        selectedStartDate.value!.year,
+        selectedStartDate.value!.month,
+        selectedStartDate.value!.day,
+        selectedStartTime.value!.hour,
+        selectedStartTime.value!.minute,
+      );
+
+      final endDateTime = DateTime(
+        selectedEndDate.value!.year,
+        selectedEndDate.value!.month,
+        selectedEndDate.value!.day,
+        selectedEndTime.value!.hour,
+        selectedEndTime.value!.minute,
+      );
+
+      // 如果结束时间不满足至少1小时间隔，重置结束时间
+      if (endDateTime.difference(startDateTime).inHours < 1) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Duration Too Short',
+          message: 'Event must last at least 1 hour. Please adjust end time.',
+        );
+
+        selectedEndTime.value = null;
+      }
+    }
+  }
+
+  // Poster Selection and Upload
   Future<void> selectPoster() async {
-    // In real implementation, you would use image_picker to select image
-    // For now, we'll simulate poster selection
     try {
-      // Simulate image picker
-      await Future.delayed(const Duration(seconds: 1));
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
 
-      // Mock image URL - in real app, you'd upload to cloud storage
-      selectedPosterPath.value = 'https://via.placeholder.com/400x600/4BAF6F/FFFFFF?text=Event+Poster';
+      if (result == null || result.files.isEmpty) return;
 
-      FLoaders.successSnackBar(
+      PlatformFile file = result.files.first;
+
+      // Check file size
+      if (file.size > maxImageSizeBytes) {
+        FAdminLoaders.errorSnackBar(
+          title: 'File Too Large',
+          message: 'Image size must be less than ${maxImageSizeMB}MB',
+        );
+        return;
+      }
+
+      // Check file type
+      final extension = file.name.split('.').last.toLowerCase();
+      if (!['jpg', 'jpeg', 'png', 'webp'].contains(extension)) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Format',
+          message: 'Only JPG, PNG, and WebP formats are supported',
+        );
+        return;
+      }
+
+      // Process and compress image
+      final compressedBytes = await _processAndCompressImage(file);
+
+      // 只存储字节数据，文件名在创建事件时生成
+      selectedPosterBytes.value = compressedBytes;
+      // 移除这行: selectedPosterName.value = '${_uuid.v4()}.webp';
+
+      FAdminLoaders.successSnackBar(
         title: 'Poster Selected',
         message: 'Event poster has been selected successfully',
       );
     } catch (e) {
-      FLoaders.errorSnackBar(
+      FAdminLoaders.errorSnackBar(
         title: 'Error',
         message: 'Failed to select poster: ${e.toString()}',
       );
+      print('Error selecting poster: ${e.toString()}');
+    }
+  }
+
+  // 处理并压缩图片 - 返回字节数据而不是文件
+  Future<Uint8List> _processAndCompressImage(PlatformFile file) async {
+    try {
+      isCompressing.value = true;
+
+      // 处理文件数据
+      Uint8List imageBytes;
+      if (file.bytes != null) {
+        // Web 环境或已有字节数据
+        imageBytes = file.bytes!;
+      } else if (file.path != null) {
+        // 移动端环境，从文件路径读取
+        final originalFile = File(file.path!);
+        imageBytes = await originalFile.readAsBytes();
+      } else {
+        throw 'No file data available';
+      }
+
+      // 压缩图片
+      final result = await FlutterImageCompress.compressWithList(
+        imageBytes,
+        format: CompressFormat.webp,
+        quality: imageQuality,
+        minWidth: 1080,
+        minHeight: 1080,
+        autoCorrectionAngle: true,
+      );
+
+      isCompressing.value = false;
+      return result;
+    } catch (e) {
+      isCompressing.value = false;
+      print('Image compression failed: $e');
+
+      // 如果压缩失败，返回原始字节
+      if (file.bytes != null) {
+        return file.bytes!;
+      } else if (file.path != null) {
+        final originalFile = File(file.path!);
+        return await originalFile.readAsBytes();
+      } else {
+        throw 'No file data available';
+      }
     }
   }
 
   void removePoster() {
-    selectedPosterPath.value = '';
+    selectedPosterPath.value = null;
+    selectedPosterName.value = null; // 可以保留或移除
+    selectedPosterBytes.value = null;
   }
 
   // Format helper methods
@@ -271,36 +704,35 @@ class AddEventController extends GetxController {
   // Validation methods
   bool _validateDates() {
     if (selectedStartDate.value == null) {
-      FLoaders.errorSnackBar(title: 'Error', message: 'Please select start date');
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please select start date');
       return false;
     }
 
     if (selectedStartTime.value == null) {
-      FLoaders.errorSnackBar(title: 'Error', message: 'Please select start time');
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please select start time');
       return false;
     }
 
     if (selectedEndDate.value == null) {
-      FLoaders.errorSnackBar(title: 'Error', message: 'Please select end date');
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please select end date');
       return false;
     }
 
     if (selectedEndTime.value == null) {
-      FLoaders.errorSnackBar(title: 'Error', message: 'Please select end time');
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please select end time');
       return false;
     }
 
     if (selectedRegistrationDeadlineDate.value == null) {
-      FLoaders.errorSnackBar(title: 'Error', message: 'Please select registration deadline date');
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please select registration deadline date');
       return false;
     }
 
     if (selectedRegistrationDeadlineTime.value == null) {
-      FLoaders.errorSnackBar(title: 'Error', message: 'Please select registration deadline time');
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please select registration deadline time');
       return false;
     }
 
-    // Create full DateTime objects for comparison
     final startDateTime = DateTime(
       selectedStartDate.value!.year,
       selectedStartDate.value!.month,
@@ -325,27 +757,24 @@ class AddEventController extends GetxController {
       selectedRegistrationDeadlineTime.value!.minute,
     );
 
-    // Validate end time is after start time
     if (endDateTime.isBefore(startDateTime) || endDateTime.isAtSameMomentAs(startDateTime)) {
-      FLoaders.errorSnackBar(
+      FAdminLoaders.errorSnackBar(
         title: 'Invalid Date/Time',
         message: 'End date/time must be after start date/time',
       );
       return false;
     }
 
-    // Validate registration deadline is before start time
     if (registrationDeadline.isAfter(startDateTime) || registrationDeadline.isAtSameMomentAs(startDateTime)) {
-      FLoaders.errorSnackBar(
+      FAdminLoaders.errorSnackBar(
         title: 'Invalid Registration Deadline',
         message: 'Registration deadline must be before event start time',
       );
       return false;
     }
 
-    // Validate registration deadline is not in the past
     if (registrationDeadline.isBefore(DateTime.now())) {
-      FLoaders.errorSnackBar(
+      FAdminLoaders.errorSnackBar(
         title: 'Invalid Registration Deadline',
         message: 'Registration deadline cannot be in the past',
       );
@@ -357,33 +786,57 @@ class AddEventController extends GetxController {
 
   bool _validateLocation() {
     if (selectedLocation.value == null) {
-      FLoaders.errorSnackBar(title: 'Error', message: 'Please add event location');
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please add event location');
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateMaxParticipants() {
+    final maxParticipants = int.tryParse(maxParticipantsController.text.trim());
+    if (maxParticipants == null) {
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Invalid max participants value');
+      return false;
+    }
+    if (maxParticipants > 1000) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Maximum participants cannot exceed 1000',
+      );
       return false;
     }
     return true;
   }
 
   // Create Event Method
-  Future<void> createEvent({bool isDraft = false}) async {
+  Future<void> createEvent() async {
     try {
-      // Validate form
       if (!formKey.currentState!.validate()) {
         return;
       }
 
-      // Validate dates
       if (!_validateDates()) {
         return;
       }
 
-      // Validate location
       if (!_validateLocation()) {
+        return;
+      }
+
+      if (!_validateMaxParticipants()) {
+        return;
+      }
+
+      if (selectedPosterBytes.value == null) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Poster Required',
+          message: 'Please upload an event poster',
+        );
         return;
       }
 
       isLoading.value = true;
 
-      // Create DateTime objects
       final startDateTime = DateTime(
         selectedStartDate.value!.year,
         selectedStartDate.value!.month,
@@ -408,60 +861,69 @@ class AddEventController extends GetxController {
         selectedRegistrationDeadlineTime.value!.minute,
       );
 
-      // Create Event object
+      // 使用 UUID 作为 poster 文件名
+      final posterFileName = '${_uuid.v4()}.webp';
+      print('Using poster file name: $posterFileName');
+
+      // Upload poster
+      String uploadedFileName = '';
+      try {
+        print('Uploading poster...');
+        uploadedFileName = await _eventRepository.uploadEventPoster(
+          selectedPosterBytes.value!,
+          posterFileName, // 使用新的 UUID 文件名
+        );
+        print('Poster uploaded successfully: $uploadedFileName');
+      } catch (e) {
+        print('Poster upload failed: $e');
+        rethrow;
+      }
+
       final event = Event(
-        eventId: DateTime.now().millisecondsSinceEpoch.toString(), // Generate unique ID
+        eventId: '',
         title: titleController.text.trim(),
         description: descriptionController.text.trim(),
         contactEmail: contactEmailController.text.trim(),
         contactPhoneNo: contactPhoneController.text.trim(),
         location: selectedLocation.value!,
-        poster: selectedPosterPath.value.isNotEmpty ? selectedPosterPath.value : '',
+        poster: uploadedFileName, // 使用实际上传的文件名
         startDateTime: startDateTime,
         endDateTime: endDateTime,
         registrationDeadline: registrationDeadline,
         maxParticipants: int.parse(maxParticipantsController.text.trim()),
         registeredCount: 0,
         createdAt: DateTime.now(),
-        isPublish: !isDraft,
+        isPublish: true,
         status: 'active',
         eventRegistrations: [],
       );
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
-
-      // In real implementation, you would save to database/API
-      // await eventRepository.createEvent(event);
+      print('Creating event in Firestore...');
+      await _eventRepository.createEvent(event);
+      print('Event created successfully');
 
       isLoading.value = false;
 
-      // Show success message
-      FLoaders.successSnackBar(
-        title: isDraft ? 'Draft Saved' : 'Event Created',
-        message: isDraft
-            ? 'Event saved as draft successfully'
-            : 'Event created and published successfully',
+      FAdminLoaders.successSnackBar(
+        title: 'Event Created',
+        message: 'Event created and published successfully',
       );
 
-      // Navigate back or to event management
-      Get.back();
-
+      Navigator.of(Get.context!).pop();
     } catch (e) {
       isLoading.value = false;
-      FLoaders.errorSnackBar(
+      print('=== EVENT CREATION ERROR ===');
+      print('Error type: ${e.runtimeType}');
+      print('Error message: $e');
+      print('=== END ERROR ===');
+
+      FAdminLoaders.errorSnackBar(
         title: 'Error',
         message: 'Failed to create event: ${e.toString()}',
       );
     }
   }
 
-  // Save as Draft
-  Future<void> saveAsDraft() async {
-    await createEvent(isDraft: true);
-  }
-
-  // Reset form
   void resetForm() {
     titleController.clear();
     descriptionController.clear();
@@ -475,7 +937,9 @@ class AddEventController extends GetxController {
     selectedRegistrationDeadlineDate.value = null;
     selectedRegistrationDeadlineTime.value = null;
     selectedLocation.value = null;
-    selectedPosterPath.value = '';
+    selectedPosterPath.value = null;
+    selectedPosterName.value = null;
+    selectedPosterBytes.value = null;
   }
 
   @override

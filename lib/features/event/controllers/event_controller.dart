@@ -12,7 +12,8 @@ import '../models/event_enums.dart';
 import '../models/reminder_model.dart';
 import 'dart:async';
 
-class EventController extends GetxController with GetSingleTickerProviderStateMixin {
+class EventController extends GetxController
+    with GetSingleTickerProviderStateMixin {
   static EventController get instance {
     if (Get.isRegistered<EventController>()) {
       return Get.find<EventController>();
@@ -110,7 +111,7 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
 
       _eventsSubscription?.cancel();
       _eventsSubscription = eventRepository.getAllEvents().listen(
-            (events) {
+        (events) {
           allEvents.assignAll(events);
 
           // Load poster URLs for all events
@@ -171,23 +172,28 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
       case EventStatusFilter.open:
         filtered = filtered
             .where((event) =>
-        event.isRegistrationOpen && !event.isFullyBooked && !event.hasEnded)
+                event.isRegistrationOpen &&
+                !event.isFullyBooked &&
+                !event.hasEnded)
             .toList();
         break;
       case EventStatusFilter.full:
         filtered = filtered
             .where((event) =>
-        event.isFullyBooked && !event.isRegistrationClosed && !event.hasEnded)
+                event.isFullyBooked &&
+                !event.isRegistrationClosed &&
+                !event.hasEnded)
             .toList();
         break;
       case EventStatusFilter.closed:
         filtered = filtered
-            .where((event) => event.isRegistrationClosed && !event.hasEnded)
+            .where((event) => (event.isRegistrationClosed) || event.isCancelledByOrganizer)
             .toList();
         break;
       case EventStatusFilter.all:
       default:
-        filtered = filtered.where((event) => !event.hasEnded).toList();
+        // filtered = filtered.where((event) => !event.hasEnded).toList();
+        filtered = filtered.toList();
         break;
     }
 
@@ -196,10 +202,10 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
       final query = searchQuery.value.toLowerCase();
       filtered = filtered
           .where((event) =>
-      event.title.toLowerCase().contains(query) ||
-          event.description.toLowerCase().contains(query) ||
-          event.location.address.city.toLowerCase().contains(query) ||
-          event.location.address.area.toLowerCase().contains(query))
+              event.title.toLowerCase().contains(query) ||
+              event.description.toLowerCase().contains(query) ||
+              event.location.address.city.toLowerCase().contains(query) ||
+              event.location.address.area.toLowerCase().contains(query))
           .toList();
     }
 
@@ -225,8 +231,9 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
           startDate = now.subtract(Duration(days: now.weekday - 1));
           filtered = filtered
               .where((event) =>
-          event.startDateTime.isAfter(startDate) &&
-              event.startDateTime.isBefore(startDate.add(const Duration(days: 7))))
+                  event.startDateTime.isAfter(startDate) &&
+                  event.startDateTime
+                      .isBefore(startDate.add(const Duration(days: 7))))
               .toList();
           break;
 
@@ -235,8 +242,8 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
           final endDate = DateTime(now.year, now.month + 1, 0);
           filtered = filtered
               .where((event) =>
-          event.startDateTime.isAfter(startDate) &&
-              event.startDateTime.isBefore(endDate))
+                  event.startDateTime.isAfter(startDate) &&
+                  event.startDateTime.isBefore(endDate))
               .toList();
           break;
 
@@ -245,8 +252,8 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
           final endDate = DateTime(now.year, 12, 31);
           filtered = filtered
               .where((event) =>
-          event.startDateTime.isAfter(startDate) &&
-              event.startDateTime.isBefore(endDate))
+                  event.startDateTime.isAfter(startDate) &&
+                  event.startDateTime.isBefore(endDate))
               .toList();
           break;
       }
@@ -295,7 +302,8 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
       }
 
       // Register through repository
-      await eventRegistrationRepository.registerForEvent(currentUserId, event.eventId);
+      await eventRegistrationRepository.registerForEvent(
+          currentUserId, event.eventId);
 
       FLoaders.successSnackBar(
         title: 'Registration Successful',
@@ -317,10 +325,11 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
       isRegistering(true);
 
       // Get registration ID first to delete reminder
-      final registrationId =
-      await eventRegistrationRepository.getUserRegistrationId(currentUserId, event.eventId);
+      final registrationId = await eventRegistrationRepository
+          .getUserRegistrationId(currentUserId, event.eventId);
 
-      await eventRegistrationRepository.cancelRegistration(currentUserId, event.eventId);
+      await eventRegistrationRepository.cancelRegistration(
+          currentUserId, event.eventId);
 
       // Remove reminder if exists
       if (eventReminders[event.eventId] == true) {
@@ -372,14 +381,15 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
         return eventReminders[eventId]!;
       }
 
-      final registrationId =
-      await eventRegistrationRepository.getUserRegistrationId(currentUserId, eventId);
+      final registrationId = await eventRegistrationRepository
+          .getUserRegistrationId(currentUserId, eventId);
       if (registrationId.isEmpty) {
         eventReminders[eventId] = false;
         return false;
       }
 
-      final reminderExists = await reminderRepository.checkReminderExists(registrationId);
+      final reminderExists =
+          await reminderRepository.checkReminderExists(registrationId);
       eventReminders[eventId] = reminderExists;
       return reminderExists;
     } catch (e) {
@@ -390,8 +400,8 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
   /// Toggle reminder for event
   Future<void> toggleReminder(String eventId, bool value) async {
     try {
-      final registrationId =
-      await eventRegistrationRepository.getUserRegistrationId(currentUserId, eventId);
+      final registrationId = await eventRegistrationRepository
+          .getUserRegistrationId(currentUserId, eventId);
       if (registrationId.isEmpty) {
         throw 'User is not registered for this event';
       }
@@ -427,7 +437,8 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
       final event = await eventRepository.getEventById(eventId).first;
 
       // Calculate reminder time (1 day before event start) - 转换为 UTC
-      final remindAtDateTime = event.startDateTime.subtract(const Duration(days: 1));
+      final remindAtDateTime =
+          event.startDateTime.subtract(const Duration(days: 1));
       final remindAtUtc = Timestamp.fromDate(remindAtDateTime.toUtc());
 
       // Create reminder model - 不再需要手动生成 reminderId
@@ -435,17 +446,19 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
         reminderId: '', // 留空，Firestore 会自动生成
         registrationId: registrationId,
         title: 'Event Reminder: ${event.title}',
-        message: 'Your event "${event.title}" starts tomorrow at ${event.location.address.area}. Don\'t forget to attend!',
+        message:
+            'Your event "${event.title}" starts tomorrow at ${event.location.address.area}. Don\'t forget to attend!',
         remindAt: remindAtUtc, // 使用 UTC 时间
         createdAt: Timestamp.now(), // 使用当前 UTC 时间
         isSent: false,
       );
 
       // Save to Firestore - 返回自动生成的 reminderId
-      final generatedReminderId = await reminderRepository.createReminder(reminder);
+      final generatedReminderId =
+          await reminderRepository.createReminder(reminder);
 
-      print('Reminder created successfully: $generatedReminderId for event: ${event.title}');
-
+      print(
+          'Reminder created successfully: $generatedReminderId for event: ${event.title}');
     } catch (e) {
       print('Error creating reminder: $e');
       rethrow;
@@ -455,7 +468,8 @@ class EventController extends GetxController with GetSingleTickerProviderStateMi
   /// Delete an existing reminder
   Future<void> _deleteReminder(String registrationId, String eventId) async {
     try {
-      final reminder = await reminderRepository.getReminderByRegistration(registrationId);
+      final reminder =
+          await reminderRepository.getReminderByRegistration(registrationId);
       if (reminder != null) {
         await reminderRepository.deleteReminder(reminder.reminderId);
         print('Reminder deleted: ${reminder.reminderId} for event: $eventId');

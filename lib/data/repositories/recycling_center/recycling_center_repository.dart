@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
@@ -23,7 +24,8 @@ class RecyclingCenterRepository extends GetxController {
       }
       final center = PartnerRecyclingCenter.fromSnapshot(snapshot);
       // 转换图片URL
-      return await _convertImageToDownloadUrl(center);
+      // return await convertImageToDownloadUrl(center);
+      return center;
     } catch (e) {
       throw 'Failed to fetch center: $e';
     }
@@ -37,7 +39,7 @@ class RecyclingCenterRepository extends GetxController {
         .snapshots()
         .asyncMap((snapshot) async {
       final center = PartnerRecyclingCenter.fromSnapshot(snapshot);
-      return await _convertImageToDownloadUrl(center);
+      return await convertImageToDownloadUrl(center);
     });
   }
 
@@ -155,7 +157,7 @@ class RecyclingCenterRepository extends GetxController {
 
       final center = PartnerRecyclingCenter.fromSnapshot(centerDoc);
       // 转换图片URL
-      final centerWithImageUrl = await _convertImageToDownloadUrl(center);
+      final centerWithImageUrl = await convertImageToDownloadUrl(center);
       print('✅ Recycling center loaded: ${centerWithImageUrl.name}');
       print('✅ Center image URL: ${centerWithImageUrl.image}');
       return centerWithImageUrl;
@@ -185,7 +187,7 @@ class RecyclingCenterRepository extends GetxController {
 
       final center = PartnerRecyclingCenter.fromSnapshot(querySnapshot.docs.first as DocumentSnapshot<Map<String, dynamic>>);
       // 转换图片URL
-      final centerWithImageUrl = await _convertImageToDownloadUrl(center);
+      final centerWithImageUrl = await convertImageToDownloadUrl(center);
       print('✅ Center found via alternative method: ${centerWithImageUrl.name}');
       return centerWithImageUrl;
 
@@ -218,12 +220,12 @@ class RecyclingCenterRepository extends GetxController {
       }
 
       final center = PartnerRecyclingCenter.fromSnapshot(centerSnapshot);
-      return await _convertImageToDownloadUrl(center);
+      return await convertImageToDownloadUrl(center);
     });
   }
 
   /// 将单个回收中心的图片文件名转换为下载URL
-  Future<PartnerRecyclingCenter> _convertImageToDownloadUrl(PartnerRecyclingCenter center) async {
+  Future<PartnerRecyclingCenter> convertImageToDownloadUrl(PartnerRecyclingCenter center) async {
     try {
       // 如果已经是完整URL，直接返回
       if (center.image.startsWith('http')) {
@@ -251,7 +253,7 @@ class RecyclingCenterRepository extends GetxController {
 
     for (final center in centers) {
       try {
-        final updatedCenter = await _convertImageToDownloadUrl(center);
+        final updatedCenter = await convertImageToDownloadUrl(center);
         result.add(updatedCenter);
       } catch (e) {
         print('❌ Failed to convert image for center ${center.name}: $e');
@@ -287,7 +289,193 @@ class RecyclingCenterRepository extends GetxController {
   }
 
   /// 直接获取图片下载URL（公共方法）
-  Future<String> getCenterImageUrl(String fileName) async {
-    return await _getImageDownloadUrl(fileName);
+  // Future<String> getCenterImageUrl(String fileName) async {
+  //   return await _getImageDownloadUrl(fileName);
+  // }
+
+  /// Get all centers (both active and disabled)
+  Future<List<PartnerRecyclingCenter>> getAllCenters() async {
+    try {
+      final snapshot = await _db
+          .collection(_recyclingCentersCollection)
+          .orderBy('name')
+          .get();
+
+      final centers = snapshot.docs
+          .map((doc) => PartnerRecyclingCenter.fromSnapshot(doc))
+          .toList();
+
+      return await _convertImagesToDownloadUrls(centers);
+    } catch (e) {
+      throw 'Failed to fetch all centers: $e';
+    }
+  }
+
+  /// Update center status
+  Future<void> updateCenterStatus(String centerId, String status) async {
+    try {
+      await _db
+          .collection(_recyclingCentersCollection)
+          .doc(centerId)
+          .update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw 'Failed to update center status: $e';
+    }
+  }
+
+  /// Ban all staff of a center
+  Future<void> banAllStaffOfCenter(String centerId) async {
+    try {
+      // Get all staff of this center
+      final staffSnapshot = await _db
+          .collection(_usersCollection)
+          .where('centerId', isEqualTo: centerId)
+          .where('role', isEqualTo: 'center_staff')
+          .get();
+
+      // Batch update to ban all staff
+      final batch = _db.batch();
+
+      for (var doc in staffSnapshot.docs) {
+        batch.update(doc.reference, {
+          'isBanned': true,
+          'isActive': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      throw 'Failed to ban staff: $e';
+    }
+  }
+
+  /// Upload center image to Firebase Storage
+  Future<String> uploadCenterImage(Uint8List imageBytes, String fileName) async {
+    try {
+      print('Storage - Starting upload: $_centerImagesFolder/$fileName');
+      print('Storage - File size: ${imageBytes.length} bytes');
+
+      final ref = _storage.ref().child('$_centerImagesFolder/$fileName');
+      final uploadTask = ref.putData(
+        imageBytes,
+        SettableMetadata(
+          contentType: 'image/webp',
+        ),
+      );
+
+      uploadTask.snapshotEvents.listen((taskSnapshot) {
+        print('Storage - Upload progress: ${taskSnapshot.bytesTransferred}/${taskSnapshot.totalBytes}');
+      });
+
+      final taskSnapshot = await uploadTask;
+      print('Storage - Upload completed: ${taskSnapshot.totalBytes} bytes');
+
+      return fileName;
+    } on FirebaseException catch (e) {
+      print('Storage - FirebaseException: ${e.code} - ${e.message}');
+      throw 'Firebase Storage error (${e.code}): ${e.message}';
+    } catch (e) {
+      print('Storage - Unexpected error: $e');
+      throw 'Failed to upload center image: $e';
+    }
+  }
+
+  /// Delete center image from Firebase Storage
+  Future<void> deleteCenterImage(String fileName) async {
+    try {
+      if (fileName.isEmpty) return;
+
+      final ref = _storage.ref().child('$_centerImagesFolder/$fileName');
+      await ref.delete();
+    } on FirebaseException catch (e) {
+      if (e.code != 'object-not-found') {
+        throw 'Failed to delete center image: ${e.message}';
+      }
+    } catch (e) {
+      print('Failed to delete center image: $e');
+    }
+  }
+
+  /// Get center image URL from Firebase Storage
+  Future<String?> getCenterImageUrl(String fileName) async {
+    try {
+      print('📁 getCenterImageUrl called with: "$fileName"');
+      print('📁 File name length: ${fileName.length}');
+      print('📁 File name contains spaces: ${fileName.contains(' ')}');
+      print('📁 File name contains special chars: ${fileName.contains(RegExp(r'[^a-zA-Z0-9._-]'))}');
+
+      if (fileName.isEmpty) {
+        print('📁 File name is empty');
+        return null;
+      }
+
+      // 清理文件名（移除前后空格等）
+      final cleanFileName = fileName.trim();
+      print('📁 Cleaned file name: "$cleanFileName"');
+
+      final path = '$_centerImagesFolder/$cleanFileName';
+      print('📁 Storage path: $path');
+
+      final ref = _storage.ref().child(path);
+      print('📁 Storage reference created');
+
+      final downloadUrl = await ref.getDownloadURL();
+      print('📁 ✅ Successfully retrieved download URL: $downloadUrl');
+      return downloadUrl;
+
+    } on FirebaseException catch (e) {
+      print('📁 ❌ FirebaseException: ${e.code} - ${e.message}');
+      print('📁 Stack trace: ${e.stackTrace}');
+
+      if (e.code == 'object-not-found') {
+        print('📁 Center image not found in storage: $fileName');
+        // 检查文件是否真的存在
+        print('📁 Checking if file exists by listing files...');
+        try {
+          final listResult = await _storage.ref(_centerImagesFolder).listAll();
+          print('📁 Available files in $_centerImagesFolder:');
+          for (final item in listResult.items) {
+            print('📁   - ${item.name}');
+          }
+        } catch (listError) {
+          print('📁 Error listing files: $listError');
+        }
+        return null;
+      }
+      throw 'Failed to get center image URL: ${e.message ?? e.code}';
+    } catch (e) {
+      print('📁 ❌ Unexpected error: $e');
+      print('📁 Stack trace: ${StackTrace.current}');
+      throw 'Failed to get center image URL: $e';
+    }
+  }
+
+  /// Create new recycling center
+  Future<void> createCenter(PartnerRecyclingCenter center) async {
+    try {
+      await _db.collection(_recyclingCentersCollection).add(center.toJson());
+    } on FirebaseException catch (e) {
+      throw 'Failed to create center: ${e.message}';
+    } catch (e) {
+      throw 'Failed to create center: $e';
+    }
+  }
+
+  /// Update existing recycling center
+  Future<void> updateCenter(PartnerRecyclingCenter center) async {
+    try {
+      await _db
+          .collection(_recyclingCentersCollection)
+          .doc(center.centerId)
+          .update(center.toJson());
+    } on FirebaseException catch (e) {
+      throw 'Failed to update center: ${e.message}';
+    } catch (e) {
+      throw 'Failed to update center: $e';
+    }
   }
 }

@@ -6,24 +6,48 @@ class RedemptionRepository extends GetxController {
   static RedemptionRepository get instance => Get.find();
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  // Make redemptions collection name a variable
   final String _redemptionsCollection = 'redemptions';
 
   /// Create a new redemption
   Future<RedemptionModel> createRedemption(RedemptionModel redemption) async {
     try {
-      final docRef = await _db.collection(_redemptionsCollection).add(redemption.toJson());
+      final docRef =
+      await _db.collection(_redemptionsCollection).add(redemption.toJson());
 
-      // Update the redemption with the generated ID
       await docRef.update({'redemptionId': docRef.id});
 
-      // Fetch and return the created redemption
       final snapshot = await docRef.get();
       return RedemptionModel.fromSnapshot(snapshot);
     } catch (e) {
       throw 'Failed to create redemption: $e';
     }
+  }
+
+  /// Get redemptions by reward ID (future)
+  Future<List<RedemptionModel>> getRedemptionsByRewardId(
+      String rewardId) async {
+    try {
+      final snapshot = await _db
+          .collection(_redemptionsCollection)
+          .where('rewardId', isEqualTo: rewardId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => RedemptionModel.fromSnapshot(doc))
+          .toList();
+    } catch (e) {
+      throw 'Failed to fetch redemptions: $e';
+    }
+  }
+
+  /// Get redemption count by reward ID (stream)
+  Stream<int> getRedemptionCountByRewardIdStream(String rewardId) {
+    return _db
+        .collection(_redemptionsCollection)
+        .where('rewardId', isEqualTo: rewardId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
   }
 
   /// Get all redemptions for a user
@@ -56,11 +80,10 @@ class RedemptionRepository extends GetxController {
       return snapshot.docs
           .map((doc) => RedemptionModel.fromSnapshot(doc))
           .where((redemption) {
-        // Check if redemption is still valid (within 30 days)
-        final daysSinceRedemption = now.difference(redemption.createdAt).inDays;
+        final daysSinceRedemption =
+            now.difference(redemption.createdAt).inDays;
         return daysSinceRedemption < 30;
-      })
-          .toList();
+      }).toList();
     } catch (e) {
       throw 'Failed to fetch active redemptions: $e';
     }
@@ -79,10 +102,10 @@ class RedemptionRepository extends GetxController {
       return snapshot.docs
           .map((doc) => RedemptionModel.fromSnapshot(doc))
           .where((redemption) {
-        final daysSinceRedemption = now.difference(redemption.createdAt).inDays;
+        final daysSinceRedemption =
+            now.difference(redemption.createdAt).inDays;
         return daysSinceRedemption >= 30;
-      })
-          .toList();
+      }).toList();
     } catch (e) {
       throw 'Failed to fetch expired redemptions: $e';
     }
@@ -91,7 +114,10 @@ class RedemptionRepository extends GetxController {
   /// Get redemption by ID
   Future<RedemptionModel> getRedemptionById(String redemptionId) async {
     try {
-      final snapshot = await _db.collection(_redemptionsCollection).doc(redemptionId).get();
+      final snapshot = await _db
+          .collection(_redemptionsCollection)
+          .doc(redemptionId)
+          .get();
       if (!snapshot.exists) {
         throw 'Redemption not found';
       }
@@ -113,7 +139,7 @@ class RedemptionRepository extends GetxController {
         .toList());
   }
 
-  /// Check if user has already redeemed a specific reward (for duplicate prevention if needed)
+  /// Check if user has already redeemed a specific reward
   Future<bool> hasUserRedeemedReward(String userId, String rewardId) async {
     try {
       final snapshot = await _db

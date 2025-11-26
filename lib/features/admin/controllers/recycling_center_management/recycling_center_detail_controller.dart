@@ -1,532 +1,543 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../utils/constants/colors.dart';
-import '../../../../utils/helpers/helper_functions.dart';
-import '../../../authentication/models/user_model.dart';
-import '../../../event/models/address_model.dart';
-import '../../../event/models/geopoint_model.dart';
-import '../../../event/models/location_model.dart';
-import '../../../personalization/models/recycle_activity_model.dart';
-import '../../../recycling_center/models/partner_recycling_center_model.dart';
-import '../../../recycling_center/models/recycling_center_staff_model.dart';
+import 'package:fyp/data/repositories/recycling_center/recycling_center_repository.dart';
+import 'package:fyp/data/repositories/user/user_repository.dart';
+import 'package:fyp/features/recycling_center/models/partner_recycling_center_model.dart';
+import 'package:fyp/features/recycling_center/models/recycling_center_staff_model.dart';
+import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
+import 'package:fyp/features/authentication/models/user_model.dart';
+import 'package:fyp/utils/popups/admin_loaders.dart';
+import 'package:fyp/utils/constants/colors.dart';
+import 'package:fyp/data/repositories/personalization/recycling_activity_repository.dart';
+import 'package:fyp/data/repositories/recycling_center/recycling_center_staff_repository.dart';
+import 'package:iconsax/iconsax.dart';
+
+import '../../../../common/widgets/admin/admin_lightbox.dart';
+import '../../../../data/repositories/recycling_center/waste_category_repository.dart';
+import '../../../recycling_center/models/waste_category_model.dart';
 
 class RecyclingCenterDetailsController extends GetxController {
   final String centerId;
+
   RecyclingCenterDetailsController({required this.centerId});
 
-  // Observables
+  // Repositories
+  final _centerRepo = Get.put(RecyclingCenterRepository());
+  final _staffRepo = Get.put(RecyclingCenterStaffRepository());
+  final _activityRepo = Get.put(RecyclingActivityRepository());
+  final _userRepo = Get.put(UserRepository());
+  final _wasteCategoryRepo = Get.put(WasteCategoryRepository());
+
+  // Data
   final Rx<PartnerRecyclingCenter?> center = Rx<PartnerRecyclingCenter?>(null);
   final RxList<RecyclingCenterStaff> allStaff = <RecyclingCenterStaff>[].obs;
   final RxList<RecyclingActivity> allActivities = <RecyclingActivity>[].obs;
   final RxList<RecyclingActivity> filteredActivities = <RecyclingActivity>[].obs;
-  final RxMap<String, UserModel> users = <String, UserModel>{}.obs;
+  final RxMap<String, UserModel> usersMap = <String, UserModel>{}.obs;
   final RxMap<String, int> staffActivityCounts = <String, int>{}.obs;
+  final RxMap<String, WasteCategory> wasteCategories = <String, WasteCategory>{}.obs;
 
-  // Filter and Sort
+  // Image URL caches
+  final RxMap<String, String> userImageUrls = <String, String>{}.obs;
+  final RxMap<String, String> staffImageUrls = <String, String>{}.obs;
+  final RxMap<String, String> activityImageUrls = <String, String>{}.obs;
+
+  // Loading states
+  final RxBool isLoading = false.obs;
+
+  // Activity filters
   final RxString selectedStaffFilter = 'all'.obs;
-  final RxString sortBy = 'newest'.obs; // newest, oldest
-  final RxBool isLoading = true.obs;
+  final RxString sortBy = 'newest'.obs;
+
+  // Activity count tracking
+  StreamSubscription<List<RecyclingActivity>>? _activitySubscription;
+  final RxInt initialActivityCount = 0.obs;
+  final RxInt currentActivityCount = 0.obs;
+  final RxBool showNewActivityNotification = false.obs;
+  final RxBool isInitialLoad = true.obs;
+
+  // Category statistics
+  final RxMap<String, Map<String, dynamic>> categoryStats = <String, Map<String, dynamic>>{}.obs;
 
   @override
   void onInit() {
     super.onInit();
-    loadCenterDetails();
-
-    // Listen to filter/sort changes
-    ever(selectedStaffFilter, (_) => applyFilters());
-    ever(sortBy, (_) => applySorting());
+    fetchCenterDetails();
+    _listenToActivities();
+    _fetchWasteCategories();
   }
 
-  void loadCenterDetails() async {
+  @override
+  void onClose() {
+    _activitySubscription?.cancel();
+    super.onClose();
+  }
+
+  /// Fetch center details
+  Future<void> fetchCenterDetails() async {
     try {
       isLoading.value = true;
 
-      // Load center details
-      center.value = _getMockCenter();
+      // Fetch center data
+      final centerData = await _centerRepo.getCenterById(centerId);
 
-      // Load staff
-      allStaff.value = _getMockStaff();
+      // 确保图片URL被正确转换
+      final centerWithImageUrl = await _centerRepo.convertImageToDownloadUrl(centerData);
+      center.value = centerWithImageUrl;
 
-      // Load activities
-      allActivities.value = _getMockActivities();
-      filteredActivities.value = List.from(allActivities);
+      // Fetch staff data (stream)
+      _fetchStaffData();
 
-      // Load users
-      users.value = _getMockUsers();
-
-      // Calculate staff activity counts
-      _calculateStaffActivityCounts();
-
-      // Apply initial sorting
-      applySorting();
+      // Fetch activities (one-time)
+      await _fetchActivitiesData();
 
     } catch (e) {
-      FHelperFunctions.showSnackBar('Error loading center details: $e');
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to load center details: ${e.toString()}',
+      );
     } finally {
       isLoading.value = false;
     }
   }
 
-  PartnerRecyclingCenter _getMockCenter() {
-    // Mock center data with new openingHours format
-    return PartnerRecyclingCenter(
-      centerId: centerId,
-      name: 'EcoCenter Kuala Lumpur',
-      email: 'contact@ecocenter-kl.com',
-      phoneNo: '0123456789',
-      website: 'https://ecocenter-kl.com',
-      centerLocation: Location(
-        address: const Address(
-          unitNo: 'Block A, Lot 123',
-          area: 'Taman Eco',
-          postcode: '50100',
-          city: 'Kuala Lumpur',
-          state: 'Selangor',
-        ),
-        geoPoint: const GeoPointModel(latitude: 3.1390, longitude: 101.6869),
-      ),
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
-      openingHours: {
-        'periods': [
-          {
-            'open': {'day': 0, 'time': '0900'}, // Sunday
-            'close': {'day': 0, 'time': '1500'},
-          },
-          {
-            'open': {'day': 1, 'time': '0800'}, // Monday
-            'close': {'day': 1, 'time': '1800'},
-          },
-          {
-            'open': {'day': 2, 'time': '0800'}, // Tuesday
-            'close': {'day': 2, 'time': '1800'},
-          },
-          {
-            'open': {'day': 3, 'time': '0800'}, // Wednesday
-            'close': {'day': 3, 'time': '1800'},
-          },
-          {
-            'open': {'day': 4, 'time': '0800'}, // Thursday
-            'close': {'day': 4, 'time': '1800'},
-          },
-          {
-            'open': {'day': 5, 'time': '0800'}, // Friday
-            'close': {'day': 5, 'time': '1800'},
-          },
-          {
-            'open': {'day': 6, 'time': '0900'}, // Saturday
-            'close': {'day': 6, 'time': '1500'},
-          },
-        ],
-        'weekday_text': [
-          'Monday: 8:00 AM – 6:00 PM',
-          'Tuesday: 8:00 AM – 6:00 PM',
-          'Wednesday: 8:00 AM – 6:00 PM',
-          'Thursday: 8:00 AM – 6:00 PM',
-          'Friday: 8:00 AM – 6:00 PM',
-          'Saturday: 9:00 AM – 3:00 PM',
-          'Sunday: 9:00 AM – 3:00 PM',
-        ],
-      },
-      acceptedMaterials: ['plastic', 'paper', 'glass', 'metal', 'electronics'],
-      numberOfStaff: 15,
-      createdAt: DateTime.now().subtract(const Duration(days: 120)),
-      status: 'active',
-      rating: 4.5,
-      userRatingsTotal: 128,
-      placeId: 'ChIJP5jIRfdizTERr2dFDD2K9No',
+  /// 获取所有废物分类数据
+  Future<void> _fetchWasteCategories() async {
+    try {
+      final categories = await _wasteCategoryRepo.getAllWasteCategories();
+      for (var category in categories) {
+        wasteCategories[category.categoryId] = category;
+      }
+    } catch (e) {
+      print('Error fetching waste categories: $e');
+    }
+  }
+
+  /// Fetch staff data with stream
+  void _fetchStaffData() {
+    _staffRepo.getStaffByCenterIdStream(centerId).listen((staffList) async {
+      allStaff.assignAll(staffList);
+
+      // Load staff profile images
+      for (final staff in staffList) {
+        if (staff.profileImg != null && staff.profileImg!.isNotEmpty) {
+          try {
+            final url = await _userRepo.getProfileImageUrl(staff.profileImg!);
+            if (url != null) {
+              staffImageUrls[staff.userId] = url;
+            }
+          } catch (e) {
+            print('Error loading staff image: $e');
+          }
+        }
+      }
+
+      _calculateStaffActivityCounts();
+    });
+  }
+
+  /// Fetch activities data (one-time)
+  Future<void> _fetchActivitiesData() async {
+    try {
+      final activities = await _activityRepo.getActivitiesByCenterId(centerId);
+      allActivities.assignAll(activities);
+      filteredActivities.assignAll(activities);
+
+      // Set initial count
+      initialActivityCount.value = activities.length;
+      currentActivityCount.value = activities.length;
+
+      // Fetch user data and images for activities
+      await _fetchUsersData();
+      await _loadActivityImages();
+
+      // Calculate statistics
+      _calculateStaffActivityCounts();
+      _calculateCategoryStatistics();
+
+      // Apply initial filters
+      applyActivityFilters();
+
+      // Mark initial load as complete
+      isInitialLoad.value = false;
+    } catch (e) {
+      print('Error fetching activities: $e');
+    }
+  }
+
+  /// Listen to activities for new entries (stream)
+  void _listenToActivities() {
+    _activitySubscription = _activityRepo
+        .getActivitiesByCenterIdStream(centerId)
+        .listen((activities) {
+      // Only show notification if not initial load and count increased
+      if (!isInitialLoad.value && activities.length > currentActivityCount.value) {
+        showNewActivityNotification.value = true;
+      }
+    });
+  }
+
+  /// Load activity support images
+  Future<void> _loadActivityImages() async {
+    for (final activity in allActivities) {
+      if (activity.supportImage.isNotEmpty && activity.userId.isNotEmpty) {
+        try {
+          final url = await activity.getSupportImageUrl(activity.userId);
+          if (url.isNotEmpty) {
+            activityImageUrls[activity.activityId] = url;
+          }
+        } catch (e) {
+          print('Error loading activity image: $e');
+        }
+      }
+    }
+  }
+
+  /// Refresh activities when user clicks notification
+  Future<void> refreshActivities() async {
+    showNewActivityNotification.value = false;
+    await _fetchActivitiesData();
+    FAdminLoaders.successSnackBar(
+      title: 'Refreshed',
+      message: 'Activities updated successfully',
     );
   }
 
-  List<RecyclingCenterStaff> _getMockStaff() {
-    final now = DateTime.now();
-    return [
-      RecyclingCenterStaff(
-        userId: 'staff1',
-        username: 'Ahmad Rahman',
-        email: 'ahmad@ecocenter-kl.com',
-        phoneNo: '0123456701',
-        profileImg: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-        loginAttemptCount: 0,
-        role: 'staff',
-        isVerified: true,
-        isActive: true,
-        centerId: centerId,
-        gender: 'male',
-        joinDate: now.subtract(const Duration(days: 90)),
-      ),
-      RecyclingCenterStaff(
-        userId: 'staff2',
-        username: 'Siti Nurhaliza',
-        email: 'siti@ecocenter-kl.com',
-        phoneNo: '0123456702',
-        profileImg: 'https://images.unsplash.com/photo-1494790108755-2616b60c1859?w=150',
-        loginAttemptCount: 0,
-        role: 'staff',
-        isVerified: true,
-        isActive: true,
-        centerId: centerId,
-        gender: 'female',
-        joinDate: now.subtract(const Duration(days: 75)),
-      ),
-      RecyclingCenterStaff(
-        userId: 'staff3',
-        username: 'Wong Wei Ming',
-        email: 'wong@ecocenter-kl.com',
-        phoneNo: '0123456703',
-        profileImg: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-        loginAttemptCount: 0,
-        role: 'staff',
-        isVerified: true,
-        isActive: true,
-        centerId: centerId,
-        gender: 'male',
-        joinDate: now.subtract(const Duration(days: 60)),
-      ),
-      RecyclingCenterStaff(
-        userId: 'staff4',
-        username: 'Priya Sharma',
-        email: 'priya@ecocenter-kl.com',
-        phoneNo: '0123456704',
-        profileImg: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-        loginAttemptCount: 0,
-        role: 'supervisor',
-        isVerified: true,
-        isActive: true,
-        centerId: centerId,
-        gender: 'female',
-        joinDate: now.subtract(const Duration(days: 100)),
-      ),
-    ];
+  /// Fetch users data
+  Future<void> _fetchUsersData() async {
+    try {
+      final userIds = allActivities.map((a) => a.userId).toSet();
+      if (userIds.isEmpty) return;
+
+      final users = await _userRepo.getUsersProfileData(userIds);
+      usersMap.assignAll(users);
+
+      // Load user profile images
+      for (final userId in userIds) {
+        final user = users[userId];
+        if (user != null && user.profileImg != null && user.profileImg!.isNotEmpty) {
+          try {
+            final url = await _userRepo.getProfileImageUrl(user.profileImg!);
+            if (url != null) {
+              userImageUrls[userId] = url;
+            }
+          } catch (e) {
+            print('Error loading user image: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('Error fetching users data: $e');
+    }
   }
 
-  List<RecyclingActivity> _getMockActivities() {
-    final now = DateTime.now();
-    return [
-      RecyclingActivity(
-        activityId: 'activity1',
-        userId: 'user1',
-        centerStaffId: 'staff1',
-        wasteObject: 'Plastic Bottles',
-        wasteCategoryId: 'plastic',
-        weight: 5.2,
-        supportImage: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=300',
-        pointsEarned: 42,
-        createdAt: now.subtract(const Duration(hours: 2)),
-        status: 'completed',
-      ),
-      RecyclingActivity(
-        activityId: 'activity2',
-        userId: 'user2',
-        centerStaffId: 'staff2',
-        wasteObject: 'Paper',
-        wasteCategoryId: 'paper',
-        weight: 8.5,
-        supportImage: 'https://images.unsplash.com/photo-1594736797933-d0301ba2fe65?w=300',
-        pointsEarned: 77,
-        createdAt: now.subtract(const Duration(hours: 5)),
-        status: 'approved',
-      ),
-      RecyclingActivity(
-        activityId: 'activity3',
-        userId: 'user3',
-        centerStaffId: 'staff1',
-        wasteObject: 'Electronics',
-        wasteCategoryId: 'electronics',
-        weight: 3.2,
-        supportImage: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=300',
-        pointsEarned: 48,
-        createdAt: now.subtract(const Duration(hours: 8)),
-        status: 'completed',
-      ),
-      RecyclingActivity(
-        activityId: 'activity4',
-        userId: 'user4',
-        centerStaffId: 'staff3',
-        wasteObject: 'Glass Bottles',
-        wasteCategoryId: 'glass',
-        weight: 4.8,
-        supportImage: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=300',
-        pointsEarned: 58,
-        createdAt: now.subtract(const Duration(hours: 12)),
-        status: 'pending',
-      ),
-      RecyclingActivity(
-        activityId: 'activity5',
-        userId: 'user1',
-        centerStaffId: 'staff2',
-        wasteObject: 'Metal Cans',
-        wasteCategoryId: 'metal',
-        weight: 2.1,
-        supportImage: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=300',
-        pointsEarned: 27,
-        createdAt: now.subtract(const Duration(days: 1)),
-        status: 'completed',
-      ),
-      RecyclingActivity(
-        activityId: 'activity6',
-        userId: 'user2',
-        centerStaffId: 'staff4',
-        wasteObject: 'Cardboard',
-        wasteCategoryId: 'paper',
-        weight: 12.3,
-        supportImage: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300',
-        pointsEarned: 111,
-        createdAt: now.subtract(const Duration(days: 2)),
-        status: 'approved',
-      ),
-    ];
-  }
-
-  Map<String, UserModel> _getMockUsers() {
-    final now = DateTime.now();
-    return {
-      'user1': UserModel(
-        userId: 'user1',
-        username: 'Alex Johnson',
-        email: 'alex@example.com',
-        profileImg: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-        loginAttemptCount: 0,
-        role: 'user',
-        isVerified: true,
-        isActive: true,
-        joinDate: now.subtract(const Duration(days: 200)),
-        rewardPoint: 156,
-      ),
-      'user2': UserModel(
-        userId: 'user2',
-        username: 'Sarah Chen',
-        email: 'sarah@example.com',
-        profileImg: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
-        loginAttemptCount: 0,
-        role: 'user',
-        isVerified: true,
-        isActive: true,
-        joinDate: now.subtract(const Duration(days: 150)),
-        rewardPoint: 243,
-      ),
-      'user3': UserModel(
-        userId: 'user3',
-        username: 'Michael Brown',
-        email: 'michael@example.com',
-        profileImg: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=150',
-        loginAttemptCount: 0,
-        role: 'user',
-        isVerified: true,
-        isActive: true,
-        joinDate: now.subtract(const Duration(days: 180)),
-        rewardPoint: 89,
-      ),
-      'user4': UserModel(
-        userId: 'user4',
-        username: 'Lisa Wang',
-        email: 'lisa@example.com',
-        profileImg: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=150',
-        loginAttemptCount: 0,
-        role: 'user',
-        isVerified: true,
-        isActive: true,
-        joinDate: now.subtract(const Duration(days: 120)),
-        rewardPoint: 312,
-      ),
-    };
-  }
-
+  /// Calculate staff activity counts
   void _calculateStaffActivityCounts() {
-    staffActivityCounts.clear();
-    for (final staff in allStaff) {
-      final count = allActivities.where((activity) =>
-      activity.centerStaffId == staff.userId).length;
-      staffActivityCounts[staff.userId] = count;
+    final counts = <String, int>{};
+    for (final activity in allActivities) {
+      counts[activity.centerStaffId] = (counts[activity.centerStaffId] ?? 0) + 1;
     }
+    staffActivityCounts.assignAll(counts);
   }
 
-  void applyFilters() {
-    List<RecyclingActivity> result = List.from(allActivities);
+  /// 获取分类名称
+  String getCategoryName(String categoryId) {
+    final category = wasteCategories[categoryId];
+    return category?.name ?? 'Unknown Category';
+  }
 
+  /// 获取分类图标
+  IconData getCategoryIcon(String categoryId) {
+    final category = wasteCategories[categoryId];
+    return category?.icon ?? Iconsax.category;
+  }
+
+  /// 获取分类颜色
+  Color getCategoryColor(String categoryId) {
+    final category = wasteCategories[categoryId];
+    return category?.color ?? Colors.grey;
+  }
+
+  /// Calculate category statistics
+  void _calculateCategoryStatistics() {
+    final stats = <String, Map<String, dynamic>>{};
+
+    for (final activity in allActivities) {
+      final categoryId = activity.wasteCategoryId;
+
+      if (!stats.containsKey(categoryId)) {
+        // 使用分类名称而不是 wasteObject
+        stats[categoryId] = {
+          'name': getCategoryName(categoryId),
+          'icon': getCategoryIcon(categoryId),
+          'color': getCategoryColor(categoryId),
+          'count': 0,
+          'weight': 0.0,
+          'points': 0,
+        };
+      }
+
+      stats[categoryId]!['count'] = (stats[categoryId]!['count'] as int) + 1;
+      stats[categoryId]!['weight'] = (stats[categoryId]!['weight'] as double) + activity.weight;
+      stats[categoryId]!['points'] = (stats[categoryId]!['points'] as int) + activity.pointsEarned;
+    }
+
+    categoryStats.assignAll(stats);
+  }
+
+  /// Apply activity filters
+  void applyActivityFilters() {
+    List<RecyclingActivity> result = allActivities;
+
+    // Filter by staff
     if (selectedStaffFilter.value != 'all') {
-      result = result.where((activity) =>
-      activity.centerStaffId == selectedStaffFilter.value).toList();
+      result = result.where((a) => a.centerStaffId == selectedStaffFilter.value).toList();
     }
 
-    filteredActivities.value = result;
-    applySorting();
-  }
-
-  void applySorting() {
-    List<RecyclingActivity> result = List.from(filteredActivities);
-
-    switch (sortBy.value) {
-      case 'newest':
-        result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        break;
-      case 'oldest':
-        result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        break;
+    // Sort
+    if (sortBy.value == 'newest') {
+      result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } else {
+      result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     }
 
-    filteredActivities.value = result;
+    filteredActivities.assignAll(result);
   }
 
+  /// Change staff filter
   void changeStaffFilter(String staffId) {
     selectedStaffFilter.value = staffId;
+    applyActivityFilters();
   }
 
-  void changeSorting(String sorting) {
-    sortBy.value = sorting;
+  /// Change sorting
+  void changeSorting(String sort) {
+    sortBy.value = sort;
+    applyActivityFilters();
   }
 
-  void showCenterImage() {
-    if (center.value?.image != null) {
-      Get.dialog(
-        Dialog(
-          backgroundColor: Colors.transparent,
-          child: GestureDetector(
-            onTap: () => Get.back(),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    constraints: BoxConstraints(
-                      maxWidth: Get.width * 0.9,
-                      maxHeight: Get.height * 0.8,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        center.value!.image,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          height: 300,
-                          width: 300,
-                          color: Colors.grey[300],
-                          child: const Center(
-                            child: Icon(Icons.image, size: 48),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      center.value?.name ?? '',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-  }
-
-  void editCenter() {
-    // Navigate to edit center screen
-    print('Navigate to edit center: ${center.value?.name}');
-  }
-
+  /// Get staff by ID
   RecyclingCenterStaff? getStaffById(String staffId) {
     try {
-      return allStaff.firstWhere((staff) => staff.userId == staffId);
+      return allStaff.firstWhere((s) => s.userId == staffId);
     } catch (e) {
       return null;
     }
   }
 
+  /// Get user by ID
   UserModel? getUserById(String userId) {
-    return users[userId];
+    return usersMap[userId];
   }
 
-  String get centerStatusText {
-    if (center.value == null) return 'Unknown';
-    return center.value!.status == 'active' ? 'Active' : 'Inactive';
-  }
-
-  Color getCenterStatusColor(bool dark) {
-    if (center.value == null) return Colors.grey;
-
-    if (center.value!.status == 'active') {
-      return dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
-    } else {
-      return dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
-    }
-  }
-
-  String formatOperatingHours(String day) {
-    if (center.value?.openingHours == null) return 'Unknown';
-
-    // Use the weekday_text from Google Places format
-    final weekdayText = center.value!.weekdayText;
-    final dayIndex = _getDayIndex(day);
-
-    if (dayIndex < weekdayText.length) {
-      return weekdayText[dayIndex].split(':').skip(1).join(':').trim();
+  /// Get user image URL
+  String? getUserImageUrl(String userId) {
+    final user = getUserById(userId);
+    if (user == null || user.profileImg == null || user.profileImg!.isEmpty) {
+      return null;
     }
 
-    return 'Unknown';
-  }
-
-  int _getDayIndex(String day) {
-    switch (day.toLowerCase()) {
-      case 'monday': return 0;
-      case 'tuesday': return 1;
-      case 'wednesday': return 2;
-      case 'thursday': return 3;
-      case 'friday': return 4;
-      case 'saturday': return 5;
-      case 'sunday': return 6;
-      default: return 0;
+    // 如果已经是完整URL，直接返回
+    if (user.profileImg!.startsWith('http')) {
+      return user.profileImg;
     }
+
+    // 否则从缓存中获取
+    return userImageUrls[userId];
   }
 
-  String _formatTime(DateTime time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
+  /// Get staff image URL
+  String? getStaffImageUrl(String staffId) {
+    return staffImageUrls[staffId];
   }
 
+  /// Get activity image URL
+  String? getActivityImageUrl(String activityId) {
+    return activityImageUrls[activityId];
+  }
+
+  /// Statistics getters
   String get totalActivitiesToday {
     final today = DateTime.now();
-    final todayActivities = allActivities.where((activity) =>
-    activity.createdAt.year == today.year &&
-        activity.createdAt.month == today.month &&
-        activity.createdAt.day == today.day).length;
-
+    final todayActivities = allActivities.where((a) {
+      return a.createdAt.year == today.year &&
+          a.createdAt.month == today.month &&
+          a.createdAt.day == today.day;
+    }).length;
     return todayActivities.toString();
   }
 
   String get totalActivitiesThisWeek {
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final weekEnd = weekStart.add(const Duration(days: 6));
-
-    final weekActivities = allActivities.where((activity) =>
-    activity.createdAt.isAfter(weekStart) &&
-        activity.createdAt.isBefore(weekEnd.add(const Duration(days: 1)))).length;
-
+    final weekActivities = allActivities.where((a) {
+      return a.createdAt.isAfter(weekStart);
+    }).length;
     return weekActivities.toString();
   }
 
   String get totalWeightProcessed {
     final totalWeight = allActivities.fold<double>(
-        0.0,
-            (sum, activity) => sum + activity.weight
+      0.0,
+          (sum, activity) => sum + activity.weight,
     );
-    return '${totalWeight.toStringAsFixed(1)} kg';
+    return '${totalWeight.toStringAsFixed(2)} kg';
+  }
+
+  String get totalActivitiesCount {
+    return allActivities.length.toString();
+  }
+
+  String get totalPointsAssigned {
+    final totalPoints = allActivities.fold<int>(
+      0,
+          (sum, activity) => sum + activity.pointsEarned,
+    );
+    return totalPoints.toString();
+  }
+
+  /// Get center status color
+  Color getCenterStatusColor(bool dark) {
+    if (center.value == null) {
+      return dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
+    }
+
+    switch (center.value!.status) {
+      case 'active':
+        return dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
+      case 'disabled':
+        return dark ? FColors.adminDarkError : FColors.adminLightError;
+      default:
+        return dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
+    }
+  }
+
+  /// Get center status text
+  String get centerStatusText {
+    if (center.value == null) return 'Unknown';
+
+    switch (center.value!.status) {
+      case 'active':
+        return 'Active';
+      case 'disabled':
+        return 'Disabled';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  /// Format opening hours
+  String formatOpeningHours(String day) {
+    if (center.value?.openingHours == null) return 'Closed';
+
+    final openingHours = center.value!.openingHours!;
+
+    // 直接根据日期键获取营业时间
+    final dayData = openingHours[day.toLowerCase()] as Map<String, dynamic>?;
+
+    if (dayData != null) {
+      final openTime = dayData['open']?.toString();
+      final closeTime = dayData['close']?.toString();
+
+      if (openTime != null && closeTime != null) {
+        return '${_formatTime(openTime)} - ${_formatTime(closeTime)}';
+      }
+    }
+
+    return 'Closed';
+  }
+
+  String _formatTime(String time) {
+    if (time.length != 4) {
+      // 如果时间格式已经是 HH:MM，直接返回
+      if (time.contains(':')) return time;
+      return time; // 返回原始值
+    }
+
+    try {
+      final hour = int.parse(time.substring(0, 2));
+      final minute = time.substring(2, 4);
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '$displayHour:$minute $period';
+    } catch (e) {
+      return time; // 如果解析失败，返回原始时间
+    }
+  }
+
+  /// Show center image lightbox
+  void showCenterImage() {
+    if (center.value == null) {
+      print('❌ Center data is null');
+      return;
+    }
+
+    if (center.value!.image.isEmpty) {
+      print('❌ Center image URL is empty');
+      return;
+    }
+
+    Get.dialog(
+      ImageLightbox(
+        imageUrl: center.value!.image,
+        title: center.value!.name,
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  /// Show activity image lightbox
+  void showActivityImage(String activityId, String title) {
+    final imageUrl = getActivityImageUrl(activityId);
+    if (imageUrl == null || imageUrl.isEmpty) return;
+
+    Get.dialog(
+      ImageLightbox(
+        imageUrl: imageUrl,
+        title: title,
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  /// Show user/staff image lightbox
+  void showProfileImage(String imageUrl, String title) {
+    if (imageUrl.isEmpty) return;
+
+    Get.dialog(
+      ImageLightbox(
+        imageUrl: imageUrl,
+        title: title,
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  /// Disable center
+  Future<void> disableCenter() async {
+    try {
+      FAdminLoaders.customToast(message: 'Disabling center...');
+
+      await _centerRepo.updateCenterStatus(centerId, 'disabled');
+      await _centerRepo.banAllStaffOfCenter(centerId);
+
+      FAdminLoaders.successSnackBar(
+        title: 'Success',
+        message: 'Center disabled successfully',
+      );
+
+      await fetchCenterDetails();
+    } catch (e) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to disable center: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Edit center
+  void editCenter() {
+    Get.toNamed('/admin/edit-recycling-center', arguments: center.value);
   }
 }

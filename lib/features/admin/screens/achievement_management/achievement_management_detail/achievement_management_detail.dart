@@ -5,9 +5,11 @@ import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 
+import '../../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../authentication/models/user_model.dart';
 import '../../../../leaderboard_achievement/models/achievement_level_model.dart';
 import '../../../controllers/achievement_management/achievement_detail_controller.dart';
+import 'emoji_lightbox.dart';
 
 class AchievementDetailsScreen extends StatelessWidget {
   const AchievementDetailsScreen({super.key});
@@ -97,77 +99,31 @@ class AchievementDetailsScreen extends StatelessWidget {
         ),
       ),
       actions: [
+        // Edit Button
         IconButton(
-          onPressed: controller.refreshData,
+          onPressed: controller.editAchievement,
           icon: Icon(
-            Iconsax.refresh,
+            Iconsax.edit,
             color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
           ),
-          tooltip: 'Refresh',
+          tooltip: 'Edit Achievement',
         ),
-        PopupMenuButton<String>(
-          onSelected: (value) {
-            switch (value) {
-              case 'edit':
-                controller.editAchievement();
-                break;
-              case 'toggle_status':
-                controller.toggleAchievementStatus();
-                break;
-            }
-          },
-          icon: Icon(
-            Iconsax.more,
-            color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-          ),
-          color: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  Icon(
-                    Iconsax.edit,
-                    size: 18,
-                    color: dark ? FColors.adminDarkText : FColors.adminLightText,
-                  ),
-                  const SizedBox(width: FSizes.sm),
-                  Text(
-                    'Edit Achievement',
-                    style: TextStyle(
-                      color: dark ? FColors.adminDarkText : FColors.adminLightText,
-                    ),
-                  ),
-                ],
-              ),
+
+        // Activate/Deactivate Button
+        Obx(() {
+          final status = controller.getAchievementStatus();
+          return IconButton(
+            onPressed: controller.toggleAchievementStatus,
+            icon: Icon(
+              status == 'active' ? Iconsax.close_circle : Iconsax.tick_circle,
+              color: status == 'active'
+                  ? (dark ? FColors.adminDarkError : FColors.adminLightError)
+                  : (dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess),
             ),
-            PopupMenuItem(
-              value: 'toggle_status',
-              child: Row(
-                children: [
-                  Icon(
-                    controller.getAchievementStatus() == 'active'
-                        ? Iconsax.pause_circle
-                        : Iconsax.play_circle,
-                    size: 18,
-                    color: controller.getAchievementStatus() == 'active'
-                        ? (dark ? FColors.adminDarkWarning : FColors.adminLightWarning)
-                        : (dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess),
-                  ),
-                  const SizedBox(width: FSizes.sm),
-                  Text(
-                    controller.getAchievementStatus() == 'active'
-                        ? 'Deactivate'
-                        : 'Activate',
-                    style: TextStyle(
-                      color: dark ? FColors.adminDarkText : FColors.adminLightText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+            tooltip: status == 'active' ? 'Deactivate Achievement' : 'Activate Achievement',
+          );
+        }),
+
         const SizedBox(width: FSizes.sm),
       ],
     );
@@ -244,6 +200,44 @@ class AchievementDetailsScreen extends StatelessWidget {
                         ),
                         _buildStatusBadge(controller, dark),
                       ],
+                    ),
+                    const SizedBox(height: FSizes.sm),
+
+                    // Achievement ID
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FSizes.sm,
+                        vertical: FSizes.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: dark
+                            ? FColors.adminDarkSurfaceVariant
+                            : FColors.adminLightSurfaceVariant,
+                        borderRadius: BorderRadius.circular(FSizes.cardRadiusXs),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Iconsax.document_code,
+                            size: 12,
+                            color: dark
+                                ? FColors.adminDarkTextMuted
+                                : FColors.adminLightTextMuted,
+                          ),
+                          const SizedBox(width: FSizes.xs),
+                          Text(
+                            'ID: ${achievement.achievementId}',
+                            style: TextStyle(
+                              color: dark
+                                  ? FColors.adminDarkTextMuted
+                                  : FColors.adminLightTextMuted,
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: FSizes.sm),
 
@@ -569,25 +563,39 @@ class AchievementDetailsScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      _getLevelColor(level.level, dark),
-                      _getLevelColor(level.level, dark).withOpacity(0.7),
-                    ],
+              // Badge Emoji with click to enlarge
+              GestureDetector(
+                onTap: () {
+                  final badgeEmoji = level.badgeImage;
+                  if (badgeEmoji.isNotEmpty) {
+                    Get.dialog(
+                      EmojiLightbox(
+                        emoji: badgeEmoji,
+                        title: '${level.title} - Level ${level.level}',
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    // gradient: LinearGradient(
+                    //   colors: [
+                    //     _getLevelColor(level.level, dark),
+                    //     _getLevelColor(level.level, dark).withOpacity(0.7),
+                    //   ],
+                    // ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _getLevelColor(level.level, dark),
+                      width: 2,
+                    ),
                   ),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    level.level.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                  child: Center(
+                    child: Text(
+                      level.badgeImage,
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
@@ -598,14 +606,30 @@ class AchievementDetailsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Level ${level.level}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: level.title.isNotEmpty ? level.title : 'Level ${level.level}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                            ),
+                          ),
+                          if (level.title.isNotEmpty)
+                            TextSpan(
+                              text: ' (Level ${level.level})',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                                color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: FSizes.md),
                     Text(
                       level.description,
                       style: TextStyle(
@@ -628,13 +652,13 @@ class AchievementDetailsScreen extends StatelessWidget {
                       color: dark ? FColors.adminDarkText : FColors.adminLightText,
                     ),
                   ),
-                  Text(
-                    '${(percentage * 100).toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                    ),
-                  ),
+                  // Text(
+                  //   '${(percentage * 100).toStringAsFixed(1)}%',
+                  //   style: TextStyle(
+                  //     fontSize: 12,
+                  //     color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                  //   ),
+                  // ),
                 ],
               ),
             ],
@@ -665,7 +689,7 @@ class AchievementDetailsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: FSizes.xs),
+              const SizedBox(height: FSizes.md),
               Container(
                 height: 8,
                 decoration: BoxDecoration(
@@ -694,6 +718,57 @@ class AchievementDetailsScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBadgeImage(AchievementDetailsController controller, String badgeImage, int level, bool dark) {
+    final imageUrl = controller.getCachedBadgeImageUrl(badgeImage);
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Center(
+        child: Text(
+          level.toString(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      );
+    }
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Center(
+          child: Text(
+            level.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                  loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -737,13 +812,13 @@ class AchievementDetailsScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      Iconsax.crown,
+                      Iconsax.ranking,
                       size: 14,
                       color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
                     ),
                     const SizedBox(width: FSizes.xs),
                     Text(
-                      'Max Level',
+                      'By Progress',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -757,32 +832,65 @@ class AchievementDetailsScreen extends StatelessWidget {
           ),
           const SizedBox(height: FSizes.md),
           Text(
-            'Users who have reached the highest level of this achievement',
+            'Users with the highest progress in this achievement',
             style: TextStyle(
               color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
             ),
           ),
           const SizedBox(height: FSizes.lg),
 
-          Obx(() {
-            final maxLevel = controller.achievement.value!.maxLevel;
-            final topUsers = controller.getUsersForLevel(maxLevel);
+          FutureBuilder<List<UserModel>>(
+            future: controller.getTopUsersByProgressDirect(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+                  ),
+                );
+              }
 
-            if (topUsers.isEmpty) {
-              return _buildEmptyState(dark);
-            }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Iconsax.warning_2,
+                        size: 48,
+                        color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                      ),
+                      const SizedBox(height: FSizes.md),
+                      Text(
+                        'Failed to load top performers',
+                        style: TextStyle(
+                          color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-            return ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: topUsers.take(10).length, // Show top 10 users
-              separatorBuilder: (context, index) => const SizedBox(height: FSizes.md),
-              itemBuilder: (context, index) {
-                final user = topUsers[index];
-                return _buildUserCard(user, index + 1, maxLevel, dark);
-              },
-            );
-          }),
+              final topUsers = snapshot.data ?? [];
+
+              if (topUsers.isEmpty) {
+                return _buildEmptyState(dark);
+              }
+
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: topUsers.length,
+                separatorBuilder: (context, index) => const SizedBox(height: FSizes.md),
+                itemBuilder: (context, index) {
+                  final user = topUsers[index];
+                  final userAchievement = controller.getUserAchievementForUser(user.userId);
+                  final level = userAchievement?.currentLevel ?? 0;
+                  return _buildUserCard(controller, user, index + 1, level, dark);
+                },
+              );
+            },
+          ),
         ],
       ),
     );
@@ -794,13 +902,13 @@ class AchievementDetailsScreen extends StatelessWidget {
       child: Column(
         children: [
           Icon(
-            Iconsax.medal,
+            Iconsax.people,
             size: 48,
             color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
           ),
           const SizedBox(height: FSizes.md),
           Text(
-            'No users have reached max level yet',
+            'No users have started this achievement yet',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -808,7 +916,7 @@ class AchievementDetailsScreen extends StatelessWidget {
             ),
           ),
           Text(
-            'Keep promoting this achievement to encourage participation',
+            'Users will appear here once they start making progress',
             style: TextStyle(
               fontSize: 14,
               color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
@@ -820,7 +928,7 @@ class AchievementDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUserCard(UserModel user, int rank, int level, bool dark) {
+  Widget _buildUserCard(AchievementDetailsController controller, UserModel user, int rank, int level, bool dark) {
     return Container(
       padding: const EdgeInsets.all(FSizes.md),
       decoration: BoxDecoration(
@@ -861,25 +969,32 @@ class AchievementDetailsScreen extends StatelessWidget {
           ),
           const SizedBox(width: FSizes.md),
 
-          // User Avatar
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: _getLevelColor(level, dark).withOpacity(0.3),
-                width: 2,
+          // User Avatar - Clickable
+          GestureDetector(
+            onTap: () {
+              final imageUrl = controller.getCachedProfileImageUrl(user.profileImg);
+              if (imageUrl != null && imageUrl.isNotEmpty) {
+                Get.dialog(
+                  ImageLightbox(
+                    imageUrl: imageUrl,
+                    title: user.username,
+                  ),
+                );
+              }
+            },
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: _getLevelColor(level, dark).withOpacity(0.3),
+                  width: 2,
+                ),
               ),
-            ),
-            child: ClipOval(
-              child: user.profileImg != null && user.profileImg!.isNotEmpty
-                  ? Image.network(
-                user.profileImg!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(user, dark),
-              )
-                  : _buildDefaultAvatar(user, dark),
+              child: ClipOval(
+                child: _buildUserAvatar(controller, user, dark),
+              ),
             ),
           ),
           const SizedBox(width: FSizes.md),
@@ -903,6 +1018,7 @@ class AchievementDetailsScreen extends StatelessWidget {
                     fontSize: 14,
                     color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -943,7 +1059,7 @@ class AchievementDetailsScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: FSizes.xs),
                   Text(
-                    '${user.rewardPoint} pts',
+                    '${user.totalRewardPoint} pts',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -956,6 +1072,37 @@ class AchievementDetailsScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUserAvatar(AchievementDetailsController controller, UserModel user, bool dark) {
+    final imageUrl = controller.getCachedProfileImageUrl(user.profileImg);
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return _buildDefaultAvatar(user, dark);
+    }
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(user, dark),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                  loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -982,6 +1129,8 @@ class AchievementDetailsScreen extends StatelessWidget {
       ),
     );
   }
+
+  // Helper Methods
 
   Color _getCategoryColor(String category, bool dark) {
     switch (category.toLowerCase()) {
@@ -1019,12 +1168,12 @@ class AchievementDetailsScreen extends StatelessWidget {
 
   Color _getLevelColor(int level, bool dark) {
     final colors = [
-      dark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF), // Level 1 - Gray
-      dark ? const Color(0xFF10B981) : const Color(0xFF059669), // Level 2 - Green
-      dark ? const Color(0xFF3B82F6) : const Color(0xFF2563EB), // Level 3 - Blue
-      dark ? const Color(0xFF8B5CF6) : const Color(0xFF7C3AED), // Level 4 - Purple
-      dark ? const Color(0xFFF59E0B) : const Color(0xFFD97706), // Level 5 - Orange
-      dark ? const Color(0xFFEF4444) : const Color(0xFFDC2626), // Level 6+ - Red
+      dark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+      dark ? const Color(0xFF10B981) : const Color(0xFF059669),
+      dark ? const Color(0xFF3B82F6) : const Color(0xFF2563EB),
+      dark ? const Color(0xFF8B5CF6) : const Color(0xFF7C3AED),
+      dark ? const Color(0xFFF59E0B) : const Color(0xFFD97706),
+      dark ? const Color(0xFFEF4444) : const Color(0xFFDC2626),
     ];
 
     if (level <= 0) return colors[0];
@@ -1034,22 +1183,13 @@ class AchievementDetailsScreen extends StatelessWidget {
 
   List<Color> _getRankGradient(int rank, bool dark) {
     switch (rank) {
-      case 1: // Gold
-        return [
-          const Color(0xFFFFD700),
-          const Color(0xFFFFA500),
-        ];
-      case 2: // Silver
-        return [
-          const Color(0xFFC0C0C0),
-          const Color(0xFF808080),
-        ];
-      case 3: // Bronze
-        return [
-          const Color(0xFFCD7F32),
-          const Color(0xFF8B4513),
-        ];
-      default: // Regular
+      case 1:
+        return [const Color(0xFFFFD700), const Color(0xFFFFA500)];
+      case 2:
+        return [const Color(0xFFC0C0C0), const Color(0xFF808080)];
+      case 3:
+        return [const Color(0xFFCD7F32), const Color(0xFF8B4513)];
+      default:
         return [
           dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
           (dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary).withOpacity(0.7),

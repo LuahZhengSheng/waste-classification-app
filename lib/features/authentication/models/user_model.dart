@@ -16,13 +16,12 @@ class UserModel extends RoleModel {
     required super.userId,
     required super.username,
     required super.email,
-    required super.loginAttemptCount,
     required super.role,
     required super.isVerified,
     required super.isActive,
+    required super.isBanned, // 新增的isBanned参数
     super.phoneNo,
     super.profileImg,
-    super.lastFailedLogin,
 
     // UserModel fields
     this.gender,
@@ -43,13 +42,10 @@ class UserModel extends RoleModel {
       email: data['email'] ?? '',
       phoneNo: data['phoneNo'],
       profileImg: data['profileImg'],
-      loginAttemptCount: data['loginAttemptCount'] ?? 0,
-      lastFailedLogin: data['lastFailedLogin'] != null
-          ? (data['lastFailedLogin'] as Timestamp).toDate()
-          : null,
       role: data['role'] ?? '',
       isVerified: data['isVerified'] ?? false,
       isActive: data['isActive'] ?? false,
+      isBanned: data['isBanned'] ?? false, // 新增的isBanned字段
       gender: data['gender'],
       dob: data['dob'] != null ? (data['dob'] as Timestamp).toDate() : null,
       joinDate: data['joinDate'] != null
@@ -74,13 +70,10 @@ class UserModel extends RoleModel {
       email: map['email'] ?? '',
       phoneNo: map['phoneNo'],
       profileImg: map['profileImg'],
-      loginAttemptCount: map['loginAttemptCount'] ?? 0,
-      lastFailedLogin: map['lastFailedLogin'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['lastFailedLogin'])
-          : null,
       role: map['role'] ?? '',
       isVerified: map['isVerified'] ?? false,
       isActive: map['isActive'] ?? false,
+      isBanned: map['isBanned'] ?? false, // 新增的isBanned字段
 
       gender: map['gender'],
       dob: map['dob'] != null
@@ -100,18 +93,19 @@ class UserModel extends RoleModel {
   factory UserModel.profileOnly({
     required String userId,
     required String username,
+    required String email,
     required String profileImg,
   }) {
     return UserModel(
       userId: userId,
       username: username,
+      email: email,
       profileImg: profileImg,
-      email: '',
       phoneNo: null,
-      loginAttemptCount: 0,
       role: '',
       isVerified: false,
       isActive: true,
+      isBanned: false, // 默认false
       gender: null,
       dob: null,
       joinDate: DateTime.now(),
@@ -131,11 +125,10 @@ class UserModel extends RoleModel {
       'email': email,
       'phoneNo': phoneNo,
       'profileImg': profileImg,
-      'loginAttemptCount': loginAttemptCount,
-      'lastFailedLogin': lastFailedLogin != null ? Timestamp.fromDate(lastFailedLogin!) : FieldValue.serverTimestamp(),
       'role': role,
       'isVerified': isVerified,
       'isActive': isActive,
+      'isBanned': isBanned, // 新增的isBanned字段
       'gender': gender,
       'dob': dob != null ? Timestamp.fromDate(dob!) : null,
       'joinDate': FieldValue.serverTimestamp(), // 使用服务器时间
@@ -158,8 +151,7 @@ class UserModel extends RoleModel {
     String? email,
     bool? isActive,
     bool? isVerified,
-    DateTime? lastFailedLogin,
-    int? loginAttemptCount,
+    bool? isBanned, // 新增的isBanned参数
     String? phoneNo,
     String? profileImg,
     String? role,
@@ -175,8 +167,7 @@ class UserModel extends RoleModel {
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
       isVerified: isVerified ?? this.isVerified,
-      lastFailedLogin: lastFailedLogin ?? this.lastFailedLogin,
-      loginAttemptCount: loginAttemptCount ?? this.loginAttemptCount,
+      isBanned: isBanned ?? this.isBanned, // 新增的isBanned参数
       gender: gender ?? this.gender,
       dob: dob ?? this.dob,
       joinDate: joinDate ?? this.joinDate,
@@ -192,10 +183,10 @@ class UserModel extends RoleModel {
     userId: '',
     username: '',
     email: '',
-    loginAttemptCount: 0,
     role: '',
     isVerified: false,
     isActive: false,
+    isBanned: false, // 默认false
     joinDate: DateTime.now(),
   );
 

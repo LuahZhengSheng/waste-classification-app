@@ -158,12 +158,6 @@ class MyEventsScreen extends StatelessWidget {
               }),
             ),
 
-            // Divider
-            Container(
-              height: 8,
-              color: dark ? FColors.black : FColors.grey.withOpacity(0.05),
-            ),
-
             // Events List
             Expanded(
               child: TabBarView(

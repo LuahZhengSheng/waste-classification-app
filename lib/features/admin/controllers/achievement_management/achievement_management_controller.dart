@@ -1,300 +1,91 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:fyp/features/leaderboard_achievement/models/achievement_model.dart';
 
+import '../../../../data/repositories/achievement/achievement_repostory.dart';
 import '../../../../utils/helpers/helper_functions.dart';
-import '../../../leaderboard_achievement/models/achievement_level_model.dart';
-import '../../../leaderboard_achievement/models/achievement_model.dart';
-import '../../screens/achievement_management/achievement_management_screen.dart';
+import '../../../../utils/popups/admin_loaders.dart';
+import '../../../../utils/popups/loaders.dart';
+import '../../screens/achievement_management/achievement_management/widgets/achievement_filter_dialog.dart';
+import '../../screens/achievement_management/edit_achievement/edit_achievement.dart';
 
 class AchievementManagementController extends GetxController {
   final TextEditingController searchController = TextEditingController();
+
+  // Repository
+  final _achievementRepo = Get.put(AchievementRepository());
 
   // Observables
   final RxList<Achievement> allAchievements = <Achievement>[].obs;
   final RxList<Achievement> filteredAchievements = <Achievement>[].obs;
   final RxString searchQuery = ''.obs;
+  final RxString selectedStatusFilter = 'active'.obs; // 'active' or 'inactive'
   final RxInt currentPage = 1.obs;
   final RxInt itemsPerPage = 25.obs;
   final RxInt sortColumnIndex = 0.obs;
   final RxBool sortAscending = true.obs;
+  final RxBool isLoading = false.obs;
   final RxMap<String, dynamic> activeFilters = <String, dynamic>{
     'category': null,
-    'status': null,
     'maxLevelRange': null,
   }.obs;
+
+  // Stream subscription
+  StreamSubscription<List<Achievement>>? _achievementsSubscription;
 
   @override
   void onInit() {
     super.onInit();
-    loadAchievements();
+    _setupAchievementsStream();
 
     // Listen to search changes
     debounce(searchQuery, (_) => applyFiltersAndSearch(), time: const Duration(milliseconds: 500));
 
     // Listen to filter changes
     ever(activeFilters, (_) => applyFiltersAndSearch());
+    ever(selectedStatusFilter, (_) => _setupAchievementsStream());
   }
 
-  void loadAchievements() {
-    // Mock data - replace with actual API call
-    allAchievements.value = _generateMockAchievements();
-    filteredAchievements.value = List.from(allAchievements);
-  }
+  /// Set up achievements stream based on current filter
+  void _setupAchievementsStream() {
+    // Cancel existing subscription
+    _achievementsSubscription?.cancel();
 
-  List<Achievement> _generateMockAchievements() {
-    final now = DateTime.now();
-    return [
-      Achievement(
-        achievementId: '1',
-        title: 'Recycling Master',
-        category: 'Recycling',
-        maxLevel: 5,
-        createdAt: now.subtract(const Duration(days: 60)),
-        achievementLevels: [
-          AchievementLevel(
-            achievementLevelId: '1-1',
-            level: 1,
-            unlockCriteria: 10,
-            description: 'Recycle 10 items',
-            badgeImage: 'https://example.com/badge1.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '1-2',
-            level: 2,
-            unlockCriteria: 50,
-            description: 'Recycle 50 items',
-            badgeImage: 'https://example.com/badge2.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '1-3',
-            level: 3,
-            unlockCriteria: 100,
-            description: 'Recycle 100 items',
-            badgeImage: 'https://example.com/badge3.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '1-4',
-            level: 4,
-            unlockCriteria: 250,
-            description: 'Recycle 250 items',
-            badgeImage: 'https://example.com/badge4.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '1-5',
-            level: 5,
-            unlockCriteria: 500,
-            description: 'Recycle 500 items',
-            badgeImage: 'https://example.com/badge5.png',
-            title: '',
-          ),
-        ],
-      ),
-      Achievement(
-        achievementId: '2',
-        title: 'Scanner Expert',
-        category: 'Scanning',
-        maxLevel: 3,
-        createdAt: now.subtract(const Duration(days: 45)),
-        achievementLevels: [
-          AchievementLevel(
-            achievementLevelId: '2-1',
-            level: 1,
-            unlockCriteria: 25,
-            description: 'Scan 25 items successfully',
-            badgeImage: 'https://example.com/scan-badge1.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '2-2',
-            level: 2,
-            unlockCriteria: 100,
-            description: 'Scan 100 items successfully',
-            badgeImage: 'https://example.com/scan-badge2.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '2-3',
-            level: 3,
-            unlockCriteria: 300,
-            description: 'Scan 300 items successfully',
-            badgeImage: 'https://example.com/scan-badge3.png',
-            title: '',
-          ),
-        ],
-      ),
-      Achievement(
-        achievementId: '3',
-        title: 'Community Leader',
-        category: 'Community',
-        maxLevel: 4,
-        createdAt: now.subtract(const Duration(days: 30)),
-        achievementLevels: [
-          AchievementLevel(
-            achievementLevelId: '3-1',
-            level: 1,
-            unlockCriteria: 5,
-            description: 'Create 5 community posts',
-            badgeImage: 'https://example.com/community-badge1.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '3-2',
-            level: 2,
-            unlockCriteria: 15,
-            description: 'Create 15 community posts',
-            badgeImage: 'https://example.com/community-badge2.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '3-3',
-            level: 3,
-            unlockCriteria: 50,
-            description: 'Create 50 community posts',
-            badgeImage: 'https://example.com/community-badge3.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '3-4',
-            level: 4,
-            unlockCriteria: 100,
-            description: 'Create 100 community posts',
-            badgeImage: 'https://example.com/community-badge4.png',
-            title: '',
-          ),
-        ],
-      ),
-      Achievement(
-        achievementId: '4',
-        title: 'Daily Streak Champion',
-        category: 'Streak',
-        maxLevel: 6,
-        createdAt: now.subtract(const Duration(days: 75)),
-        achievementLevels: [
-          AchievementLevel(
-            achievementLevelId: '4-1',
-            level: 1,
-            unlockCriteria: 7,
-            description: 'Login for 7 consecutive days',
-            badgeImage: 'https://example.com/streak-badge1.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '4-2',
-            level: 2,
-            unlockCriteria: 14,
-            description: 'Login for 14 consecutive days',
-            badgeImage: 'https://example.com/streak-badge2.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '4-3',
-            level: 3,
-            unlockCriteria: 30,
-            description: 'Login for 30 consecutive days',
-            badgeImage: 'https://example.com/streak-badge3.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '4-4',
-            level: 4,
-            unlockCriteria: 60,
-            description: 'Login for 60 consecutive days',
-            badgeImage: 'https://example.com/streak-badge4.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '4-5',
-            level: 5,
-            unlockCriteria: 90,
-            description: 'Login for 90 consecutive days',
-            badgeImage: 'https://example.com/streak-badge5.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '4-6',
-            level: 6,
-            unlockCriteria: 180,
-            description: 'Login for 180 consecutive days',
-            badgeImage: 'https://example.com/streak-badge6.png',
-            title: '',
-          ),
-        ],
-      ),
-      Achievement(
-        achievementId: '5',
-        title: 'Environmental Hero',
-        category: 'Environmental',
-        maxLevel: 3,
-        createdAt: now.subtract(const Duration(days: 90)),
-        achievementLevels: [
-          AchievementLevel(
-            achievementLevelId: '5-1',
-            level: 1,
-            unlockCriteria: 1000,
-            description: 'Save 1kg of CO2 through recycling',
-            badgeImage: 'https://example.com/env-badge1.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '5-2',
-            level: 2,
-            unlockCriteria: 5000,
-            description: 'Save 5kg of CO2 through recycling',
-            badgeImage: 'https://example.com/env-badge2.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '5-3',
-            level: 3,
-            unlockCriteria: 10000,
-            description: 'Save 10kg of CO2 through recycling',
-            badgeImage: 'https://example.com/env-badge3.png',
-            title: '',
-          ),
-        ],
-      ),
-      Achievement(
-        achievementId: '6',
-        title: 'Waste Sorting Pro (Inactive)',
-        category: 'Scanning',
-        maxLevel: 4,
-        createdAt: now.subtract(const Duration(days: 120)),
-        achievementLevels: [
-          AchievementLevel(
-            achievementLevelId: '6-1',
-            level: 1,
-            unlockCriteria: 20,
-            description: 'Correctly sort 20 waste items',
-            badgeImage: 'https://example.com/sort-badge1.png',
-            title: '',
-          ),
-          AchievementLevel(
-            achievementLevelId: '6-2',
-            level: 2,
-            unlockCriteria: 75,
-            description: 'Correctly sort 75 waste items',
-            badgeImage: 'https://example.com/sort-badge2.png',
-            title: '',
-          ),
-        ],
-      ),
-    ];
-  }
+    // Show loading state immediately when switching tabs
+    isLoading.value = true;
+    filteredAchievements.clear();
 
-  // Get achievement status - by default achievements are active unless specified otherwise
-  String getAchievementStatus(Achievement achievement) {
-    // For demo purposes, achievements with "(Inactive)" in title are considered inactive
-    if (achievement.title.toLowerCase().contains('inactive')) {
-      return 'inactive';
+    // Set up new stream based on status filter
+    Stream<List<Achievement>> stream;
+    if (selectedStatusFilter.value == 'all') {
+      stream = _achievementRepo.getAllAchievementsStream();
+    } else {
+      // For specific status, we need to filter the all achievements stream
+      stream = _achievementRepo.getAllAchievementsStream().map((achievements) {
+        return achievements.where((achievement) => achievement.status == selectedStatusFilter.value).toList();
+      });
     }
-    return 'active';
+
+    _achievementsSubscription = stream.listen(
+          (achievements) {
+        allAchievements.value = achievements;
+        applyFiltersAndSearch();
+        isLoading.value = false;
+      },
+      onError: (error) {
+        print('Error in achievements stream: $error');
+        FAdminLoaders.errorSnackBar(
+          title: 'Error',
+          message: 'Failed to load achievements: $error',
+        );
+        isLoading.value = false;
+      },
+    );
   }
 
-  // Search functionality
+  /// Search functionality
   void onSearchChanged(String query) {
     searchQuery.value = query;
   }
@@ -307,6 +98,7 @@ class AchievementManagementController extends GetxController {
       result = result.where((achievement) {
         return achievement.title.toLowerCase().contains(searchQuery.value.toLowerCase()) ||
             achievement.category.toLowerCase().contains(searchQuery.value.toLowerCase()) ||
+            achievement.achievementId.toLowerCase().contains(searchQuery.value.toLowerCase()) ||
             achievement.maxLevel.toString().contains(searchQuery.value);
       }).toList();
     }
@@ -315,11 +107,6 @@ class AchievementManagementController extends GetxController {
     if (activeFilters['category'] != null) {
       result = result.where((achievement) =>
       achievement.category == activeFilters['category']).toList();
-    }
-
-    if (activeFilters['status'] != null) {
-      result = result.where((achievement) =>
-      getAchievementStatus(achievement) == activeFilters['status']).toList();
     }
 
     if (activeFilters['maxLevelRange'] != null) {
@@ -341,14 +128,13 @@ class AchievementManagementController extends GetxController {
     currentPage.value = 1; // Reset to first page after filtering
   }
 
-  // Check if any filters are active
+  /// Check if any filters are active
   bool get hasActiveFilters {
     return activeFilters['category'] != null ||
-        activeFilters['status'] != null ||
         activeFilters['maxLevelRange'] != null;
   }
 
-  // Sorting functionality
+  /// Sorting functionality
   void sortAchievements(int columnIndex, bool ascending) {
     sortColumnIndex.value = columnIndex;
     sortAscending.value = ascending;
@@ -357,29 +143,25 @@ class AchievementManagementController extends GetxController {
       dynamic aValue, bValue;
 
       switch (columnIndex) {
-        case 0: // Title
+        case 0: // Achievement ID
+          aValue = a.achievementId;
+          bValue = b.achievementId;
+          break;
+        case 1: // Title
           aValue = a.title;
           bValue = b.title;
           break;
-        case 1: // Category
+        case 2: // Category
           aValue = a.category;
           bValue = b.category;
           break;
-        case 2: // Max Level
+        case 3: // Max Level
           aValue = a.maxLevel;
           bValue = b.maxLevel;
-          break;
-        case 3: // Total Levels
-          aValue = a.achievementLevels.length;
-          bValue = b.achievementLevels.length;
           break;
         case 4: // Created At
           aValue = a.createdAt;
           bValue = b.createdAt;
-          break;
-        case 5: // Status
-          aValue = getAchievementStatus(a);
-          bValue = getAchievementStatus(b);
           break;
         default:
           return 0;
@@ -400,57 +182,50 @@ class AchievementManagementController extends GetxController {
     });
   }
 
-  // Achievement actions
-  void toggleAchievementStatus(Achievement achievement) {
-    final currentStatus = getAchievementStatus(achievement);
+  /// Achievement actions
+  Future<void> toggleAchievementStatus(Achievement achievement) async {
+    try {
+      final newStatus = achievement.status == 'active' ? 'inactive' : 'active';
 
-    if (currentStatus == 'active') {
-      _deactivateAchievement(achievement);
-    } else {
-      _activateAchievement(achievement);
-    }
-  }
+      FLoaders.showLoading('Updating achievement status...');
 
-  void _activateAchievement(Achievement achievement) {
-    // In a real app, you would update the achievement status in the database
-    // For demo purposes, we'll modify the title to remove "(Inactive)"
-    final achievementIndex = allAchievements.indexWhere((a) => a.achievementId == achievement.achievementId);
-    if (achievementIndex != -1) {
-      final updatedTitle = achievement.title.replaceAll(' (Inactive)', '');
-      allAchievements[achievementIndex] = achievement.copyWith(title: updatedTitle);
-      applyFiltersAndSearch();
-      FHelperFunctions.showSnackBar('Achievement activated successfully');
-    }
-  }
+      await _achievementRepo.updateAchievementStatus(achievement.achievementId, newStatus);
 
-  void _deactivateAchievement(Achievement achievement) {
-    // In a real app, you would update the achievement status in the database
-    // For demo purposes, we'll modify the title to add "(Inactive)"
-    final achievementIndex = allAchievements.indexWhere((a) => a.achievementId == achievement.achievementId);
-    if (achievementIndex != -1) {
-      final updatedTitle = '${achievement.title} (Inactive)';
-      allAchievements[achievementIndex] = achievement.copyWith(title: updatedTitle);
-      applyFiltersAndSearch();
-      FHelperFunctions.showSnackBar('Achievement deactivated successfully');
+      FLoaders.stopLoading();
+
+      FAdminLoaders.successSnackBar(
+        title: 'Success',
+        message: 'Achievement ${newStatus == 'active' ? 'activated' : 'deactivated'} successfully',
+      );
+
+      // No need to reload achievements manually - stream will update automatically
+    } catch (e) {
+      print('$e');
+      FLoaders.stopLoading();
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to update achievement status: $e',
+      );
     }
   }
 
   void viewAchievement(Achievement achievement) {
-    // Navigate to view achievement detail screen
-    // This would show the achievement levels and other details
-    FHelperFunctions.showSnackBar('View Achievement: ${achievement.title}');
-    // TODO: Implement navigation to achievement detail screen
-    print('View achievement: ${achievement.title}');
+    // Navigation handled in UI
   }
 
   void editAchievement(Achievement achievement) {
-    // Navigate to edit achievement screen
-    FHelperFunctions.showSnackBar('Edit Achievement: ${achievement.title}');
-    // TODO: Implement navigation to edit achievement screen
-    print('Edit achievement: ${achievement.title}');
+    final dark = FHelperFunctions.isDarkMode(Get.context!);
+
+    Get.dialog(
+      EditAchievementDialog(dark: dark),
+      arguments: achievement,
+      barrierDismissible: false,
+    ).then((_) {
+      // No need to reload achievements manually - stream will update automatically
+    });
   }
 
-  // Pagination functionality
+  /// Pagination functionality
   List<Achievement> get paginatedAchievements {
     final startIndex = (currentPage.value - 1) * itemsPerPage.value;
     final endIndex = (startIndex + itemsPerPage.value).clamp(0, filteredAchievements.length);
@@ -512,6 +287,7 @@ class AchievementManagementController extends GetxController {
 
   @override
   void onClose() {
+    _achievementsSubscription?.cancel();
     searchController.dispose();
     super.onClose();
   }

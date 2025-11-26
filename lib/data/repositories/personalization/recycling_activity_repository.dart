@@ -381,4 +381,65 @@ class RecyclingActivityRepository extends GetxController {
       return <RecyclingActivity>[];
     });
   }
+
+  /// Get activities by center ID
+  Future<List<RecyclingActivity>> getActivitiesByCenterId(String centerId) async {
+    try {
+      // First get all staff IDs of this center
+      final staffSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('centerId', isEqualTo: centerId)
+          .where('role', isEqualTo: 'center_staff')
+          .get();
+
+      final staffIds = staffSnapshot.docs.map((doc) => doc.id).toList();
+
+      if (staffIds.isEmpty) return [];
+
+      // Then get activities where centerStaffId is in staffIds
+      final activitiesSnapshot = await _db
+          .collection(_activitiesCollection)
+          .where('centerStaffId', whereIn: staffIds)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return activitiesSnapshot.docs
+          .map((doc) => RecyclingActivity.fromSnapshot(doc))
+          .toList();
+    } catch (e) {
+      throw 'Failed to fetch activities by center ID: $e';
+    }
+  }
+
+  /// Get activities by center ID stream
+  Stream<List<RecyclingActivity>> getActivitiesByCenterIdStream(String centerId) async* {
+    try {
+      // First get all staff IDs of this center
+      final staffSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('centerId', isEqualTo: centerId)
+          .where('role', isEqualTo: 'center_staff')
+          .get();
+
+      final staffIds = staffSnapshot.docs.map((doc) => doc.id).toList();
+
+      if (staffIds.isEmpty) {
+        yield [];
+        return;
+      }
+
+      // Stream activities where centerStaffId is in staffIds
+      yield* _db
+          .collection(_activitiesCollection)
+          .where('centerStaffId', whereIn: staffIds)
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((snapshot) => snapshot.docs
+          .map((doc) => RecyclingActivity.fromSnapshot(doc))
+          .toList());
+    } catch (e) {
+      print('Error in activities stream: $e');
+      yield [];
+    }
+  }
 }

@@ -60,7 +60,7 @@ class MyRewardsController extends GetxController with GetSingleTickerProviderSta
         try {
           final reward = await rewardRepo.getRewardById(rewardId);
           if (reward.rewardImage.isNotEmpty) {
-            reward.rewardImage = await rewardRepo.getRewardImageUrl(reward.rewardImage);
+            reward.rewardImage = (await rewardRepo.getRewardImageUrl(reward.rewardImage))!;
           }
           rewardsMap[rewardId] = reward;
         } catch (e) {

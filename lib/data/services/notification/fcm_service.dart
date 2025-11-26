@@ -6,10 +6,13 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
+import 'package:googleapis_auth/auth_io.dart' as auth;
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
 
+import '../../../config/env_config.dart';
 import '../../../features/event/models/event_model.dart';
 import '../../../features/event/screens/event_detail/event_detail.dart';
 import '../../repositories/event/event_repository.dart';
@@ -468,6 +471,322 @@ class FCMService {
   void triggerTestDeepLink(String eventId) {
     final deepLink = generateEventDeepLink(eventId);
     _handleDeepLink(deepLink);
+  }
+
+  Future<void> sendBulkNotificationToUsers({
+    required List<String> userIds,
+    required String title,
+    required String body,
+    required String eventId,
+    required String type,
+  }) async {
+    try {
+      if (userIds.isEmpty) {
+        print('No users to send notification to');
+        return;
+      }
+
+      print('🚀 Starting bulk notification to ${userIds.length} users');
+      print('📢 Title: $title');
+      print('📝 Body: $body');
+      print('🎯 Event ID: $eventId');
+      print('🔔 Type: $type');
+
+      // 1. 获取所有用户的 FCM tokens
+      final tokens = await _getUserFCMTokens(userIds);
+
+      if (tokens.isEmpty) {
+        print('❌ No FCM tokens found for users: $userIds');
+        return;
+      }
+
+      print('✅ Found ${tokens.length} FCM tokens');
+
+      // 2. 使用 v1 API 发送通知
+      await _sendBulkFCMNotification(
+        tokens: tokens,
+        title: title,
+        body: body,
+        data: {
+          'type': type,
+          'eventId': eventId,
+          'title': title,
+          'body': body,
+          'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+          'deep_link': generateEventDeepLink(eventId),
+          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+        },
+      );
+
+      print('🎉 Successfully sent bulk notification to ${tokens.length} devices');
+
+    } catch (e) {
+      print('❌ Error in sendBulkNotificationToUsersV1: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _sendBulkFCMNotification({
+    required List<String> tokens,
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      // 获取访问令牌
+      final accessToken = await _getAccessToken();
+
+      final List<Future<void>> sendFutures = [];
+
+      for (final token in tokens) {
+        final future = _sendSingleFCM(
+          token: token,
+          title: title,
+          body: body,
+          data: data,
+          accessToken: accessToken,
+        );
+        sendFutures.add(future);
+
+        // 添加延迟避免速率限制
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+
+      await Future.wait(sendFutures);
+    } catch (e) {
+      print('Error in _sendBulkFCMNotificationV1: $e');
+      rethrow;
+    }
+  }
+
+  /// 获取 Google OAuth2 访问令牌
+  Future<String> _getAccessToken() async {
+    try {
+      // 直接使用 EnvConfig 中的值构建服务账户信息，避免字符串插值问题
+      final serviceAccountInfo = {
+        "type": "service_account",
+        "project_id": EnvConfig.fcmProjectId,
+        "private_key_id": EnvConfig.fcmPrivateKeyId,
+        "private_key": EnvConfig.fcmPrivateKey,
+        "client_email": EnvConfig.fcmClientEmail,
+        "client_id": EnvConfig.fcmClientId,
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "token_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
+      };
+
+      final credentials = auth.ServiceAccountCredentials.fromJson(serviceAccountInfo);
+      final scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
+
+      final authClient = await auth.clientViaServiceAccount(credentials, scopes);
+
+      // 获取访问令牌字符串
+      final accessToken = authClient.credentials.accessToken.data;
+      authClient.close();
+
+      return accessToken;
+    } catch (e) {
+      print('❌ Error getting access token: $e');
+      rethrow;
+    }
+  }
+
+  /// 发送单个 FCM v1 通知
+  Future<void> _sendSingleFCM({
+    required String token,
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+    required String accessToken,
+  }) async {
+    try {
+      final projectId = EnvConfig.fcmProjectId;
+      final url = Uri.parse('https://fcm.googleapis.com/v1/projects/$projectId/messages:send');
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      };
+
+      final message = {
+        'message': {
+          'token': token,
+          'notification': {
+            'title': title,
+            'body': body,
+          },
+          'data': data.map((key, value) => MapEntry(key, value.toString())),
+          'android': {
+            'priority': 'HIGH',
+          },
+          'apns': {
+            'headers': {
+              'apns-priority': '10',
+            },
+            'payload': {
+              'aps': {
+                'badge': 1,
+                'sound': 'default',
+                'content-available': 1,
+              },
+            },
+          },
+        },
+      };
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(message),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ FCM v1 sent to token: ${token.substring(0, 10)}...');
+      } else {
+        print('❌ FCM v1 failed: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ FCM v1 error for token ${token.substring(0, 10)}...: $e');
+    }
+  }
+
+  /// 获取多个用户的 FCM tokens
+  Future<List<String>> _getUserFCMTokens(List<String> userIds) async {
+    try {
+      final tokens = <String>[];
+
+      // 分批获取用户数据（避免 Firestore 查询限制）
+      const batchSize = 10;
+      for (var i = 0; i < userIds.length; i += batchSize) {
+        final batchUserIds = userIds.sublist(
+            i,
+            i + batchSize > userIds.length ? userIds.length : i + batchSize
+        );
+
+        final usersSnapshot = await _firestore
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: batchUserIds)
+            .get();
+
+        for (final userDoc in usersSnapshot.docs) {
+          final data = userDoc.data();
+          final userTokens = data['fcmTokens'] as List<dynamic>?;
+
+          if (userTokens != null && userTokens.isNotEmpty) {
+            tokens.addAll(userTokens.cast<String>());
+          }
+        }
+      }
+
+      // 去重
+      return tokens.toSet().toList();
+    } catch (e) {
+      print('Error getting user FCM tokens: $e');
+      return [];
+    }
+  }
+
+  /// 通过 HTTP 请求发送 FCM 通知
+  Future<void> _sendFCMViaHttp({
+    required List<String> tokens,
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      // FCM 服务器密钥 - 需要从 Firebase Console 获取
+      final String serverKey = EnvConfig.fcmServerKey;
+
+      if (serverKey == 'YOUR_FCM_SERVER_KEY') {
+        print('⚠️ Please set FCM_SERVER_KEY');
+        return;
+      }
+
+      final List<Future<void>> sendFutures = [];
+
+      // 为每个 token 发送单独的通知
+      for (final token in tokens) {
+        final future = _sendSingleFCMNotification(
+          token: token,
+          title: title,
+          body: body,
+          data: data,
+          serverKey: serverKey,
+        );
+        sendFutures.add(future);
+
+        // 添加小延迟避免速率限制
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
+      // 并行发送所有通知
+      await Future.wait(sendFutures);
+
+    } catch (e) {
+      print('Error sending FCM via HTTP: $e');
+      rethrow;
+    }
+  }
+
+  /// 发送单个 FCM 通知 - 使用 HTTP 请求
+  Future<void> _sendSingleFCMNotification({
+    required String token,
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+    required String serverKey,
+  }) async {
+    try {
+      final url = Uri.parse('https://fcm.googleapis.com/fcm/send');
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'key=$serverKey',
+      };
+
+      final message = {
+        'to': token,
+        'notification': {
+          'title': title,
+          'body': body,
+          'sound': 'default',
+          'badge': '1',
+        },
+        'data': data,
+        'android': {
+          'priority': 'high',
+        },
+        'apns': {
+          'payload': {
+            'aps': {
+              'contentAvailable': true,
+              'badge': 1,
+              'sound': 'default',
+            },
+          },
+        },
+      };
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(message),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['success'] == 1) {
+          print('✅ FCM sent to token: ${token.substring(0, 10)}... - Success');
+        } else {
+          print('❌ FCM failed for token: ${token.substring(0, 10)}... - ${responseData['results']}');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode} for token: ${token.substring(0, 10)}...');
+      }
+    } catch (e) {
+      print('❌ Failed to send FCM to token: ${token.substring(0, 10)}... - Error: $e');
+      // 不抛出异常，继续发送其他通知
+    }
   }
 
   /// 清理资源

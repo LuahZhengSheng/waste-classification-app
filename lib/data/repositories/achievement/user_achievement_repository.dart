@@ -11,13 +11,13 @@ class UserAchievementRepository extends GetxController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final String _userAchievementsCollection = 'userAchievements';
 
-  /// Get all user achievements stream
-  Stream<List<UserAchievement>> getUserAchievementsStream(String userId) {
-    return _db
-        .collection(_userAchievementsCollection)
-        .where('userId', isEqualTo: userId)
-        .snapshots()
-        .asyncMap((snapshot) async {
+  /// Get all user achievements for a specific achievement
+  Future<List<UserAchievement>> getUserAchievementsByAchievementId(String achievementId) async {
+    try {
+      final snapshot = await _db
+          .collection(_userAchievementsCollection)
+          .where('achievementId', isEqualTo: achievementId)
+          .get();
 
       List<UserAchievement> userAchievements = [];
 
@@ -25,8 +25,28 @@ class UserAchievementRepository extends GetxController {
         final userAchievement = await _getUserAchievementWithFullData(doc);
         if (userAchievement != UserAchievement.empty()) {
           userAchievements.add(userAchievement);
-        } else {
-          print('❌ [UserAchievementRepository] 加载成就失败，文档ID: ${doc.id}');
+        }
+      }
+
+      return userAchievements;
+    } catch (e) {
+      throw 'Failed to fetch user achievements: $e';
+    }
+  }
+
+  /// Get all user achievements stream
+  Stream<List<UserAchievement>> getUserAchievementsStream(String userId) {
+    return _db
+        .collection(_userAchievementsCollection)
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      List<UserAchievement> userAchievements = [];
+
+      for (var doc in snapshot.docs) {
+        final userAchievement = await _getUserAchievementWithFullData(doc);
+        if (userAchievement != UserAchievement.empty()) {
+          userAchievements.add(userAchievement);
         }
       }
 
@@ -59,14 +79,13 @@ class UserAchievementRepository extends GetxController {
   /// Get user achievement with full achievement data
   Future<UserAchievement> _getUserAchievementWithFullData(
       DocumentSnapshot<Map<String, dynamic>> doc) async {
-
     if (!doc.exists) {
       return UserAchievement.empty();
     }
 
     final data = doc.data()!;
 
-    // 获取成就ID（直接存储字符串ID而不是DocumentReference）
+    // Get achievement ID
     final achievementId = data['achievementId'] as String?;
 
     if (achievementId == null || achievementId.isEmpty) {
@@ -81,7 +100,7 @@ class UserAchievementRepository extends GetxController {
         return UserAchievement.empty();
       }
 
-      // 构建完整的 UserAchievement 对象
+      // Build complete UserAchievement object
       final userAchievement = UserAchievement(
         userAchievementId: doc.id,
         userId: data['userId'] ?? '',
@@ -92,10 +111,8 @@ class UserAchievementRepository extends GetxController {
       );
 
       return userAchievement;
-
     } catch (e) {
-      print('💥 [UserAchievementRepository] 获取成就数据时发生错误: $e');
-      print('📋 [UserAchievementRepository] 错误堆栈: ${e.toString()}');
+      print('Error fetching user achievement data: $e');
       return UserAchievement.empty();
     }
   }
@@ -159,18 +176,11 @@ class UserAchievementRepository extends GetxController {
     try {
       final docRef = await _db.collection(_userAchievementsCollection).add({
         'userId': userId,
-        'achievementId': achievementId, // 直接存储成就ID字符串
+        'achievementId': achievementId,
         'progress': initialProgress,
         'currentLevel': initialLevel,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
-      print('✅ [UserAchievementRepository] 创建用户成就成功:');
-      print('   - 用户ID: $userId');
-      print('   - 成就ID: $achievementId');
-      print('   - 初始进度: $initialProgress');
-      print('   - 初始等级: $initialLevel');
-      print('   - 文档ID: ${docRef.id}');
 
       return docRef.id;
     } catch (e) {
@@ -187,11 +197,9 @@ class UserAchievementRepository extends GetxController {
       // Try to get existing
       final existing = await getUserAchievementByAchievementId(userId, achievementId);
       if (existing != null) {
-        print('✅ [UserAchievementRepository] 找到现有用户成就');
         return existing;
       }
 
-      print('🆕 [UserAchievementRepository] 创建新用户成就');
       // Create new
       final newId = await createUserAchievement(
         userId: userId,
@@ -216,22 +224,12 @@ class UserAchievementRepository extends GetxController {
     required List<String> achievementIds,
   }) async {
     try {
-      print('🚀 [UserAchievementRepository] 开始初始化用户成就，用户ID: $userId');
-      print('📋 [UserAchievementRepository] 需要初始化的成就数量: ${achievementIds.length}');
-
       for (final achievementId in achievementIds) {
-        try {
-          await getOrCreateUserAchievement(
-            userId: userId,
-            achievementId: achievementId,
-          );
-          print('✅ [UserAchievementRepository] 初始化成就成功: $achievementId');
-        } catch (e) {
-          print('❌ [UserAchievementRepository] 初始化成就失败: $achievementId, 错误: $e');
-        }
+        await getOrCreateUserAchievement(
+          userId: userId,
+          achievementId: achievementId,
+        );
       }
-
-      print('🎉 [UserAchievementRepository] 用户成就初始化完成');
     } catch (e) {
       throw 'Failed to initialize user achievements: $e';
     }

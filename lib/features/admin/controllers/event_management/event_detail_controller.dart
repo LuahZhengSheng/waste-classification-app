@@ -1,21 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../utils/constants/colors.dart';
-import '../../../../utils/helpers/helper_functions.dart';
-import '../../../authentication/models/user_model.dart';
-import '../../../event/models/event_model.dart';
-import '../../../event/models/event_registration_model.dart';
-import '../../../event/models/location_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fyp/utils/constants/colors.dart';
+import 'package:fyp/utils/popups/admin_loaders.dart';
+import '../../../../data/repositories/event/event_repository.dart';
+import '../../../../data/repositories/event/event_registration_repository.dart';
+import '../../../../data/repositories/event/reminder_repository.dart';
+import '../../../../data/repositories/user/user_repository.dart';
+import '../../../../features/authentication/models/user_model.dart';
+import '../../../../features/event/models/event_model.dart';
+import '../../../../features/event/models/event_registration_model.dart';
+import '../../screens/event_management/edit_event/edit_event.dart';
 
-class AdminEventDetailsController extends GetxController {
+class AdminEventDetailController extends GetxController {
+  static AdminEventDetailController get instance => Get.find();
+
+  // Dependencies
+  final EventRepository _eventRepository = Get.put(EventRepository());
+  final EventRegistrationRepository _registrationRepository = Get.put(EventRegistrationRepository());
+  final UserRepository _userRepository = Get.put(UserRepository());
+  final ReminderRepository _reminderRepository = Get.put(ReminderRepository());
+
   // Observables
   final Rx<Event> event = Event.empty().obs;
   final RxList<EventRegistrationWithUser> eventRegistrations = <EventRegistrationWithUser>[].obs;
   final RxList<EventRegistrationWithUser> filteredRegistrations = <EventRegistrationWithUser>[].obs;
   final RxBool isLoading = false.obs;
-  final RxString sortBy = 'newest'.obs; // newest, oldest, name
-  final RxString filterBy = 'all'.obs; // all, active, cancelled
-  final RxBool isImageExpanded = false.obs;
+  final RxString sortBy = 'newest'.obs;
+  final RxString filterBy = 'all'.obs;
 
   // Statistics
   final RxInt totalRegistrations = 0.obs;
@@ -25,7 +37,6 @@ class AdminEventDetailsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Listen to sort and filter changes
     ever(sortBy, (_) => applySortAndFilter());
     ever(filterBy, (_) => applySortAndFilter());
   }
@@ -33,141 +44,79 @@ class AdminEventDetailsController extends GetxController {
   void loadEventDetails(String eventId) {
     isLoading.value = true;
 
-    // Mock loading event details - replace with actual API call
-    Future.delayed(const Duration(milliseconds: 800), () {
-      event.value = _getMockEvent(eventId);
-      eventRegistrations.value = _getMockRegistrations(eventId);
-      _calculateStatistics();
-      applySortAndFilter();
+    // Listen to event stream
+    _eventRepository.getEventById(eventId).listen((loadedEvent) {
+      event.value = loadedEvent;
+      _loadRegistrations(eventId);
+    }, onError: (error) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to load event: $error',
+      );
+      print('$error');
       isLoading.value = false;
     });
   }
 
-  Event _getMockEvent(String eventId) {
-    final now = DateTime.now();
-    return Event(
-      eventId: eventId,
-      title: 'Beach Cleanup Drive 2024',
-      description: 'Join us for a community beach cleanup to protect marine life and preserve our beautiful coastline. This event is perfect for families, students, and environmental enthusiasts who want to make a positive impact on our environment.\n\nWe will provide all necessary equipment including gloves, garbage bags, and collection tools. Light refreshments will be provided to all participants.\n\nMeet at the main beach entrance near the parking area. Please wear comfortable clothes and closed-toe shoes.',
-      contactEmail: 'contact@beachcleanup.com',
-      contactPhoneNo: '+60123456789',
-      location: Location.empty(),
-      poster: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=800&h=600&fit=crop',
-      startDateTime: now.add(const Duration(days: 15)),
-      endDateTime: now.add(const Duration(days: 15, hours: 4)),
-      registrationDeadline: now.add(const Duration(days: 10)),
-      maxParticipants: 100,
-      registeredCount: 45,
-      createdAt: now.subtract(const Duration(days: 30)),
-      isPublish: true,
-      status: 'active',
-    );
+  void _loadRegistrations(String eventId) {
+    // Listen to registrations stream
+    _registrationRepository.getEventRegistrations(eventId).listen((registrationDocs) async {
+      if (registrationDocs.isEmpty) {
+        eventRegistrations.clear();
+        _calculateStatistics();
+        applySortAndFilter();
+        isLoading.value = false;
+        return;
+      }
+
+      // Get all user IDs
+      final userIds = registrationDocs.map((doc) {
+        // 修复类型错误：使用 as Map<String, dynamic> 进行类型转换
+        final data = doc.data() as Map<String, dynamic>;
+        return data['userId'] as String;
+      }).toSet();
+
+      // Fetch users data
+      final usersData = await _userRepository.getUsersProfileData(userIds);
+
+      // Combine registrations with user data
+      final List<EventRegistrationWithUser> regWithUsers = [];
+      for (final doc in registrationDocs) {
+        // 修复类型错误：将 DocumentSnapshot<Object?> 转换为 DocumentSnapshot<Map<String, dynamic>>
+        final registration = _createRegistrationFromDocument(doc);
+        final user = usersData[registration.userId] ?? UserModel.empty();
+
+        regWithUsers.add(EventRegistrationWithUser(
+          registration: registration,
+          user: user,
+        ));
+      }
+
+      eventRegistrations.value = regWithUsers;
+      _calculateStatistics();
+      applySortAndFilter();
+      isLoading.value = false;
+    }, onError: (error) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to load registrations: $error',
+      );
+      print('$error');
+      isLoading.value = false;
+    });
   }
 
-  List<EventRegistrationWithUser> _getMockRegistrations(String eventId) {
-    final now = DateTime.now();
-    return [
-      EventRegistrationWithUser(
-        registration: EventRegistration(
-          registrationId: '1',
-          userId: 'user1',
-          createdAt: now.subtract(const Duration(days: 5)),
-          isCancelled: false,
-        ),
-        user: UserModel(
-          userId: 'user1',
-          username: 'John Doe',
-          email: 'john.doe@email.com',
-          phoneNo: '+60123456789',
-          profileImg: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-          loginAttemptCount: 0,
-          role: 'user',
-          isVerified: true,
-          isActive: true,
-          joinDate: now.subtract(const Duration(days: 180)),
-        ),
-      ),
-      EventRegistrationWithUser(
-        registration: EventRegistration(
-          registrationId: '2',
-          userId: 'user2',
-          createdAt: now.subtract(const Duration(days: 3)),
-          isCancelled: false,
-        ),
-        user: UserModel(
-          userId: 'user2',
-          username: 'Sarah Chen',
-          email: 'sarah.chen@email.com',
-          phoneNo: '+60198765432',
-          profileImg: 'https://images.unsplash.com/photo-1494790108755-2616b612b000?w=100&h=100&fit=crop&crop=face',
-          loginAttemptCount: 0,
-          role: 'user',
-          isVerified: true,
-          isActive: true,
-          joinDate: now.subtract(const Duration(days: 120)),
-        ),
-      ),
-      EventRegistrationWithUser(
-        registration: EventRegistration(
-          registrationId: '3',
-          userId: 'user3',
-          createdAt: now.subtract(const Duration(days: 8)),
-          isCancelled: true,
-        ),
-        user: UserModel(
-          userId: 'user3',
-          username: 'Mike Johnson',
-          email: 'mike.johnson@email.com',
-          phoneNo: '+60187654321',
-          profileImg: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-          loginAttemptCount: 0,
-          role: 'user',
-          isVerified: true,
-          isActive: true,
-          joinDate: now.subtract(const Duration(days: 200)),
-        ),
-      ),
-      EventRegistrationWithUser(
-        registration: EventRegistration(
-          registrationId: '4',
-          userId: 'user4',
-          createdAt: now.subtract(const Duration(days: 1)),
-          isCancelled: false,
-        ),
-        user: UserModel(
-          userId: 'user4',
-          username: 'Emily Rodriguez',
-          email: 'emily.rodriguez@email.com',
-          phoneNo: '+60176543210',
-          profileImg: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
-          loginAttemptCount: 0,
-          role: 'user',
-          isVerified: true,
-          isActive: true,
-          joinDate: now.subtract(const Duration(days: 90)),
-        ),
-      ),
-      EventRegistrationWithUser(
-        registration: EventRegistration(
-          registrationId: '5',
-          userId: 'user5',
-          createdAt: now.subtract(const Duration(days: 6)),
-          isCancelled: false,
-        ),
-        user: UserModel(
-          userId: 'user5',
-          username: 'David Kim',
-          email: 'david.kim@email.com',
-          phoneNo: '+60165432109',
-          profileImg: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-          loginAttemptCount: 0,
-          role: 'user',
-          isVerified: true,
-          isActive: true,
-          joinDate: now.subtract(const Duration(days: 150)),
-        ),
-      ),
-    ];
+  /// 修复方法：从 DocumentSnapshot<Object?> 创建 EventRegistration
+  EventRegistration _createRegistrationFromDocument(DocumentSnapshot<Object?> doc) {
+    final data = doc.data() as Map<String, dynamic>?;
+    if (data == null) return EventRegistration.empty();
+
+    return EventRegistration(
+      registrationId: doc.id,
+      userId: data['userId'] ?? '',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isCancelled: data['isCancelled'] ?? false,
+    );
   }
 
   void _calculateStatistics() {
@@ -189,7 +138,6 @@ class AdminEventDetailsController extends GetxController {
         break;
       case 'all':
       default:
-      // No filter
         break;
     }
 
@@ -217,14 +165,6 @@ class AdminEventDetailsController extends GetxController {
     filterBy.value = newFilterBy;
   }
 
-  void toggleImageExpansion() {
-    isImageExpanded.value = !isImageExpanded.value;
-  }
-
-  void goBack() {
-    Get.back();
-  }
-
   String getRegistrationStatusText(EventRegistration registration) {
     return registration.isCancelled ? 'Cancelled' : 'Active';
   }
@@ -250,8 +190,83 @@ class AdminEventDetailsController extends GetxController {
       return 'Just now';
     }
   }
+
+  // Actions
+  void editEvent() {
+    Get.to(() => EditEventScreen(event: event.value));
+  }
+
+  Future<void> cancelEvent() async {
+    try {
+      final confirmed = await Get.dialog<bool>(
+        _ConfirmCancelEventDialog(event: event.value),
+      );
+
+      if (confirmed != true) return;
+
+      // Update event status
+      final updatedEvent = event.value.copyWith(
+        status: 'cancelled',
+        isPublish: false,
+      );
+      await _eventRepository.updateEvent(updatedEvent);
+
+      // Delete all reminders for this event
+      for (final regWithUser in eventRegistrations) {
+        final reminder = await _reminderRepository.getReminderByRegistration(
+          regWithUser.registration.registrationId,
+        );
+        if (reminder != null) {
+          await _reminderRepository.deleteReminder(reminder.reminderId);
+        }
+      }
+
+      FAdminLoaders.successSnackBar(
+        title: 'Event Cancelled',
+        message: 'Event has been cancelled successfully',
+      );
+
+      Get.back(); // Go back to event management
+    } catch (e) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to cancel event: $e',
+      );
+      print('$e');
+    }
+  }
+
+  Future<void> deleteEvent() async {
+    try {
+      final confirmed = await Get.dialog<bool>(
+        _ConfirmDeleteEventDialog(event: event.value),
+      );
+
+      if (confirmed != true) return;
+
+      final updatedEvent = event.value.copyWith(
+        status: 'deleted',
+        isPublish: false,
+      );
+      await _eventRepository.updateEvent(updatedEvent);
+
+      FAdminLoaders.successSnackBar(
+        title: 'Event Deleted',
+        message: 'Event has been deleted successfully',
+      );
+
+      Get.back(); // Go back to event management
+    } catch (e) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to delete event: $e',
+      );
+      print('$e');
+    }
+  }
 }
 
+// Model class
 class EventRegistrationWithUser {
   final EventRegistration registration;
   final UserModel user;
@@ -260,4 +275,273 @@ class EventRegistrationWithUser {
     required this.registration,
     required this.user,
   });
+}
+
+// Confirmation Dialogs
+class _ConfirmCancelEventDialog extends StatelessWidget {
+  final Event event;
+
+  const _ConfirmCancelEventDialog({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Get.isDarkMode;
+
+    return AlertDialog(
+      backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Text(
+        'Cancel Event',
+        style: TextStyle(
+          color: dark ? FColors.adminDarkText : FColors.adminLightText,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Are you sure you want to cancel "${event.title}"?',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'This will:',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: dark ? FColors.adminDarkText : FColors.adminLightText,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '• Send cancellation notifications to all registered users',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+              fontSize: 13,
+            ),
+          ),
+          Text(
+            '• Delete all event reminders',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+              fontSize: 13,
+            ),
+          ),
+          Text(
+            '• Hide the event from users',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'This action cannot be undone.',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkError : FColors.adminLightError,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Get.back(result: false),
+          child: Text(
+            'No, Keep Event',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () => Get.back(result: true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: dark ? FColors.adminDarkError : FColors.adminLightError,
+          ),
+          child: const Text(
+            'Yes, Cancel Event',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ConfirmDeleteEventDialog extends StatelessWidget {
+  final Event event;
+
+  const _ConfirmDeleteEventDialog({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Get.isDarkMode;
+
+    return AlertDialog(
+      backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Text(
+        'Delete Event',
+        style: TextStyle(
+          color: dark ? FColors.adminDarkText : FColors.adminLightText,
+        ),
+      ),
+      content: Text(
+        'Are you sure you want to delete "${event.title}"? This action cannot be undone.',
+        style: TextStyle(
+          color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Get.back(result: false),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () => Get.back(result: true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: dark ? FColors.adminDarkError : FColors.adminLightError,
+          ),
+          child: const Text(
+            'Delete',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Model representing an event registration
+class EventRegistration {
+  final String registrationId;
+  final String userId;
+  final DateTime createdAt;
+  final bool isCancelled;
+
+  const EventRegistration({
+    required this.registrationId,
+    required this.userId,
+    required this.createdAt,
+    this.isCancelled = false,
+  });
+
+  /// Creates an empty EventRegistration instance
+  static EventRegistration empty() => EventRegistration(
+    registrationId: '',
+    userId: '',
+    createdAt: DateTime.now(),
+    isCancelled: false,
+  );
+
+  /// Creates EventRegistration instance from JSON map
+  factory EventRegistration.fromJson(Map<String, dynamic> json) {
+    return EventRegistration(
+      registrationId: json['registrationId'] ?? '',
+      userId: json['userId'] ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+      isCancelled: json['isCancelled'] ?? false,
+    );
+  }
+
+  /// Creates EventRegistration instance from Firebase DocumentSnapshot
+  factory EventRegistration.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    final data = snapshot.data();
+    if (data == null) return EventRegistration.empty();
+
+    return EventRegistration(
+      registrationId: snapshot.id,
+      userId: data['userId'] ?? '',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isCancelled: data['isCancelled'] ?? false,
+    );
+  }
+
+  /// Converts EventRegistration instance to JSON map
+  Map<String, dynamic> toJson() {
+    return {
+      'registrationId': registrationId,
+      'userId': userId,
+      'createdAt': createdAt.toIso8601String(),
+      'isCancelled': isCancelled,
+    };
+  }
+
+  /// Converts EventRegistration instance to Firestore map (with Timestamp)
+  Map<String, dynamic> toFirestore() {
+    return {
+      'userId': userId,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'isCancelled': isCancelled,
+    };
+  }
+
+  /// Returns formatted creation date
+  String get formattedCreatedAt {
+    // You'll need to implement or import your date formatting function
+    // For now, using basic formatting
+    return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
+  }
+
+  /// Returns registration status text
+  String get statusText {
+    return isCancelled ? 'Cancelled' : 'Active';
+  }
+
+  /// Checks if registration is active
+  bool get isActive => !isCancelled;
+
+  /// Creates a copy of EventRegistration with updated fields
+  EventRegistration copyWith({
+    String? registrationId,
+    String? userId,
+    DateTime? createdAt,
+    bool? isCancelled,
+  }) {
+    return EventRegistration(
+      registrationId: registrationId ?? this.registrationId,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      isCancelled: isCancelled ?? this.isCancelled,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'EventRegistration(registrationId: $registrationId, userId: $userId, createdAt: $createdAt, isCancelled: $isCancelled)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is EventRegistration &&
+        other.registrationId == registrationId &&
+        other.userId == userId &&
+        other.createdAt == createdAt &&
+        other.isCancelled == isCancelled;
+  }
+
+  @override
+  int get hashCode {
+    return registrationId.hashCode ^
+    userId.hashCode ^
+    createdAt.hashCode ^
+    isCancelled.hashCode;
+  }
 }

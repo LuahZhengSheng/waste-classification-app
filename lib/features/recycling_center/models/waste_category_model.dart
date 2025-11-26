@@ -9,13 +9,13 @@ class WasteCategory {
   final String disposalMethod;
   final IconData icon;
   final Color color;
-  final double basePoints;
+  final double? basePoints;
   final List<String> examples;
   final bool isRecyclable;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final double? emissionFactor;
 
-  /// Constructor
   WasteCategory({
     required this.categoryId,
     required this.name,
@@ -23,14 +23,14 @@ class WasteCategory {
     required this.disposalMethod,
     required this.icon,
     required this.color,
-    required this.basePoints,
+    this.basePoints,
     required this.examples,
     required this.isRecyclable,
     required this.createdAt,
     required this.updatedAt,
+    this.emissionFactor,
   });
 
-  /// Empty factory constructor
   factory WasteCategory.empty() {
     return WasteCategory(
       categoryId: '',
@@ -39,15 +39,15 @@ class WasteCategory {
       disposalMethod: '',
       icon: Iconsax.trash,
       color: Colors.grey,
-      basePoints: 0.0,
+      basePoints: null,
       examples: [],
       isRecyclable: false,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+      emissionFactor: null,
     );
   }
 
-  /// Factory method to create from Firestore document
   factory WasteCategory.fromSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
@@ -58,15 +58,15 @@ class WasteCategory {
       disposalMethod: data['disposalMethod'] ?? '',
       icon: _parseIconData(data['icon'] ?? 'trash'),
       color: _parseColor(data['color']),
-      basePoints: (data['basePoints'] ?? 0.0).toDouble(),
+      basePoints: data['basePoints']?.toDouble(),
       examples: List<String>.from(data['examples'] ?? []),
       isRecyclable: data['isRecyclable'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      emissionFactor: data['emissionFactor']?.toDouble(),
     );
   }
 
-  /// Convert to Firestore compatible Map
   Map<String, dynamic> toJson() {
     return {
       'categoryId': categoryId,
@@ -78,12 +78,12 @@ class WasteCategory {
       'basePoints': basePoints,
       'examples': examples,
       'isRecyclable': isRecyclable,
+      'emissionFactor': emissionFactor,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
 
-  /// Factory method to create from JSON
   factory WasteCategory.fromJson(Map<String, dynamic> json) {
     return WasteCategory(
       categoryId: json['categoryId'] ?? '',
@@ -92,15 +92,15 @@ class WasteCategory {
       disposalMethod: json['disposalMethod'] ?? '',
       icon: _parseIconData(json['icon'] ?? 'trash'),
       color: _parseColor(json['color']),
-      basePoints: (json['basePoints'] ?? 0.0).toDouble(),
+      basePoints: json['basePoints']?.toDouble(),
       examples: List<String>.from(json['examples'] ?? []),
       isRecyclable: json['isRecyclable'] ?? false,
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      emissionFactor: json['emissionFactor']?.toDouble(),
     );
   }
 
-  /// Helper method to parse icon data from string
   static IconData _parseIconData(String iconString) {
     final iconMap = {
       'battery': Iconsax.battery_charging,
@@ -115,11 +115,18 @@ class WasteCategory {
       'category': Iconsax.category,
       'cpu': Iconsax.cpu,
       'tree': Iconsax.tree,
+      'recycling': Icons.recycling,
+      'description': Icons.description,
+      'local_bar': Icons.local_bar,
+      'phone_android': Icons.phone_android,
+      'warning_material': Icons.warning,
+      'checkroom': Icons.checkroom,
+      'eco': Icons.eco,
+      'hardware': Icons.hardware,
     };
     return iconMap[iconString] ?? Iconsax.trash;
   }
 
-  /// Helper method to convert icon to string
   static String _iconToString(IconData icon) {
     final iconMap = {
       Iconsax.battery_charging: 'battery',
@@ -134,11 +141,18 @@ class WasteCategory {
       Iconsax.category: 'category',
       Iconsax.cpu: 'cpu',
       Iconsax.tree: 'tree',
+      Icons.recycling: 'recycling',
+      Icons.description: 'description',
+      Icons.local_bar: 'local_bar',
+      Icons.phone_android: 'phone_android',
+      Icons.warning: 'warning_material',
+      Icons.checkroom: 'checkroom',
+      Icons.eco: 'eco',
+      Icons.hardware: 'hardware',
     };
     return iconMap[icon] ?? 'trash';
   }
 
-  /// Helper method to parse color from hex string
   static Color _parseColor(dynamic colorData) {
     if (colorData is String && colorData.isNotEmpty) {
       try {
@@ -150,12 +164,10 @@ class WasteCategory {
     return Colors.green;
   }
 
-  /// Helper method to convert color to hex string
   static String _colorToHex(Color color) {
     return '#${color.value.toRadixString(16).padLeft(8, '0')}';
   }
 
-  /// Create a copy with updated fields
   WasteCategory copyWith({
     String? categoryId,
     String? name,
@@ -168,6 +180,7 @@ class WasteCategory {
     bool? isRecyclable,
     DateTime? createdAt,
     DateTime? updatedAt,
+    double? emissionFactor,
   }) {
     return WasteCategory(
       categoryId: categoryId ?? this.categoryId,
@@ -181,19 +194,16 @@ class WasteCategory {
       isRecyclable: isRecyclable ?? this.isRecyclable,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      emissionFactor: emissionFactor ?? this.emissionFactor,
     );
   }
 
-  /// Get formatted points string
-  String get formattedPoints => '${basePoints.toStringAsFixed(1)} points/kg';
+  String get formattedPoints => basePoints != null ? '${basePoints!.toStringAsFixed(1)} points/kg' : 'No points';
 
-  /// Get examples as formatted string
   String get formattedExamples => examples.join(', ');
 
-  /// Check if category is hazardous
   bool get isHazardous => name.contains('Battery') || name.contains('Hazardous');
 
-  /// Get disposal method with emoji
   String get disposalMethodWithEmoji {
     if (disposalMethod.contains('Recycle')) return '♻️ $disposalMethod';
     if (disposalMethod.contains('Process')) return '⚡ $disposalMethod';
@@ -201,13 +211,11 @@ class WasteCategory {
     return disposalMethod;
   }
 
-  /// Override toString for debugging
   @override
   String toString() {
     return 'WasteCategory(categoryId: $categoryId, name: $name, basePoints: $basePoints, isRecyclable: $isRecyclable)';
   }
 
-  /// Override equality operator
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -215,7 +223,6 @@ class WasteCategory {
               runtimeType == other.runtimeType &&
               categoryId == other.categoryId;
 
-  /// Override hashCode
   @override
   int get hashCode => categoryId.hashCode;
 }

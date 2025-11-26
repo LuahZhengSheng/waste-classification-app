@@ -190,13 +190,13 @@ class _EventPosterSection extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: EventUtils.getStatusColor(
-                        EventUtils.getEventStatus(event, false),
+                        EventUtils.getEventStatus(event, event.isCancelledByOrganizer),
                       ).withOpacity(0.95),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
                           color: EventUtils.getStatusColor(
-                            EventUtils.getEventStatus(event, false),
+                            EventUtils.getEventStatus(event, event.isCancelledByOrganizer),
                           ).withOpacity(0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
@@ -208,14 +208,14 @@ class _EventPosterSection extends StatelessWidget {
                       children: [
                         Icon(
                           EventUtils.getStatusIcon(
-                            EventUtils.getEventStatus(event, false),
+                            EventUtils.getEventStatus(event, event.isCancelledByOrganizer),
                           ),
                           color: FColors.white,
                           size: 16,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          EventUtils.getEventStatus(event, false).displayName,
+                          EventUtils.getEventStatus(event, event.isCancelledByOrganizer).displayName,
                           style: const TextStyle(
                             color: FColors.white,
                             fontWeight: FontWeight.w600,
@@ -317,6 +317,43 @@ class _EventTitleSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: FSizes.sm),
+
+        // 添加主办方取消的道歉信息
+        if (event.isCancelledByOrganizer) ...[
+          Container(
+            width: double.infinity, // 确保容器宽度填满
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: FColors.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: FColors.error.withOpacity(0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start, // 顶部对齐
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2), // 图标微调对齐
+                  child: Icon(Iconsax.info_circle, color: FColors.error, size: 16),
+                ),
+                const SizedBox(width: 8),
+                Expanded( // 使用Expanded让文本自动换行
+                  child: Text(
+                    'We apologize for the inconvenience. This event has been cancelled by the organizer.',
+                    style: TextStyle(
+                      color: FColors.error,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4, // 增加行高提高可读性
+                    ),
+                    textAlign: TextAlign.left,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: FSizes.sm),
+        ],
+
         Row(
           children: [
             Icon(

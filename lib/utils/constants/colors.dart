@@ -181,6 +181,21 @@ class FColors {
   static const Color staffLightSelected = Color(0xFFE3F2FD);
   static const Color staffLightFocus = Color(0xFF2196F3);
 
+  static const Color adminLightCard = Color(0xFFFFFFFF);
+  static const Color adminLightCardHover = Color(0xFFF6F9FC);
+  static const Color adminLightGlass = Color(0x0DFFFFFF);
+  static const Color adminLightShadow = Color(0x1A000000);
+
+  // Status colors for recycling centers
+  static const Color adminLightActive = Color(0xFF2DCE89);
+  static const Color adminLightDisabled = Color(0xFF8898AA);
+
+  // Badge colors
+  static const Color adminLightBadgeVerified = Color(0xFF2DCE89);
+  static const Color adminLightBadgeActive = Color(0xFF11CDEF);
+  static const Color adminLightBadgeInactive = Color(0xFF8898AA);
+  static const Color adminLightBadgeBanned = Color(0xFFF5365C);
+
   // Staff Dark Theme
   static const Color staffDarkPrimary = Color(0xFF64B5F6); // Light Blue
   static const Color staffDarkSecondary = Color(0xFF66BB6A); // Light Green
@@ -205,6 +220,21 @@ class FColors {
   static const Color staffDarkHover = Color(0xFF1E3247);
   static const Color staffDarkSelected = Color(0xFF2A4A6E);
   static const Color staffDarkFocus = Color(0xFF64B5F6);
+
+  static const Color adminDarkCard = Color(0xFF111B2B);
+  static const Color adminDarkCardHover = Color(0xFF1E293B);
+  static const Color adminDarkGlass = Color(0x1AFFFFFF);
+  static const Color adminDarkShadow = Color(0x1A000000);
+
+  // Status colors for recycling centers
+  static const Color adminDarkActive = Color(0xFF4FD69C);
+  static const Color adminDarkDisabled = Color(0xFF64748B);
+
+  // Badge colors
+  static const Color adminDarkBadgeVerified = Color(0xFF4FD69C);
+  static const Color adminDarkBadgeActive = Color(0xFF37D5F2);
+  static const Color adminDarkBadgeInactive = Color(0xFF64748B);
+  static const Color adminDarkBadgeBanned = Color(0xFFFC7C8A);
 
   // Staff Chart Colors
   static const List<Color> staffChartColors = [
@@ -255,6 +285,24 @@ class FColors {
   static const Color adminLightSelected = Color(0xFFE8EBFF);
   static const Color adminLightFocus = Color(0xFF5E72E4);
 
+  // Admin Light Button Colors
+  static const Color adminLightButtonPrimary = Color(0xFF5E72E4);
+  static const Color adminLightButtonSuccess = Color(0xFF2DCE89);
+  static const Color adminLightButtonDanger = Color(0xFFF5365C);
+
+  static const Color adminLightDeactivate = Color(0xFFF5365C); // Red for deactivate button
+  static const Color adminLightActivate = Color(0xFF2DCE89); // Green for activate button
+
+  // For badge/level colors, these helper gradients are useful:
+  static const List<Color> levelColorsLight = [
+    Color(0xFF9CA3AF), // Level 1 - Gray
+    Color(0xFF059669), // Level 2 - Green
+    Color(0xFF2563EB), // Level 3 - Blue
+    Color(0xFF7C3AED), // Level 4 - Purple
+    Color(0xFFD97706), // Level 5 - Orange
+    Color(0xFFDC2626), // Level 6+ - Red
+  ];
+
   static const Color adminDarkPrimary = Color(0xFF7B8CFF);
   static const Color adminDarkSecondary = Color(0xFF4FD69C);
   static const Color adminDarkAccent = Color(0xFF37D5F2);
@@ -279,6 +327,23 @@ class FColors {
   static const Color adminDarkSelected = Color(0xFF2A3F5F);
   static const Color adminDarkFocus = Color(0xFF7B8CFF);
 
+  // Admin Dark Button Colors
+  static const Color adminDarkButtonPrimary = Color(0xFF7B8CFF);
+  static const Color adminDarkButtonSuccess = Color(0xFF4FD69C);
+  static const Color adminDarkButtonDanger = Color(0xFFFC7C8A);
+
+  static const Color adminDarkDeactivate = Color(0xFFFC7C8A); // Light red for deactivate button
+  static const Color adminDarkActivate = Color(0xFF4FD69C); // Light green for activate button
+
+  static const List<Color> levelColorsDark = [
+    Color(0xFF6B7280), // Level 1 - Gray
+    Color(0xFF10B981), // Level 2 - Green
+    Color(0xFF3B82F6), // Level 3 - Blue
+    Color(0xFF8B5CF6), // Level 4 - Purple
+    Color(0xFFF59E0B), // Level 5 - Orange
+    Color(0xFFEF4444), // Level 6+ - Red
+  ];
+
   static const List<Color> adminChartColors = [
     Color(0xFF5E72E4),
     Color(0xFF2DCE89),
@@ -292,4 +357,9 @@ class FColors {
   static const Color adminGlassLight = Color(0x0DFFFFFF);
   static const Color adminGlassDark = Color(0x1AFFFFFF);
   static const Color adminShadow = Color(0x1A000000);
+
+  // Map related colors
+  static const Color mapPinRed = Color(0xFFEA4335);
+  static const Color mapBorderActive = Color(0xFF4285F4);
+  static const Color mapOverlay = Color(0x99000000);
 }

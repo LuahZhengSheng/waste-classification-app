@@ -9,6 +9,7 @@ class RedemptionModel {
   String pinCode;
   DateTime createdAt;
   String status; // 'pending', 'used', 'expired'
+  int points; // 新增：记录兑换消耗的积分
 
   /// Constructor
   RedemptionModel({
@@ -17,6 +18,7 @@ class RedemptionModel {
     required this.rewardId,
     required this.pinCode,
     required this.createdAt,
+    required this.points, // 新增：必需的积分字段
     this.status = 'pending',
   });
 
@@ -27,6 +29,7 @@ class RedemptionModel {
     rewardId: '',
     pinCode: '',
     createdAt: DateTime.now(),
+    points: 0, // 新增：默认为0
     status: 'pending',
   );
 
@@ -39,6 +42,7 @@ class RedemptionModel {
       'pinCode': pinCode,
       'createdAt': createdAt.toIso8601String(),
       'status': status,
+      'points': points, // 新增：保存到JSON
     };
   }
 
@@ -52,6 +56,7 @@ class RedemptionModel {
         rewardId: data['rewardId'] ?? '',
         pinCode: data['pinCode'] ?? '',
         createdAt: DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
+        points: data['points'] ?? 0, // 新增：从Firebase读取
         status: data['status'] ?? 'pending',
       );
     } else {
@@ -67,6 +72,7 @@ class RedemptionModel {
       rewardId: json['rewardId'] ?? '',
       pinCode: json['pinCode'] ?? '',
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      points: json['points'] ?? 0, // 新增：从JSON读取
       status: json['status'] ?? 'pending',
     );
   }
@@ -75,6 +81,7 @@ class RedemptionModel {
   factory RedemptionModel.createNew({
     required String userId,
     required String rewardId,
+    required int points, // 新增：必需的积分参数
     String? customPinCode,
   }) {
     return RedemptionModel(
@@ -83,6 +90,7 @@ class RedemptionModel {
       rewardId: rewardId,
       pinCode: customPinCode ?? _generatePinCode(),
       createdAt: DateTime.now(),
+      points: points, // 新增：设置积分
       status: 'pending',
     );
   }
@@ -158,7 +166,8 @@ class RedemptionModel {
     return userId.isNotEmpty &&
         rewardId.isNotEmpty &&
         pinCode.isNotEmpty &&
-        pinCode.length == 6;
+        pinCode.length == 6 &&
+        points > 0; // 新增：验证积分为正数
   }
 
   /// Helper method to check if PIN code matches
@@ -184,7 +193,7 @@ class RedemptionModel {
   /// Override toString for debugging purposes
   @override
   String toString() {
-    return 'RedemptionModel(redemptionId: $redemptionId, userId: $userId, rewardId: $rewardId, pinCode: $pinCode, status: $status)';
+    return 'RedemptionModel(redemptionId: $redemptionId, userId: $userId, rewardId: $rewardId, pinCode: $pinCode, points: $points, status: $status)';
   }
 
   /// Override equality operator
@@ -206,6 +215,7 @@ class RedemptionModel {
     String? rewardId,
     String? pinCode,
     DateTime? createdAt,
+    int? points, // 新增：积分字段
     String? status,
   }) {
     return RedemptionModel(
@@ -214,6 +224,7 @@ class RedemptionModel {
       rewardId: rewardId ?? this.rewardId,
       pinCode: pinCode ?? this.pinCode,
       createdAt: createdAt ?? this.createdAt,
+      points: points ?? this.points, // 新增：复制积分
       status: status ?? this.status,
     );
   }

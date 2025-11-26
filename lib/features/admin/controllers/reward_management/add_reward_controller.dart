@@ -1,53 +1,85 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fyp/utils/helpers/helper_functions.dart';
-import 'package:fyp/utils/formatters/formatter.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:uuid/uuid.dart';
+import 'package:fyp/data/repositories/reward_redemption/reward_repository.dart';
+import 'package:fyp/features/reward_redemption/models/reward_model.dart';
+import 'package:fyp/utils/popups/admin_loaders.dart';
+import 'package:fyp/utils/validators/validation.dart';
+
 import '../../../../utils/constants/colors.dart';
-import '../../../reward_redemption/models/reward_model.dart';
-import 'package:image_picker/image_picker.dart';
 
 class AddRewardController extends GetxController {
-  // Form key for validation
+  static AddRewardController get instance => Get.find();
+
+  final RewardRepository _rewardRepo = Get.put(RewardRepository());
+  final _uuid = const Uuid();
+
+  // Form key
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
   // Text controllers
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController descriptionController = TextEditingController();
-  final TextEditingController termsController = TextEditingController();
-  final TextEditingController pointsController = TextEditingController();
-  final TextEditingController quantityController = TextEditingController();
-  final TextEditingController validUntilController = TextEditingController();
+  late TextEditingController titleController;
+  late TextEditingController descriptionController;
+  late TextEditingController termsController;
+  late TextEditingController pointsController;
+  late TextEditingController quantityController;
+  late TextEditingController validUntilController;
 
   // Observables
   final RxBool isLoading = false.obs;
-  final RxBool isActive = false.obs; // Default to inactive/deactivated
-  final RxString selectedImagePath = ''.obs;
+  final RxBool isCompressing = false.obs;
+  final RxBool isActive = false.obs;
+  final Rxn<Uint8List> selectedImageBytes = Rxn<Uint8List>();
+  final RxnString selectedImageName = RxnString();
   final Rx<DateTime?> selectedValidUntilDate = Rx<DateTime?>(null);
 
-  // Image picker instance
-  final ImagePicker _picker = ImagePicker();
+  // Image compression settings
+  static const int imageQuality = 85;
+  static const int maxImageSizeMB = 5;
+  static const int maxImageSizeBytes = maxImageSizeMB * 1024 * 1024;
 
   @override
   void onInit() {
     super.onInit();
-    // Set default valid until date to 30 days from now
-    final defaultDate = DateTime.now().add(const Duration(days: 30));
+    _initializeControllers();
+    _setDefaultValidUntilDate();
+  }
+
+  void _initializeControllers() {
+    titleController = TextEditingController();
+    descriptionController = TextEditingController();
+    termsController = TextEditingController();
+    pointsController = TextEditingController();
+    quantityController = TextEditingController();
+    validUntilController = TextEditingController();
+  }
+
+  void _setDefaultValidUntilDate() {
+    // Default: tomorrow at 11:59 PM
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    final defaultDate = DateTime(
+      tomorrow.year,
+      tomorrow.month,
+      tomorrow.day,
+      23,
+      59,
+      0,
+    );
     selectedValidUntilDate.value = defaultDate;
-    validUntilController.text = FFormatter.formatDate(defaultDate);
+    validUntilController.text = _formatDateTime(defaultDate);
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   // Validation methods
   String? validateTitle(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Reward title is required';
-    }
-    if (value.trim().length < 3) {
-      return 'Title must be at least 3 characters long';
-    }
-    if (value.trim().length > 100) {
-      return 'Title must not exceed 100 characters';
-    }
-    return null;
+    return FValidator.validateEmptyText('Reward title', value);
   }
 
   String? validateDescription(String? value) {
@@ -55,10 +87,7 @@ class AddRewardController extends GetxController {
       return 'Description is required';
     }
     if (value.trim().length < 10) {
-      return 'Description must be at least 10 characters long';
-    }
-    if (value.trim().length > 500) {
-      return 'Description must not exceed 500 characters';
+      return 'Description must be at least 10 characters';
     }
     return null;
   }
@@ -68,10 +97,7 @@ class AddRewardController extends GetxController {
       return 'Terms & conditions are required';
     }
     if (value.trim().length < 10) {
-      return 'Terms & conditions must be at least 10 characters long';
-    }
-    if (value.trim().length > 1000) {
-      return 'Terms & conditions must not exceed 1000 characters';
+      return 'Terms must be at least 10 characters';
     }
     return null;
   }
@@ -90,8 +116,8 @@ class AddRewardController extends GetxController {
       return 'Points must be greater than 0';
     }
 
-    if (points > 100000) {
-      return 'Points cannot exceed 100,000';
+    if (points > 9999) {
+      return 'Points cannot exceed 9999';
     }
 
     return null;
@@ -111,10 +137,6 @@ class AddRewardController extends GetxController {
       return 'Quantity must be greater than 0';
     }
 
-    if (quantity > 10000) {
-      return 'Quantity cannot exceed 10,000';
-    }
-
     return null;
   }
 
@@ -128,74 +150,140 @@ class AddRewardController extends GetxController {
     }
 
     final selectedDate = selectedValidUntilDate.value!;
-    final today = DateTime.now();
-    final todayOnly = DateTime(today.year, today.month, today.day);
-    final selectedDateOnly = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final tomorrowMidnight =
+        DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
 
-    if (selectedDateOnly.isBefore(todayOnly)) {
-      return 'Valid until date cannot be in the past';
-    }
-
-    // Check if date is too far in the future (max 2 years)
-    final maxDate = today.add(const Duration(days: 730)); // 2 years
-    if (selectedDateOnly.isAfter(maxDate)) {
-      return 'Valid until date cannot exceed 2 years from today';
+    if (selectedDate.isBefore(tomorrowMidnight)) {
+      return 'Valid until must be at least 1 day from now';
     }
 
     return null;
   }
 
-  // Date selection
+  // Date selection with time picker
   Future<void> selectValidUntilDate() async {
-    final DateTime? picked = await showDatePicker(
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+
+    // Pick date
+    final DateTime? pickedDate = await showDatePicker(
       context: Get.context!,
-      initialDate: selectedValidUntilDate.value ?? DateTime.now().add(const Duration(days: 30)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 730)), // 2 years from now
-      builder: (context, child) {
-        final dark = FHelperFunctions.isDarkMode(context);
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-              onPrimary: Colors.white,
-              surface: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-              onSurface: dark ? FColors.adminDarkText : FColors.adminLightText,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      initialDate: selectedValidUntilDate.value ?? tomorrow,
+      firstDate: tomorrow,
+      lastDate: DateTime.now().add(const Duration(days: 730)),
     );
 
-    if (picked != null && picked != selectedValidUntilDate.value) {
-      selectedValidUntilDate.value = picked;
-      validUntilController.text = FFormatter.formatDate(picked);
+    if (pickedDate != null) {
+      // Pick time
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: Get.context!,
+        initialTime: const TimeOfDay(hour: 23, minute: 59),
+      );
+
+      if (pickedTime != null) {
+        final selectedDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+
+        selectedValidUntilDate.value = selectedDateTime;
+        validUntilController.text = _formatDateTime(selectedDateTime);
+      }
     }
   }
 
   // Image handling
   Future<void> pickImage() async {
     try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 80,
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
       );
 
-      if (image != null) {
-        selectedImagePath.value = image.path;
-        FHelperFunctions.showSnackBar('Image selected successfully');
+      if (result == null || result.files.isEmpty) return;
+
+      PlatformFile file = result.files.first;
+
+      if (file.size > maxImageSizeBytes) {
+        FAdminLoaders.errorSnackBar(
+          title: 'File Too Large',
+          message: 'Image size must be less than ${maxImageSizeMB}MB',
+        );
+        return;
       }
+
+      final extension = file.name.split('.').last.toLowerCase();
+      if (!['jpg', 'jpeg', 'png', 'webp'].contains(extension)) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Format',
+          message: 'Only JPG, PNG, and WebP formats are supported',
+        );
+        return;
+      }
+
+      final compressedBytes = await _processAndCompressImage(file);
+
+      selectedImageBytes.value = compressedBytes;
+      selectedImageName.value = '${_uuid.v4()}.webp';
+
+      FAdminLoaders.successSnackBar(
+        title: 'Image Selected',
+        message: 'Reward image selected successfully',
+      );
     } catch (e) {
-      FHelperFunctions.showAlert('Error', 'Failed to pick image: ${e.toString()}');
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to select image: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<Uint8List> _processAndCompressImage(PlatformFile file) async {
+    try {
+      isCompressing.value = true;
+
+      Uint8List imageBytes;
+      if (file.bytes != null) {
+        imageBytes = file.bytes!;
+      } else if (file.path != null) {
+        final originalFile = File(file.path!);
+        imageBytes = await originalFile.readAsBytes();
+      } else {
+        throw 'No file data available';
+      }
+
+      final result = await FlutterImageCompress.compressWithList(
+        imageBytes,
+        format: CompressFormat.webp,
+        quality: imageQuality,
+        minWidth: 800,
+        minHeight: 800,
+        autoCorrectionAngle: true,
+      );
+
+      isCompressing.value = false;
+      return result;
+    } catch (e) {
+      isCompressing.value = false;
+      if (file.bytes != null) {
+        return file.bytes!;
+      } else if (file.path != null) {
+        final originalFile = File(file.path!);
+        return await originalFile.readAsBytes();
+      } else {
+        throw 'No file data available';
+      }
     }
   }
 
   void removeImage() {
-    selectedImagePath.value = '';
-    FHelperFunctions.showSnackBar('Image removed');
+    selectedImageBytes.value = null;
+    selectedImageName.value = null;
   }
 
   // Status toggle
@@ -203,208 +291,188 @@ class AddRewardController extends GetxController {
     isActive.value = !isActive.value;
   }
 
-  // Validation helpers
+  // Validation
   bool _validateForm() {
-    return formKey.currentState?.validate() ?? false;
-  }
-
-  bool _validateRequiredFields() {
-    // Check if all required fields have values
-    final title = titleController.text.trim();
-    final description = descriptionController.text.trim();
-    final terms = termsController.text.trim();
-    final points = pointsController.text.trim();
-    final quantity = quantityController.text.trim();
-    final validUntil = validUntilController.text.trim();
-
-    if (title.isEmpty || description.isEmpty || terms.isEmpty ||
-        points.isEmpty || quantity.isEmpty || validUntil.isEmpty) {
-      FHelperFunctions.showAlert('Validation Error',
-          'Please fill in all required fields before saving.');
+    if (!formKey.currentState!.validate()) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Form Error',
+        message: 'Please fix all form errors before proceeding',
+      );
       return false;
     }
 
     return true;
   }
 
-  // Reset form
-  void resetForm() {
-    titleController.clear();
-    descriptionController.clear();
-    termsController.clear();
-    pointsController.clear();
-    quantityController.clear();
-    validUntilController.clear();
-    selectedImagePath.value = '';
-    isActive.value = false;
-    selectedValidUntilDate.value = null;
+  // Create reward with confirmation
+  Future<void> createReward() async {
+    if (!_validateForm()) return;
 
-    // Set default date again
-    final defaultDate = DateTime.now().add(const Duration(days: 30));
-    selectedValidUntilDate.value = defaultDate;
-    validUntilController.text = FFormatter.formatDate(defaultDate);
+    // Show confirmation dialog
+    await Get.dialog(
+      _buildConfirmationDialog(),
+      barrierDismissible: false,
+    );
   }
 
-  // Save reward
-  Future<void> saveReward() async {
-    // Validate form first
-    if (!_validateRequiredFields()) {
-      return;
-    }
+  Widget _buildConfirmationDialog() {
+    return Dialog(
+        backgroundColor: Get.isDarkMode
+            ? FColors.adminDarkSurface
+            : FColors.adminLightSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 450, // 设置最大宽度
+            minWidth: 350, // 设置最小宽度
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: (Get.isDarkMode
+                            ? FColors.adminDarkPrimary
+                            : FColors.adminLightPrimary)
+                        .withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.add_circle_outline,
+                    size: 40,
+                    color: Get.isDarkMode
+                        ? FColors.adminDarkPrimary
+                        : FColors.adminLightPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Create New Reward?',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Get.isDarkMode
+                        ? FColors.adminDarkText
+                        : FColors.adminLightText,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Are you sure you want to create this reward? It will be ${isActive.value ? "active" : "inactive"} after creation.',
+                  style: TextStyle(
+                    color: Get.isDarkMode
+                        ? FColors.adminDarkTextSecondary
+                        : FColors.adminLightTextSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Get.back(),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: Get.isDarkMode
+                                ? FColors.adminDarkBorder
+                                : FColors.adminLightBorder,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: Get.isDarkMode
+                                ? FColors.adminDarkTextSecondary
+                                : FColors.adminLightTextSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Get.back();
+                          _performCreate();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Get.isDarkMode
+                              ? FColors.adminDarkPrimary
+                              : FColors.adminLightPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text(
+                          'Confirm',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        )
+    );
+  }
 
-    if (!_validateForm()) {
-      FHelperFunctions.showAlert('Validation Error',
-          'Please correct the errors in the form before saving.');
-      return;
-    }
-
+  Future<void> _performCreate() async {
     try {
       isLoading.value = true;
 
-      // Parse numeric values
-      final points = int.parse(pointsController.text.trim());
-      final quantity = int.parse(quantityController.text.trim());
+      // Upload image if exists
+      String uploadedImageName = '';
+      if (selectedImageBytes.value != null && selectedImageName.value != null) {
+        uploadedImageName = await _rewardRepo.uploadRewardImage(
+          selectedImageBytes.value!,
+          selectedImageName.value!,
+        );
+      }
 
-      // Create reward model
-      final newReward = RewardModel(
-        rewardId: '', // Will be generated by the backend/database
+      final reward = RewardModel(
+        rewardId: '',
         title: titleController.text.trim(),
         description: descriptionController.text.trim(),
         termsConditions: termsController.text.trim(),
-        rewardImage: selectedImagePath.value, // In real app, this would be uploaded and URL returned
-        pointsNeeded: points,
-        quantity: quantity,
+        rewardImage: uploadedImageName,
+        pointsNeeded: int.parse(pointsController.text.trim()),
+        quantity: int.parse(quantityController.text.trim()),
         validUntil: selectedValidUntilDate.value!,
-        redemptionCount: 0, // New reward starts with 0 redemptions
+        redemptionCount: 0,
         createdAt: DateTime.now(),
         status: isActive.value ? 'active' : 'inactive',
       );
 
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 2));
+      await _rewardRepo.createReward(reward);
 
-      // In a real app, you would call your API service here
-      // final result = await RewardService.createReward(newReward);
+      isLoading.value = false;
 
-      // For now, we'll just show success message
-      FHelperFunctions.showSnackBar(
-          'Reward "${newReward.title}" created successfully!'
+      FAdminLoaders.successSnackBar(
+        title: 'Reward Created',
+        message: 'Reward "${reward.title}" created successfully',
       );
 
-      // Navigate back with success result
-      Get.back(result: {
-        'success': true,
-        'reward': newReward,
-        'message': 'Reward created successfully'
-      });
-
+      Get.back(result: true);
     } catch (e) {
-      FHelperFunctions.showAlert('Error',
-          'Failed to create reward: ${e.toString()}');
-    } finally {
       isLoading.value = false;
-    }
-  }
-
-  // Save as draft (inactive reward)
-  Future<void> saveAsDraft() async {
-    // Temporarily set as inactive and save
-    final wasActive = isActive.value;
-    isActive.value = false;
-
-    await saveReward();
-
-    // Restore original state if save failed
-    if (isLoading.value == false) {
-      isActive.value = wasActive;
-    }
-  }
-
-  // Preview reward data
-  Map<String, dynamic> getRewardPreview() {
-    return {
-      'title': titleController.text.trim(),
-      'description': descriptionController.text.trim(),
-      'termsConditions': termsController.text.trim(),
-      'pointsNeeded': int.tryParse(pointsController.text.trim()) ?? 0,
-      'quantity': int.tryParse(quantityController.text.trim()) ?? 0,
-      'validUntil': selectedValidUntilDate.value?.toIso8601String() ?? '',
-      'status': isActive.value ? 'active' : 'inactive',
-      'hasImage': selectedImagePath.value.isNotEmpty,
-      'imagePath': selectedImagePath.value,
-    };
-  }
-
-  // Confirmation dialog before leaving
-  Future<bool> confirmExit() async {
-    // Check if form has any data
-    final hasData = titleController.text.trim().isNotEmpty ||
-        descriptionController.text.trim().isNotEmpty ||
-        termsController.text.trim().isNotEmpty ||
-        pointsController.text.trim().isNotEmpty ||
-        quantityController.text.trim().isNotEmpty ||
-        selectedImagePath.value.isNotEmpty;
-
-    if (!hasData) {
-      return true; // Allow exit if no data entered
-    }
-
-    final result = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('Unsaved Changes'),
-        content: const Text(
-            'You have unsaved changes. Are you sure you want to leave? All changes will be lost.'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: const Text('Leave'),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
-  }
-
-  // Auto-save draft functionality (could be called periodically)
-  void autoSaveDraft() {
-    // In a real app, you might want to auto-save drafts
-    // This is just a placeholder for that functionality
-    final draftData = getRewardPreview();
-    // Save to local storage or temporary backend storage
-    print('Auto-saving draft: $draftData');
-  }
-
-  // Validate individual fields for real-time feedback
-  void validateTitleField() {
-    final result = validateTitle(titleController.text);
-    if (result != null) {
-      // Could show inline error or update UI state
-    }
-  }
-
-  void validatePointsField() {
-    final result = validatePoints(pointsController.text);
-    if (result != null) {
-      // Could show inline error or update UI state
-    }
-  }
-
-  void validateQuantityField() {
-    final result = validateQuantity(quantityController.text);
-    if (result != null) {
-      // Could show inline error or update UI state
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to create reward: ${e.toString()}',
+      );
     }
   }
 
   @override
   void onClose() {
-    // Dispose controllers
     titleController.dispose();
     descriptionController.dispose();
     termsController.dispose();

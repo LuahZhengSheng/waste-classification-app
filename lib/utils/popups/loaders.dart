@@ -46,7 +46,7 @@ class FLoaders {
       shouldIconPulse: true,
       colorText: Colors.white,
       backgroundColor: FColors.primary,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       duration: Duration(seconds: duration),
       margin: const EdgeInsets.all(10),
       icon: const Icon(Iconsax.check, color: FColors.white),
@@ -61,7 +61,7 @@ class FLoaders {
       shouldIconPulse: true,
       colorText: FColors.white,
       backgroundColor: Colors.orange,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       duration: const Duration(seconds: 3),
       margin: const EdgeInsets.all(20),
       icon: const Icon(Iconsax.warning_2, color: FColors.white),
@@ -76,11 +76,30 @@ class FLoaders {
       shouldIconPulse: true,
       colorText: FColors.white,
       backgroundColor: Colors.red.shade600,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       duration: const Duration(seconds: 3),
       margin: const EdgeInsets.all(20),
       icon: const Icon(Iconsax.warning_2, color: FColors.white),
     );
+  }
+
+  static void infoSnackBar({required title, message = ''}) {
+    Get.snackbar(
+      title,
+      message,
+      isDismissible: true,
+      shouldIconPulse: true,
+      colorText: Colors.white,
+      backgroundColor: _isDarkMode() ? FColors.adminDarkInfo : FColors.adminLightInfo,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
+      margin: const EdgeInsets.all(10),
+      icon: const Icon(Iconsax.info_circle, color: Colors.white),
+    );
+  }
+
+  static bool _isDarkMode() {
+    return Get.isDarkMode;
   }
 
   /// Show loading dialog

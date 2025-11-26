@@ -1,50 +1,58 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:fyp/utils/helpers/helper_functions.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:uuid/uuid.dart';
+import 'package:fyp/data/repositories/recycling_center/recycling_center_repository.dart';
+import 'package:fyp/features/recycling_center/models/partner_recycling_center_model.dart';
+import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
+import 'package:fyp/features/event/models/location_model.dart';
+import 'package:fyp/utils/popups/admin_loaders.dart';
+import 'package:fyp/utils/validators/validation.dart';
+import '../../../../data/repositories/recycling_center/waste_category_repository.dart';
 
-import '../../../../utils/popups/loaders.dart';
-import '../../../event/models/location_model.dart';
-import '../../../recycling_center/models/partner_recycling_center_model.dart';
+class AddCenterController extends GetxController {
+  static AddCenterController get instance => Get.find();
 
-class AddPartnerCenterController extends GetxController {
-  // Form key for validation
-  final formKey = GlobalKey<FormState>();
+  final RecyclingCenterRepository _centerRepo = Get.put(RecyclingCenterRepository());
+  final WasteCategoryRepository _categoryRepo = Get.put(WasteCategoryRepository());
+  final _uuid = const Uuid();
 
-  // Loading state
-  final isLoading = false.obs;
-  final formProgress = 0.0.obs;
+  // Form key
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
   // Text controllers
   late TextEditingController nameController;
   late TextEditingController emailController;
   late TextEditingController phoneController;
   late TextEditingController websiteController;
-  late TextEditingController staffCountController;
 
-  // Selected values
-  final selectedLocation = Rxn<Location>();
-  final selectedImage = RxnString();
-  final selectedStatus = 'active'.obs;
+  // Observables
+  final RxBool isLoading = false.obs;
+  final RxBool isCompressing = false.obs;
+  final Rx<Location?> selectedLocation = Rx<Location?>(null);
 
-  // Opening hours map - changed to Google Places format
-  final RxMap<String, dynamic> openingHours = <String, dynamic>{}.obs;
+  // Updated: Opening hours now includes isOpen status
+  final RxMap<String, Map<String, dynamic>> openingHours = <String, Map<String, dynamic>>{}.obs;
 
-  // Image picker
-  final ImagePicker _picker = ImagePicker();
+  final Rxn<Uint8List> selectedImageBytes = Rxn<Uint8List>();
+  final RxnString selectedImageName = RxnString();
+  final RxList<String> selectedMaterials = <String>[].obs;
+  final RxList<WasteCategory> availableCategories = <WasteCategory>[].obs;
 
-  // Days of the week
-  final List<String> daysOfWeek = [
-    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
-  ];
+  // Image compression settings
+  static const int imageQuality = 85;
+  static const int maxImageSizeMB = 5;
+  static const int maxImageSizeBytes = maxImageSizeMB * 1024 * 1024;
 
   @override
   void onInit() {
     super.onInit();
     _initializeControllers();
+    _loadWasteCategories();
     _initializeOpeningHours();
-    _setupFormProgressListener();
   }
 
   void _initializeControllers() {
@@ -52,133 +60,58 @@ class AddPartnerCenterController extends GetxController {
     emailController = TextEditingController();
     phoneController = TextEditingController();
     websiteController = TextEditingController();
-    staffCountController = TextEditingController();
+  }
+
+  Future<void> _loadWasteCategories() async {
+    try {
+      final categories = await _categoryRepo.getAllWasteCategories();
+      availableCategories.assignAll(categories);
+    } catch (e) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to load waste categories: ${e.toString()}',
+      );
+    }
   }
 
   void _initializeOpeningHours() {
-    // Initialize with Google Places format structure
-    openingHours.value = {
-      'periods': [],
-      'weekday_text': [],
-      'open_now': false,
-    };
-  }
+    final daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-  void _setupFormProgressListener() {
-    // Listen to all form fields and update progress
-    nameController.addListener(_updateFormProgress);
-    emailController.addListener(_updateFormProgress);
-    phoneController.addListener(_updateFormProgress);
-    websiteController.addListener(_updateFormProgress);
-    staffCountController.addListener(_updateFormProgress);
+    for (final day in daysOfWeek) {
+      // Default: Weekdays open, weekends closed
+      final isWeekend = day == 'saturday' || day == 'sunday';
 
-    // Listen to reactive variables
-    ever(selectedLocation, (_) => _updateFormProgress());
-    ever(selectedImage, (_) => _updateFormProgress());
-    ever(selectedStatus, (_) => _updateFormProgress());
-  }
-
-  void _updateFormProgress() {
-    double progress = 0.0;
-    int totalFields = 8; // Total required fields
-
-    // Basic information (4 fields)
-    if (nameController.text.isNotEmpty) progress += 1;
-    if (emailController.text.isNotEmpty) progress += 1;
-    if (phoneController.text.isNotEmpty) progress += 1;
-    if (websiteController.text.isNotEmpty) progress += 1;
-
-    // Location
-    if (selectedLocation.value != null) progress += 1;
-
-    // Image
-    if (selectedImage.value != null) progress += 1;
-
-    // Staff count
-    if (staffCountController.text.isNotEmpty) progress += 1;
-
-    // Opening hours (check if at least one day is set)
-    bool hasOpeningHours = _hasValidOpeningHours();
-    if (hasOpeningHours) progress += 1;
-
-    formProgress.value = progress / totalFields;
-  }
-
-  bool _hasValidOpeningHours() {
-    final periods = openingHours['periods'] as List<dynamic>?;
-    return periods != null && periods.isNotEmpty;
-  }
-
-  // Add formatTime method here
-  String formatTime(String timeString) {
-    if (timeString.length != 4) return timeString;
-
-    final hour = int.parse(timeString.substring(0, 2));
-    final minute = timeString.substring(2, 4);
-
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final displayHour = hour == 0 ? 12 : hour > 12 ? hour - 12 : hour;
-
-    return '${displayHour.toString().padLeft(2, '0')}:$minute $period';
+      openingHours[day] = {
+        'open': const TimeOfDay(hour: 9, minute: 0),
+        'close': const TimeOfDay(hour: 17, minute: 0),
+        'isOpen': !isWeekend, // Weekdays open by default
+      };
+    }
   }
 
   // Validation methods
   String? validateName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Center name is required';
-    }
-    if (value.trim().length < 3) {
-      return 'Center name must be at least 3 characters';
-    }
-    return null;
+    return FValidator.validateEmptyText('Center name', value);
   }
 
   String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Email is required';
-    }
-    if (!GetUtils.isEmail(value.trim())) {
-      return 'Please enter a valid email address';
-    }
-    return null;
+    return FValidator.validateEmail(value);
   }
 
   String? validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Phone number is required';
-    }
-    // Remove all non-digit characters for validation
-    String digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digitsOnly.length < 10) {
-      return 'Please enter a valid phone number';
-    }
-    return null;
+    return FValidator.validatePhoneNumber(value);
   }
 
   String? validateWebsite(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Website is required';
     }
-    if (!GetUtils.isURL(value.trim())) {
+    final urlPattern = RegExp(
+      r'^(https?:\/\/)[\w\-]+(\.[\w\-]+)+[/#?]?.*$',
+      caseSensitive: false,
+    );
+    if (!urlPattern.hasMatch(value.trim())) {
       return 'Please enter a valid website URL';
-    }
-    return null;
-  }
-
-  String? validateStaffCount(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Staff count is required';
-    }
-    final count = int.tryParse(value.trim());
-    if (count == null || count < 1) {
-      return 'Please enter a valid staff count';
-    }
-    return null;
-  }
-
-  String? validateStatus(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Status is required';
     }
     return null;
   }
@@ -186,7 +119,7 @@ class AddPartnerCenterController extends GetxController {
   // Location methods
   void setLocation(Location location) {
     selectedLocation.value = location;
-    FLoaders.successSnackBar(
+    FAdminLoaders.successSnackBar(
       title: 'Location Set',
       message: 'Center location has been saved successfully',
     );
@@ -194,293 +127,204 @@ class AddPartnerCenterController extends GetxController {
 
   void clearLocation() {
     selectedLocation.value = null;
-    FLoaders.customToast(message: 'Location cleared');
+    FAdminLoaders.customToast(message: 'Location cleared');
   }
 
-  // Image methods
-  Future<void> pickImage(ImageSource source) async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: source,
-        maxWidth: 1080,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        selectedImage.value = image.path;
-        FLoaders.successSnackBar(
-          title: 'Image Selected',
-          message: 'Center image has been added successfully',
-        );
-      }
-    } catch (e) {
-      FLoaders.errorSnackBar(
-        title: 'Error',
-        message: 'Failed to pick image: ${e.toString()}',
-      );
+  // Opening Hours methods
+  void updateOpeningHours(String day, String type, TimeOfDay time) {
+    if (openingHours.containsKey(day)) {
+      // Create a new map to trigger reactivity
+      final updatedHours = Map<String, Map<String, dynamic>>.from(openingHours);
+      updatedHours[day] = Map<String, dynamic>.from(updatedHours[day]!);
+      updatedHours[day]![type] = time;
+      openingHours.value = updatedHours;
     }
   }
 
-  void clearImage() {
-    selectedImage.value = null;
-    FLoaders.customToast(message: 'Image removed');
-  }
-
-  // Opening hours methods - updated for Google Places format
-  Future<void> selectTime(String day, String timeType) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: Get.context!,
-      initialTime: TimeOfDay.now(),
-      builder: (context, child) {
-        final dark = FHelperFunctions.isDarkMode(context);
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: dark
-                ? const ColorScheme.dark().copyWith(
-              primary: Color(0xFF7B8CFF), // adminDarkPrimary
-            )
-                : const ColorScheme.light().copyWith(
-              primary: Color(0xFF5E72E4), // adminLightPrimary
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      final timeString = '${picked.hour.toString().padLeft(2, '0')}${picked.minute.toString().padLeft(2, '0')}';
-      final dayIndex = daysOfWeek.indexOf(day); // 0=monday, 6=sunday
-      final googleDayIndex = (dayIndex + 1) % 7; // Convert to Google format: 0=Sunday, 6=Saturday
-
-      // Get current periods
-      final List<dynamic> periods = List.from(openingHours['periods'] ?? []);
-
-      // Find existing period for this day
-      int existingIndex = periods.indexWhere((period) =>
-      period['open'] != null && period['open']['day'] == googleDayIndex);
-
-      if (existingIndex == -1) {
-        // Create new period
-        periods.add({
-          'open': {
-            'day': googleDayIndex,
-            'time': timeString,
-          },
-          'close': {
-            'day': googleDayIndex,
-            'time': '',
-          }
-        });
-        existingIndex = periods.length - 1;
-      }
-
-      // Update the time
-      if (timeType == 'open') {
-        periods[existingIndex]['open']['time'] = timeString;
-      } else {
-        periods[existingIndex]['close']['time'] = timeString;
-      }
-
-      // Validate time logic
-      final openTime = periods[existingIndex]['open']['time'];
-      final closeTime = periods[existingIndex]['close']['time'];
-
-      if (openTime.isNotEmpty && closeTime.isNotEmpty) {
-        if (closeTime.compareTo(openTime) <= 0) {
-          FLoaders.warningSnackBar(
-            title: 'Invalid Time',
-            message: 'Close time must be after open time',
-          );
-          // Reset the close time
-          periods[existingIndex]['close']['time'] = '';
-        }
-      }
-
-      // Update weekday_text
-      final weekdayText = _generateWeekdayText(periods);
-
-      openingHours.value = {
-        'periods': periods,
-        'weekday_text': weekdayText,
-        'open_now': _calculateOpenNow(periods),
-      };
-
-      _updateFormProgress();
+  // Toggle day open/close status
+  void toggleDayStatus(String day, bool isOpen) {
+    if (openingHours.containsKey(day)) {
+      // Create a new map to trigger reactivity
+      final updatedHours = Map<String, Map<String, dynamic>>.from(openingHours);
+      updatedHours[day] = Map<String, dynamic>.from(updatedHours[day]!);
+      updatedHours[day]!['isOpen'] = isOpen;
+      openingHours.value = updatedHours;
     }
   }
 
-  List<String> _generateWeekdayText(List<dynamic> periods) {
-    final List<String> result = [];
-    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  // Batch update opening hours for all open days
+  void batchUpdateOpeningHours(TimeOfDay openTime, TimeOfDay closeTime) {
+    // Create a new map to trigger reactivity
+    final updatedHours = Map<String, Map<String, dynamic>>.from(openingHours);
 
-    for (int i = 0; i < 7; i++) {
-      final googleDayIndex = i; // Google: 0=Sunday, 6=Saturday
-      final period = periods.firstWhere(
-            (p) => p['open'] != null && p['open']['day'] == googleDayIndex,
-        orElse: () => null,
-      );
-
-      if (period != null &&
-          period['open']['time'].isNotEmpty &&
-          period['close']['time'].isNotEmpty) {
-        final openTime = _formatTimeString(period['open']['time']);
-        final closeTime = _formatTimeString(period['close']['time']);
-        result.add('${dayNames[i]}: $openTime - $closeTime');
-      } else {
-        result.add('${dayNames[i]}: Closed');
+    updatedHours.forEach((day, data) {
+      if (data['isOpen'] == true) {
+        updatedHours[day] = Map<String, dynamic>.from(data);
+        updatedHours[day]!['open'] = openTime;
+        updatedHours[day]!['close'] = closeTime;
       }
-    }
+    });
+
+    openingHours.value = updatedHours;
+  }
+
+  // Convert Opening Hours to Map (only include open days)
+  Map<String, Map<String, String>> _convertOpeningHoursToMap() {
+    final Map<String, Map<String, String>> result = {};
+
+    openingHours.forEach((day, data) {
+      if (data['isOpen'] == true) {
+        result[day] = {
+          'open': _timeOfDayToString(data['open'] as TimeOfDay),
+          'close': _timeOfDayToString(data['close'] as TimeOfDay),
+        };
+      }
+    });
 
     return result;
   }
 
-  String _formatTimeString(String timeString) {
-    if (timeString.length != 4) return timeString;
-
-    final hour = int.parse(timeString.substring(0, 2));
-    final minute = timeString.substring(2, 4);
-
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final displayHour = hour == 0 ? 12 : hour > 12 ? hour - 12 : hour;
-
-    return '${displayHour.toString().padLeft(2, '0')}:$minute $period';
+  String _timeOfDayToString(TimeOfDay time) {
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 
-  bool _calculateOpenNow(List<dynamic> periods) {
-    final now = DateTime.now();
-    final currentDay = now.weekday - 1; // Convert to Google format: 0=Sunday, 6=Saturday
-    final currentTime = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
-
-    for (var period in periods) {
-      if (period['open'] != null &&
-          period['open']['day'] == currentDay &&
-          period['open']['time'].isNotEmpty &&
-          period['close']['time'].isNotEmpty) {
-
-        final openTime = period['open']['time'];
-        final closeTime = period['close']['time'];
-
-        if (currentTime.compareTo(openTime) >= 0 && currentTime.compareTo(closeTime) < 0) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  String getTimeDisplay(String day, String timeType) {
-    final periods = openingHours['periods'] as List<dynamic>?;
-    if (periods == null) return 'Not set';
-
-    final dayIndex = daysOfWeek.indexOf(day);
-    final googleDayIndex = (dayIndex + 1) % 7;
-
-    final period = periods.firstWhere(
-          (p) => p['open'] != null && p['open']['day'] == googleDayIndex,
-      orElse: () => null,
-    );
-
-    if (period != null) {
-      final timeString = period[timeType]?['time'] ?? '';
-      if (timeString.isNotEmpty) {
-        return _formatTimeString(timeString);
-      }
-    }
-
-    return 'Not set';
-  }
-
-  // Save draft functionality
-  void saveDraft() {
-    // In real implementation, save to local storage or database
-    FLoaders.successSnackBar(
-      title: 'Draft Saved',
-      message: 'Your progress has been saved as draft',
-    );
-  }
-
-  // Create center method
-  Future<void> createCenter() async {
-    if (!_validateForm()) return;
-
+  // Image methods
+  Future<void> selectImage() async {
     try {
-      isLoading.value = true;
-
-      // Simulate API delay
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Create PartnerRecyclingCenter object
-      final center = PartnerRecyclingCenter(
-        name: nameController.text.trim(),
-        email: emailController.text.trim(),
-        phoneNo: phoneController.text.trim(),
-        website: websiteController.text.trim(),
-        centerLocation: selectedLocation.value!,
-        image: selectedImage.value ?? '', // In real app, upload image first
-        openingHours: openingHours.value.isNotEmpty ? openingHours.value : null,
-        numberOfStaff: int.parse(staffCountController.text.trim()),
-        status: selectedStatus.value,
-        centerId: '',
-        createdAt: DateTime.now(),
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
       );
 
-      // In real implementation, save to database
-      await _saveCenterToDatabase(center);
+      if (result == null || result.files.isEmpty) return;
 
-      FLoaders.successSnackBar(
-        title: 'Success',
-        message: 'Partner recycling center created successfully',
+      PlatformFile file = result.files.first;
+
+      // Check file size
+      if (file.size > maxImageSizeBytes) {
+        FAdminLoaders.errorSnackBar(
+          title: 'File Too Large',
+          message: 'Image size must be less than ${maxImageSizeMB}MB',
+        );
+        return;
+      }
+
+      // Check file type
+      final extension = file.name.split('.').last.toLowerCase();
+      if (!['jpg', 'jpeg', 'png', 'webp'].contains(extension)) {
+        FAdminLoaders.errorSnackBar(
+          title: 'Invalid Format',
+          message: 'Only JPG, PNG, and WebP formats are supported',
+        );
+        return;
+      }
+
+      // Process and compress image
+      final compressedBytes = await _processAndCompressImage(file);
+
+      selectedImageBytes.value = compressedBytes;
+      selectedImageName.value = '${_uuid.v4()}.webp';
+
+      FAdminLoaders.successSnackBar(
+        title: 'Image Selected',
+        message: 'Center image has been selected successfully',
       );
-
-      // Clear form and go back
-      _resetForm();
-      Get.back(result: true); // Return true to indicate success
-
     } catch (e) {
-      FLoaders.errorSnackBar(
+      FAdminLoaders.errorSnackBar(
         title: 'Error',
-        message: 'Failed to create center: ${e.toString()}',
+        message: 'Failed to select image: ${e.toString()}',
       );
-    } finally {
-      isLoading.value = false;
     }
   }
 
+  Future<Uint8List> _processAndCompressImage(PlatformFile file) async {
+    try {
+      isCompressing.value = true;
+
+      Uint8List imageBytes;
+      if (file.bytes != null) {
+        imageBytes = file.bytes!;
+      } else if (file.path != null) {
+        final originalFile = File(file.path!);
+        imageBytes = await originalFile.readAsBytes();
+      } else {
+        throw 'No file data available';
+      }
+
+      final result = await FlutterImageCompress.compressWithList(
+        imageBytes,
+        format: CompressFormat.webp,
+        quality: imageQuality,
+        minWidth: 1080,
+        minHeight: 1080,
+        autoCorrectionAngle: true,
+      );
+
+      isCompressing.value = false;
+      return result;
+    } catch (e) {
+      isCompressing.value = false;
+      print('Image compression failed: $e');
+
+      if (file.bytes != null) {
+        return file.bytes!;
+      } else if (file.path != null) {
+        final originalFile = File(file.path!);
+        return await originalFile.readAsBytes();
+      } else {
+        throw 'No file data available';
+      }
+    }
+  }
+
+  void removeImage() {
+    selectedImageBytes.value = null;
+    selectedImageName.value = null;
+  }
+
+  // Materials methods
+  void toggleMaterial(String materialName) {
+    if (selectedMaterials.contains(materialName)) {
+      selectedMaterials.remove(materialName);
+    } else {
+      selectedMaterials.add(materialName);
+    }
+  }
+
+  // Validation
   bool _validateForm() {
-    // Basic form validation
     if (!formKey.currentState!.validate()) {
-      FLoaders.errorSnackBar(
+      FAdminLoaders.errorSnackBar(
         title: 'Form Error',
         message: 'Please fix all form errors before proceeding',
       );
       return false;
     }
 
-    // Location validation
     if (selectedLocation.value == null) {
-      FLoaders.errorSnackBar(
+      FAdminLoaders.errorSnackBar(
         title: 'Location Required',
         message: 'Please set the center location',
       );
       return false;
     }
 
-    // Image validation (optional but recommended)
-    if (selectedImage.value == null) {
-      FLoaders.warningSnackBar(
-        title: 'No Image',
-        message: 'Consider adding a center image for better visibility',
+    // Check if at least one day is open
+    final hasOpenDays = openingHours.values.any((data) => data['isOpen'] == true);
+    if (!hasOpenDays) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Opening Hours Required',
+        message: 'Please set at least one day as open',
       );
+      return false;
     }
 
-    // Opening hours validation
-    if (!_hasValidOpeningHours()) {
-      FLoaders.errorSnackBar(
-        title: 'Opening Hours Required',
-        message: 'Please set opening hours for at least one day',
+    if (selectedMaterials.isEmpty) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Materials Required',
+        message: 'Please select at least one accepted material',
       );
       return false;
     }
@@ -488,116 +332,77 @@ class AddPartnerCenterController extends GetxController {
     return true;
   }
 
-  Future<void> _saveCenterToDatabase(PartnerRecyclingCenter center) async {
-    // Simulate database save
-    // In real implementation, use Firebase or other backend service
-    await Future.delayed(const Duration(milliseconds: 500));
+  // Create center
+  Future<void> createCenter() async {
+    try {
+      if (!_validateForm()) return;
 
-    // Here you would typically:
-    // 1. Upload the image to storage and get URL
-    // 2. Save center data to Firestore
-    // 3. Handle any errors
+      isLoading.value = true;
 
-    print('Saving center: ${center.toJson()}');
+      // Upload image if exists
+      String uploadedFileName = '';
+      if (selectedImageBytes.value != null && selectedImageName.value != null) {
+        try {
+          print('Uploading center image...');
+          uploadedFileName = await _centerRepo.uploadCenterImage(
+            selectedImageBytes.value!,
+            selectedImageName.value!,
+          );
+          print('Image uploaded successfully: $uploadedFileName');
+        } catch (e) {
+          print('Image upload failed: $e');
+          rethrow;
+        }
+      }
+
+      // Convert opening hours (only includes open days)
+      final openingHoursMap = _convertOpeningHoursToMap();
+
+      final center = PartnerRecyclingCenter.createNew(
+        name: nameController.text.trim(),
+        email: emailController.text.trim(),
+        phoneNo: phoneController.text.trim(),
+        website: websiteController.text.trim(),
+        centerLocation: selectedLocation.value!,
+        image: uploadedFileName,
+        openingHours: openingHoursMap,
+        acceptedMaterials: selectedMaterials.toList(),
+        numberOfStaff: 0,
+        status: 'active',
+      );
+
+      print('Creating center in Firestore...');
+      await _centerRepo.createCenter(center);
+      print('Center created successfully');
+
+      isLoading.value = false;
+
+      FAdminLoaders.successSnackBar(
+        title: 'Center Created',
+        message: 'Recycling center created successfully',
+      );
+
+      Get.back();
+    } catch (e) {
+      isLoading.value = false;
+      print('=== CENTER CREATION ERROR ===');
+      print('Error type: ${e.runtimeType}');
+      print('Error message: $e');
+      print('=== END ERROR ===');
+
+      FAdminLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to create center: ${e.toString()}',
+      );
+    }
   }
 
-  void _resetForm() {
-    // Clear all controllers
-    nameController.clear();
-    emailController.clear();
-    phoneController.clear();
-    websiteController.clear();
-    staffCountController.clear();
-
-    // Reset reactive variables
-    selectedLocation.value = null;
-    selectedImage.value = null;
-    selectedStatus.value = 'active';
-
-    // Reset opening hours
-    _initializeOpeningHours();
-
-    // Reset progress
-    formProgress.value = 0.0;
-  }
-
-  // Lifecycle methods
   @override
   void onClose() {
-    // Dispose controllers
     nameController.dispose();
     emailController.dispose();
     phoneController.dispose();
     websiteController.dispose();
-    staffCountController.dispose();
     super.onClose();
   }
-
-  // Helper method to check if form has unsaved changes
-  bool get hasUnsavedChanges {
-    return nameController.text.isNotEmpty ||
-        emailController.text.isNotEmpty ||
-        phoneController.text.isNotEmpty ||
-        websiteController.text.isNotEmpty ||
-        staffCountController.text.isNotEmpty ||
-        selectedLocation.value != null ||
-        selectedImage.value != null ||
-        _hasValidOpeningHours();
-  }
-
-  // Method to handle back navigation with confirmation
-  Future<bool> onWillPop() async {
-    if (!hasUnsavedChanges) return true;
-
-    final result = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: FHelperFunctions.isDarkMode(Get.context!)
-            ? Color(0xFF111B2B) // adminDarkSurface
-            : Colors.white,
-        title: Text(
-          'Discard Changes?',
-          style: TextStyle(
-            color: FHelperFunctions.isDarkMode(Get.context!)
-                ? Color(0xFFE2E8F0) // adminDarkText
-                : Color(0xFF32325D), // adminLightText
-          ),
-        ),
-        content: Text(
-          'You have unsaved changes. Are you sure you want to leave?',
-          style: TextStyle(
-            color: FHelperFunctions.isDarkMode(Get.context!)
-                ? Color(0xFF94A3B8) // adminDarkTextSecondary
-                : Color(0xFF8898AA), // adminLightTextSecondary
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: FHelperFunctions.isDarkMode(Get.context!)
-                    ? Color(0xFF94A3B8) // adminDarkTextSecondary
-                    : Color(0xFF8898AA), // adminLightTextSecondary
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            child: Text(
-              'Discard',
-              style: TextStyle(
-                color: FHelperFunctions.isDarkMode(Get.context!)
-                    ? Color(0xFFFC7C8A) // adminDarkError
-                    : Color(0xFFF5365C), // adminLightError
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
-  }
 }
-

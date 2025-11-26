@@ -185,7 +185,7 @@ class LeaderboardController extends GetxController {
       role: 'placeholder',
       isVerified: false,
       isActive: false,
-      loginAttemptCount: 0,
+      isBanned: false,
       joinDate: DateTime.now(),
       rewardPoint: 0,
       monthlyRewardPoint: 0,

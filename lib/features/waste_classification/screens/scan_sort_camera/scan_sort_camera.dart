@@ -251,7 +251,7 @@ class ScanSortCameraScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // 文字内容 - 使用 Center 包裹
+            // 文字内容
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -331,9 +331,23 @@ class ScanSortCameraScreen extends StatelessWidget {
             _buildControlButton(
               icon: Iconsax.gallery,
               onTap: () async {
-                final file = await controller.pickFromGallery();
-                if (file != null) {
-                  Get.back(result: file);
+                print('🖼️ Gallery button pressed');
+                try {
+                  final file = await controller.pickFromGallery();
+                  if (file != null) {
+                    print('📸 Gallery image obtained: ${file.path}');
+                    // Process image for detection
+                    await controller.processCapturedImage(file);
+                  } else {
+                    print('❌ Gallery picker returned null');
+                  }
+                } catch (e) {
+                  print('❌ Gallery picker error: $e');
+                  Get.snackbar(
+                    'Error',
+                    'Failed to pick image: $e',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
                 }
               },
               dark: dark,
@@ -342,9 +356,28 @@ class ScanSortCameraScreen extends StatelessWidget {
             // Capture Button
             GestureDetector(
               onTap: () async {
-                final file = await controller.capturePhoto();
-                if (file != null) {
-                  Get.back(result: file);
+                print('🎯 Capture button pressed');
+                try {
+                  final file = await controller.capturePhoto();
+                  if (file != null) {
+                    print('📸 Photo file obtained: ${file.path}');
+                    // Process image for detection
+                    await controller.processCapturedImage(file);
+                  } else {
+                    print('❌ Photo capture returned null');
+                    Get.snackbar(
+                      'Error',
+                      'Failed to capture photo',
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  }
+                } catch (e) {
+                  print('❌ Capture button error: $e');
+                  Get.snackbar(
+                    'Error',
+                    'Failed to capture photo: $e',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
                 }
               },
               child: Container(

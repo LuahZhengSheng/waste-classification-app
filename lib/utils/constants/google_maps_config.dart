@@ -1,13 +1,15 @@
 
+import '../../config/env_config.dart';
+
 class GoogleMapsConfig {
   GoogleMapsConfig._();
 
   // Store your API key securely - consider using flutter_dotenv or similar
-  static const String _apiKey = 'AIzaSyDxxkSWPJGDFFpcejtULq6hHohdYuTLQ5A';
+  static final String _apiKey = EnvConfig.googlePlacesApiKey;
 
   static String get apiKey {
     // Add validation
-    if (_apiKey == 'AIzaSyDxxkSWPJGDFFpcejtULq6hHohdYuTLQ5A') {
+    if (_apiKey == '') {
       throw Exception('Google Maps API key not configured. Please add your API key.');
     }
     return _apiKey;

@@ -80,22 +80,41 @@ class UserRepository extends GetxController {
     bool descending = true,
     int minValue = 0,
   }) {
-    return _db
+    final query = _db
         .collection(_usersCollection)
         .where('role', isEqualTo: 'user')
-        .where(field, isGreaterThan: minValue)
         .orderBy(field, descending: descending)
-        .limit(limit)
+        .limit(limit);
+
+    return query
         .snapshots()
         .asyncMap((snapshot) async {
-      final users = snapshot.docs.map((doc) => UserModel.fromSnapshot(doc)).toList();
-      // 加载所有用户的头像URL
+
+      if (snapshot.docs.isEmpty) {
+        return <UserModel>[];
+      }
+
+      final users = snapshot.docs.map((doc) {
+        return UserModel.fromSnapshot(doc);
+      }).toList();
+
       await _loadProfileImagesForUsers(users);
+
       return users;
     }).handleError((error) {
+      if (error is FirebaseException) {
+        print('🔥 Firebase 错误详情:');
+        print('   - code: ${error.code}');
+        print('   - message: ${error.message}');
+        print('   - stackTrace: ${error.stackTrace}');
+      }
+
       if (kDebugMode) {
+        print('🐛 Debug模式: 在控制台打印完整错误信息');
         print('Error in users sorted by $field stream: $error');
       }
+
+      print('🔄 返回空列表以避免UI崩溃');
       return <UserModel>[];
     });
   }
@@ -127,25 +146,42 @@ class UserRepository extends GetxController {
 
   /// 批量加载用户头像并更新用户对象的profileImg字段
   Future<void> _loadProfileImagesForUsers(List<UserModel> users) async {
+    print("==> Start loading profile images for users. Total users: ${users.length}");
+
     for (final user in users) {
+      print("Processing user: ${user.userId}, profileImg: ${user.profileImg}");
+
       if (user.profileImg != null && user.profileImg!.isNotEmpty) {
+        print("Loading profile image for user: ${user.userId} -> ${user.profileImg}");
         await _loadProfileImage(user.profileImg!);
+      } else {
+        print("User ${user.userId} has no profileImg, skipping.");
       }
     }
+
+    print("==> Finished loading profile images.");
   }
 
   /// 加载单个头像到缓存 - 私有方法
   Future<void> _loadProfileImage(String fileName) async {
+    print("Attempting to load profile image: $fileName");
+
     // Check if already cached
     if (profileImageCache.containsKey(fileName)) {
+      print("Image already cached: $fileName");
       return;
     }
 
     try {
       final path = '$_profileImagesFolder/$fileName';
+      print("Fetching download URL from path: $path");
+
       final ref = _storage.ref().child(path);
       final downloadUrl = await ref.getDownloadURL();
+
       profileImageCache[fileName] = downloadUrl;
+      print("Successfully cached image: $fileName -> $downloadUrl");
+
     } catch (e) {
       if (kDebugMode) {
         print('Failed to load profile image $fileName: $e');
@@ -205,6 +241,7 @@ class UserRepository extends GetxController {
       if (documentSnapshot.exists) {
         final data = documentSnapshot.data()!;
         final username = data['username'] as String? ?? 'User';
+        final email = data['email'] as String? ?? '';
         final profileImgFileName = data['profileImg'] as String? ?? '';
 
         String? profileImgUrl;
@@ -221,6 +258,7 @@ class UserRepository extends GetxController {
         return UserModel.profileOnly(
           userId: userId,
           username: username,
+          email: email,
           profileImg: profileImgUrl ?? '',
         );
       } else {
@@ -264,9 +302,10 @@ class UserRepository extends GetxController {
         final data = doc.data();
 
         final username = data['username'] as String? ?? 'User';
+        final email = data['email'] as String? ?? ''; // 添加 email 字段
         final profileImgFileName = data['profileImg'] as String? ?? '';
 
-        print('User ${doc.id} - username: $username, profileImgFileName: $profileImgFileName');
+        print('User ${doc.id} - username: $username, email: $email, profileImgFileName: $profileImgFileName');
 
         String? profileImgUrl;
         if (profileImgFileName.isNotEmpty) {
@@ -287,6 +326,7 @@ class UserRepository extends GetxController {
         result[doc.id] = UserModel.profileOnly(
           userId: doc.id,
           username: username,
+          email: email, // 添加 email 参数
           profileImg: profileImgUrl ?? '',
         );
 
@@ -511,6 +551,54 @@ class UserRepository extends GetxController {
       }
 
       return downloadUrl;
+    } on FirebaseException catch (e) {
+      throw 'Failed to upload image: ${e.message ?? e.code}';
+    } catch (e) {
+      throw 'Failed to upload image: $e';
+    }
+  }
+
+  /// Upload profile image to Firebase Storage
+  Future<String> uploadProfileImageWeb(Uint8List imageBytes, String userId, String? oldFileName) async {
+    try {
+      // 生成唯一的文件名
+      final fileName = '${_uuid.v4()}.webp';
+
+      // 存储路径：profile_images/{fileName}
+      final path = '$_profileImagesFolder/$fileName';
+      final ref = _storage.ref().child(path);
+
+      // 删除旧的头像
+      if (oldFileName != null && oldFileName.isNotEmpty) {
+        await deleteProfileImage(oldFileName);
+      }
+
+      // 使用 putData 上传字节数据
+      final uploadTask = ref.putData(
+        imageBytes,
+        SettableMetadata(
+          contentType: 'image/webp',
+          customMetadata: {
+            'uploadedBy': userId,
+            'uploadedAt': DateTime.now().toIso8601String(),
+            'type': 'profile_image',
+            'fileName': fileName,
+          },
+        ),
+      );
+
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // 更新用户记录中的图片文件名
+      await _db.collection(_usersCollection).doc(userId).update({
+        'profileImg': fileName,
+      });
+
+      // 更新缓存
+      profileImageCache[fileName] = downloadUrl;
+
+      return fileName;
     } on FirebaseException catch (e) {
       throw 'Failed to upload image: ${e.message ?? e.code}';
     } catch (e) {

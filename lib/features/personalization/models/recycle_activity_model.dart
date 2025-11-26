@@ -52,7 +52,7 @@ class RecyclingActivity {
       'weight': weight,
       'supportImage': supportImage,
       'pointsEarned': pointsEarned,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt), // 改为 Timestamp
       'status': status,
     };
   }
@@ -61,6 +61,19 @@ class RecyclingActivity {
   factory RecyclingActivity.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> document) {
     if (document.data() != null) {
       final data = document.data()!;
+
+      // 处理 Timestamp 类型的 createdAt
+      DateTime createdAt;
+      if (data['createdAt'] is Timestamp) {
+        createdAt = (data['createdAt'] as Timestamp).toDate();
+      } else if (data['createdAt'] is String) {
+        // 向后兼容：如果还是字符串格式，尝试解析
+        createdAt = DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String());
+      } else {
+        // 默认值
+        createdAt = DateTime.now();
+      }
+
       return RecyclingActivity(
         activityId: document.id,
         userId: data['userId'] ?? '',
@@ -70,7 +83,7 @@ class RecyclingActivity {
         weight: (data['weight'] ?? 0.0).toDouble(),
         supportImage: data['supportImage'] ?? '',
         pointsEarned: (data['pointsEarned'] ?? 0).toInt(),
-        createdAt: DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
+        createdAt: createdAt,
         status: data['status'] ?? 'completed',
       );
     } else {
@@ -80,6 +93,18 @@ class RecyclingActivity {
 
   /// Factory method to create from a JSON map
   factory RecyclingActivity.fromJson(Map<String, dynamic> json) {
+    // 处理 Timestamp 类型的 createdAt
+    DateTime createdAt;
+    if (json['createdAt'] is Timestamp) {
+      createdAt = (json['createdAt'] as Timestamp).toDate();
+    } else if (json['createdAt'] is String) {
+      createdAt = DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String());
+    } else if (json['createdAt'] is int) {
+      createdAt = DateTime.fromMillisecondsSinceEpoch(json['createdAt']);
+    } else {
+      createdAt = DateTime.now();
+    }
+
     return RecyclingActivity(
       activityId: json['activityId'] ?? '',
       userId: json['userId'] ?? '',
@@ -89,7 +114,7 @@ class RecyclingActivity {
       weight: (json['weight'] ?? 0.0).toDouble(),
       supportImage: json['supportImage'] ?? '',
       pointsEarned: (json['pointsEarned'] ?? 0).toInt(),
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: createdAt,
       status: json['status'] ?? 'completed',
     );
   }
@@ -197,7 +222,7 @@ class RecyclingActivity {
 
   @override
   String toString() {
-    return 'RecyclingActivity(activityId: $activityId, userId: $userId, centerStaffId: $centerStaffId, wasteObject: $wasteObject, weight: $weight, points: $pointsEarned, status: $status)';
+    return 'RecyclingActivity(activityId: $activityId, userId: $userId, centerStaffId: $centerStaffId, wasteObject: $wasteObject, weight: $weight, points: $pointsEarned, status: $status, createdAt: $createdAt)';
   }
 
   @override

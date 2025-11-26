@@ -247,7 +247,8 @@ class _AddAchievementScreenState extends State<AddAchievementScreen> {
         category: 'e_waste_collection',
         maxLevel: 3,
         createdAt: DateTime.now(),
-        achievementLevels: [], // Levels will be added to subcollection
+        achievementLevels: [], //
+        status: 'active',// Levels will be added to subcollection
       );
 
       // Save to Firestore - 只保存成就基本信息，不包含等级数组
@@ -452,6 +453,7 @@ class _AddAchievementScreenState extends State<AddAchievementScreen> {
         maxLevel: data['maxLevel'] ?? 0,
         createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         achievementLevels: levels,
+        status: 'active',
       );
     } catch (e) {
       print('💥 Error getting achievement with levels: $e');

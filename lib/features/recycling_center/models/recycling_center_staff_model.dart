@@ -7,50 +7,40 @@ class RecyclingCenterStaff extends RoleModel {
   final DateTime joinDate;
 
   RecyclingCenterStaff({
-    // RoleModel fields
     required super.userId,
     required super.username,
     required super.email,
-    required super.loginAttemptCount,
     required super.role,
     required super.isVerified,
     required super.isActive,
+    required super.isBanned,
     super.phoneNo,
     super.profileImg,
-    super.lastFailedLogin,
-
-    // RecyclingCenterStaff fields
     required this.centerId,
     this.gender,
     required this.joinDate,
   });
 
-  /// ✅ Firestore 转换
   factory RecyclingCenterStaff.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
     return RecyclingCenterStaff(
       userId: doc.id,
-      username: data['Username'] ?? '',
-      email: data['Email'] ?? '',
-      phoneNo: data['PhoneNo'],
-      profileImg: data['ProfileImage'],
-      loginAttemptCount: data['LoginAttemptCount'] ?? 0,
-      lastFailedLogin: data['LastFailedLogin'] != null
-          ? (data['LastFailedLogin'] as Timestamp).toDate()
-          : null,
-      role: data['Role'] ?? '',
-      isVerified: data['IsVerified'] ?? false,
-      isActive: data['IsActive'] ?? false,
-
-      centerId: data['CenterId'],
-      gender: data['Gender'],
-      joinDate: data['JoinDate'] != null
-          ? (data['JoinDate'] as Timestamp).toDate()
+      username: data['username'] ?? '',
+      email: data['email'] ?? '',
+      phoneNo: data['phoneNo'],
+      profileImg: data['profileImg'],
+      role: data['role'] ?? '',
+      isVerified: data['isVerified'] ?? false,
+      isActive: data['isActive'] ?? false,
+      isBanned: data['isBanned'] ?? false,
+      centerId: data['centerId'],
+      gender: data['gender'],
+      joinDate: data['joinDate'] != null
+          ? (data['joinDate'] as Timestamp).toDate()
           : DateTime.now(),
     );
   }
 
-  /// ✅ Map 转换（用于本地缓存）
   factory RecyclingCenterStaff.fromMap(Map<String, dynamic> map) {
     return RecyclingCenterStaff(
       userId: map['userId'] ?? '',
@@ -58,38 +48,31 @@ class RecyclingCenterStaff extends RoleModel {
       email: map['email'] ?? '',
       phoneNo: map['phoneNo'],
       profileImg: map['profileImg'],
-      loginAttemptCount: map['loginAttemptCount'] ?? 0,
-      lastFailedLogin: map['lastFailedLogin'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['lastFailedLogin'])
-          : null,
       role: map['role'] ?? '',
       isVerified: map['isVerified'] ?? false,
       isActive: map['isActive'] ?? false,
-
+      isBanned: map['isBanned'] ?? false,
       centerId: map['centerId'],
       gender: map['gender'],
       joinDate: DateTime.fromMillisecondsSinceEpoch(map['joinDate']),
     );
   }
 
-  /// ✅ 转 Firestore JSON
   @override
   Map<String, dynamic> toJson() {
     return {
-      'UserId': userId,
-      'Username': username,
-      'Email': email,
-      'PhoneNo': phoneNo,
-      'ProfileImage': profileImg,
-      'LoginAttemptCount': loginAttemptCount,
-      'LastFailedLogin':
-      lastFailedLogin != null ? Timestamp.fromDate(lastFailedLogin!) : null,
-      'Role': role,
-      'IsVerified': isVerified,
-      'IsActive': isActive,
+      'userId': userId,
+      'username': username,
+      'email': email,
+      'phoneNo': phoneNo,
+      'profileImg': profileImg,
+      'role': role,
+      'isVerified': isVerified,
+      'isActive': isActive,
+      'isBanned': isBanned,
       'centerId': centerId,
-      'Gender': gender,
-      'JoinDate': Timestamp.fromDate(joinDate),
+      'gender': gender,
+      'joinDate': Timestamp.fromDate(joinDate),
     };
   }
 
@@ -101,8 +84,7 @@ class RecyclingCenterStaff extends RoleModel {
     String? email,
     bool? isActive,
     bool? isVerified,
-    DateTime? lastFailedLogin,
-    int? loginAttemptCount,
+    bool? isBanned,
     String? phoneNo,
     String? profileImg,
     String? role,
@@ -118,23 +100,21 @@ class RecyclingCenterStaff extends RoleModel {
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
       isVerified: isVerified ?? this.isVerified,
-      lastFailedLogin: lastFailedLogin ?? this.lastFailedLogin,
-      loginAttemptCount: loginAttemptCount ?? this.loginAttemptCount,
+      isBanned: isBanned ?? this.isBanned,
       centerId: centerId ?? this.centerId,
       gender: gender ?? this.gender,
       joinDate: joinDate ?? this.joinDate,
     );
   }
 
-  /// ✅ Empty User
   static RecyclingCenterStaff empty() => RecyclingCenterStaff(
     userId: '',
     username: '',
     email: '',
-    loginAttemptCount: 0,
     role: '',
     isVerified: false,
     isActive: false,
+    isBanned: false,
     centerId: '',
     joinDate: DateTime.now(),
   );

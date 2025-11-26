@@ -62,7 +62,7 @@ class RewardController extends GetxController {
           // Fetch image URLs for each reward
           for (var reward in fetchedRewards) {
             if (reward.rewardImage.isNotEmpty) {
-              reward.rewardImage = await rewardRepository.getRewardImageUrl(reward.rewardImage);
+              reward.rewardImage = (await rewardRepository.getRewardImageUrl(reward.rewardImage))!;
             }
           }
           rewards.assignAll(fetchedRewards);
@@ -128,6 +128,7 @@ class RewardController extends GetxController {
       final redemption = RedemptionModel.createNew(
         userId: currentUserId.value,
         rewardId: reward.rewardId,
+        points: reward.pointsNeeded
       );
 
       // Save redemption to Firebase

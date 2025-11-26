@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../screens/dropfoff_location/dropoff_location.dart';
 import '../screens/waste_category_guideline/waste_category_guide.dart';
+import 'detection_controller.dart';
 
 class ScanSortCameraController extends GetxController with WidgetsBindingObserver {
   // Camera state
@@ -72,7 +73,6 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     if (state == AppLifecycleState.paused) {
       _disposeController();
     }
-    // 对于 inactive 和 resumed 状态，我们让页面级别的生命周期来管理
   }
 
   // 页面进入时初始化相机
@@ -216,20 +216,29 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     if (currentController == null ||
         !currentController.value.isInitialized ||
         _isCapturing.value) {
+      print('❌ Cannot capture: controller=$currentController, initialized=${currentController?.value.isInitialized}, capturing=${_isCapturing.value}');
       return null;
     }
 
     try {
+      print('📸 Starting photo capture...');
       _isCapturing.value = true;
+
       final XFile image = await currentController.takePicture();
+      print('✅ Photo captured: ${image.path}');
+
       final directory = await getTemporaryDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final imagePath = '${directory.path}/scan_$timestamp.jpg';
       final imageFile = File(image.path);
       final savedFile = await imageFile.copy(imagePath);
+
+      print('✅ Photo saved: $imagePath');
       _isCapturing.value = false;
+
       return savedFile;
     } on CameraException catch (e) {
+      print('❌ Camera exception: ${e.description ?? e.code}');
       _isCapturing.value = false;
       Get.snackbar(
         'Error',
@@ -238,6 +247,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
       );
       return null;
     } catch (e) {
+      print('❌ Capture error: $e');
       _isCapturing.value = false;
       Get.snackbar(
         'Error',
@@ -248,28 +258,31 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     }
   }
 
-  // Pick image from gallery - 修复版本
+  // Pick image from gallery
   Future<File?> pickFromGallery() async {
     try {
-      _isPickingImage.value = true; // 标记正在选择图片
+      print('🖼️ Opening gallery picker...');
+      _isPickingImage.value = true;
 
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
       );
 
-      _isPickingImage.value = false; // 选择完成
+      _isPickingImage.value = false;
 
       if (image != null) {
+        print('✅ Gallery image selected: ${image.path}');
         return File(image.path);
       }
+
+      print('⚠️ Gallery picker cancelled');
       return null;
     } catch (e) {
-      _isPickingImage.value = false; // 选择完成（即使出错）
+      print('❌ Gallery picker error: $e');
+      _isPickingImage.value = false;
 
-      // 只在真正发生错误时显示snackbar，用户取消不算错误
       if (e.toString().contains('cancel') || e.toString().contains('permission')) {
-        // 用户取消或权限问题，不显示错误
         return null;
       }
 
@@ -279,6 +292,68 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
         snackPosition: SnackPosition.BOTTOM,
       );
       return null;
+    }
+  }
+
+  // Process captured image for detection
+  Future<void> processCapturedImage(File imageFile) async {
+    try {
+      print('🔍 Starting image processing: ${imageFile.path}');
+      print('📂 File exists: ${await imageFile.exists()}');
+      print('📏 File size: ${await imageFile.length()} bytes');
+
+      // Get or initialize detection controller
+      DetectionController detectionController;
+      if (Get.isRegistered<DetectionController>()) {
+        print('✅ Using existing DetectionController');
+        detectionController = Get.find<DetectionController>();
+      } else {
+        print('⚠️ Creating new DetectionController');
+        detectionController = Get.put(DetectionController());
+
+        // Wait for initialization
+        if (detectionController.isInitializing.value) {
+          print('⏳ Waiting for model initialization...');
+          Get.snackbar(
+            'Please Wait',
+            'Model is initializing...',
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 2),
+          );
+
+          // Wait for initialization to complete
+          int attempts = 0;
+          while (detectionController.isInitializing.value && attempts < 30) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            attempts++;
+          }
+
+          if (detectionController.isInitializing.value) {
+            print('❌ Model initialization timeout');
+            Get.snackbar(
+              'Error',
+              'Model initialization timeout. Please try again.',
+              snackPosition: SnackPosition.BOTTOM,
+            );
+            return;
+          }
+        }
+      }
+
+      print('🚀 Running detection...');
+      // Run detection and show results
+      await detectionController.detectAndShowResults(imageFile);
+      print('✅ Detection complete');
+
+    } catch (e, stackTrace) {
+      print('❌ Failed to process image: $e');
+      print('Stack trace: $stackTrace');
+      Get.snackbar(
+        'Error',
+        'Failed to process image: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 3),
+      );
     }
   }
 
@@ -319,7 +394,6 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     }
   }
 
-  // Zoom in/out with buttons
   Future<void> zoomIn() async {
     double newZoom = (_currentZoom.value + 0.5).clamp(_minZoom.value, _maxZoom.value);
     await _setZoomLevel(newZoom);
@@ -352,9 +426,8 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
 
   // Navigation functions
   void navigateToDropOff() {
-    disposeCameraForPage(); // 离开页面时释放相机
+    disposeCameraForPage();
     Get.to(() => DropoffLocationsScreen())?.then((_) {
-      // 当从 Dropoff 页面返回时重新初始化相机
       if (!_isInitialized.value && !_isLoading.value) {
         Future.delayed(const Duration(milliseconds: 300), () {
           _initializeCamera();
@@ -364,9 +437,8 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
   }
 
   void navigateToCategories() {
-    disposeCameraForPage(); // 离开页面时释放相机
+    disposeCameraForPage();
     Get.to(() => WasteCategoryGuideScreen())?.then((_) {
-      // 当从 Categories 页面返回时重新初始化相机
       if (!_isInitialized.value && !_isLoading.value) {
         Future.delayed(const Duration(milliseconds: 300), () {
           _initializeCamera();

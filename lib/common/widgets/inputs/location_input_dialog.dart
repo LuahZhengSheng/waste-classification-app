@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fyp/utils/constants/colors.dart';
-import 'package:fyp/utils/constants/sizes.dart';
-import '../../../features/event/models/address_model.dart';
-import '../../../features/event/models/geopoint_model.dart';
 import '../../../features/event/models/location_model.dart';
+import '../../../utils/constants/colors.dart';
+import '../../../utils/constants/sizes.dart';
+import '../../../utils/validators/validation.dart';
+import 'location_input_controller.dart';
 
-class LocationInputDialog extends StatefulWidget {
+class LocationInputDialog extends StatelessWidget {
   final bool dark;
   final Location? initialLocation;
   final Function(Location) onLocationSelected;
@@ -20,509 +21,613 @@ class LocationInputDialog extends StatefulWidget {
   });
 
   @override
-  State<LocationInputDialog> createState() => _LocationInputDialogState();
-}
-
-class _LocationInputDialogState extends State<LocationInputDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _unitNoController;
-  late TextEditingController _areaController;
-  late TextEditingController _postcodeController;
-  late TextEditingController _cityController;
-  late TextEditingController _stateController;
-
-  bool _isLoading = false;
-  bool _showMap = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _unitNoController = TextEditingController(text: widget.initialLocation?.address.unitNo ?? '');
-    _areaController = TextEditingController(text: widget.initialLocation?.address.area ?? '');
-    _postcodeController = TextEditingController(text: widget.initialLocation?.address.postcode ?? '');
-    _cityController = TextEditingController(text: widget.initialLocation?.address.city ?? '');
-    _stateController = TextEditingController(text: widget.initialLocation?.address.state ?? '');
-
-    // Add listeners to show map when address fields are filled
-    _areaController.addListener(_checkAddressCompletion);
-    _cityController.addListener(_checkAddressCompletion);
-    _stateController.addListener(_checkAddressCompletion);
-    _postcodeController.addListener(_checkAddressCompletion);
-  }
-
-  void _checkAddressCompletion() {
-    final hasBasicAddress = _areaController.text.trim().isNotEmpty &&
-        _cityController.text.trim().isNotEmpty &&
-        _stateController.text.trim().isNotEmpty &&
-        _postcodeController.text.trim().isNotEmpty;
-
-    if (hasBasicAddress && !_showMap) {
-      setState(() {
-        _showMap = true;
-      });
-      _simulateMapLoad();
-    } else if (!hasBasicAddress && _showMap) {
-      setState(() {
-        _showMap = false;
-      });
-    }
-  }
-
-  void _simulateMapLoad() {
-    // Simulate loading for map
-    setState(() {
-      _isLoading = true;
-    });
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _unitNoController.dispose();
-    _areaController.dispose();
-    _postcodeController.dispose();
-    _cityController.dispose();
-    _stateController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-      ),
-      child: Container(
-        width: 600,
-        constraints: const BoxConstraints(maxHeight: 700),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(FSizes.lg),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: widget.dark ? FColors.adminDarkDivider : FColors.adminLightDivider,
-                    width: 0.5,
+    // 使用固定的 tag 避免每次都创建新的
+    final controllerTag = 'location_input_${initialLocation?.hashCode ?? 'new'}';
+
+    return GetBuilder<LocationInputController>(
+      init: LocationInputController(initialLocation: initialLocation),
+      tag: controllerTag,
+      builder: (controller) {
+        return Dialog(
+          backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            constraints: const BoxConstraints(maxHeight: 800, maxWidth: 900),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                _buildHeader(controller),
+
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(FSizes.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Map Preview
+                        Obx(() => _buildMapPreview(controller)),
+
+                        const SizedBox(height: FSizes.spaceBtwSections),
+
+                        // Address Form
+                        _buildAddressForm(controller),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Iconsax.location,
-                    color: widget.dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                  ),
-                  const SizedBox(width: FSizes.sm),
-                  Text(
-                    'Event Location',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: widget.dark ? FColors.adminDarkText : FColors.adminLightText,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Get.back(),
-                    icon: Icon(
-                      Iconsax.close_circle,
-                      color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                    ),
-                  ),
-                ],
-              ),
+
+                // Action Buttons
+                _buildActionButtons(controller),
+              ],
             ),
+          ),
+        );
+      },
+    );
+  }
 
-            // Content
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(FSizes.lg),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Google Map Preview Area
-                      Container(
-                        height: 200,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: widget.dark
-                              ? FColors.adminDarkSurfaceVariant
-                              : FColors.adminLightSurfaceVariant,
-                          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                          border: Border.all(
-                            color: widget.dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
-                          ),
-                        ),
-                        child: _showMap
-                            ? _isLoading
-                            ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(
-                              color: widget.dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                            ),
-                            const SizedBox(height: FSizes.md),
-                            Text(
-                              'Loading map...',
-                              style: TextStyle(
-                                color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                              ),
-                            ),
-                          ],
-                        )
-                            : Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                              child: Container(
-                                width: double.infinity,
-                                height: double.infinity,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      (widget.dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary).withOpacity(0.1),
-                                      (widget.dark ? FColors.adminDarkSecondary : FColors.adminLightSecondary).withOpacity(0.1),
-                                    ],
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Iconsax.map_1,
-                                      size: 48,
-                                      color: widget.dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                                    ),
-                                    const SizedBox(height: FSizes.sm),
-                                    Text(
-                                      'Google Map Preview',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: widget.dark ? FColors.adminDarkText : FColors.adminLightText,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Location pinned successfully',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              top: FSizes.sm,
-                              right: FSizes.sm,
-                              child: Container(
-                                padding: const EdgeInsets.all(FSizes.xs),
-                                decoration: BoxDecoration(
-                                  color: widget.dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                                  borderRadius: BorderRadius.circular(FSizes.cardRadiusXs),
-                                ),
-                                child: const Icon(
-                                  Iconsax.location,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                            : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Iconsax.map,
-                              size: 48,
-                              color: widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                            ),
-                            const SizedBox(height: FSizes.sm),
-                            Text(
-                              'Google Map will appear here',
-                              style: TextStyle(
-                                color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: FSizes.xs),
-                            Text(
-                              'Fill in the address fields below to see location preview',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: FSizes.spaceBtwSections),
-
-                      // Address Form
-                      Text(
-                        'Address Details',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: widget.dark ? FColors.adminDarkText : FColors.adminLightText,
-                        ),
-                      ),
-                      const SizedBox(height: FSizes.spaceBtwItems),
-
-                      // Unit Number
-                      TextFormField(
-                        controller: _unitNoController,
-                        decoration: _inputDecoration('Unit/Building Number *', Iconsax.home_2),
-                        style: _inputTextStyle(),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Unit number is required';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: FSizes.spaceBtwInputFields),
-
-                      // Area/Street
-                      TextFormField(
-                        controller: _areaController,
-                        decoration: _inputDecoration('Area/Street *', Iconsax.map),
-                        style: _inputTextStyle(),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Area/Street is required';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: FSizes.spaceBtwInputFields),
-
-                      // Postcode and City Row
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: TextFormField(
-                              controller: _postcodeController,
-                              decoration: _inputDecoration('Postcode *', Iconsax.location),
-                              style: _inputTextStyle(),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Postcode is required';
-                                }
-                                if (value.trim().length < 5) {
-                                  return 'Invalid postcode';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: FSizes.md),
-                          Expanded(
-                            flex: 3,
-                            child: TextFormField(
-                              controller: _cityController,
-                              decoration: _inputDecoration('City *', Iconsax.building),
-                              style: _inputTextStyle(),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'City is required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: FSizes.spaceBtwInputFields),
-
-                      // State
-                      DropdownButtonFormField<String>(
-                        value: _stateController.text.isEmpty ? null : _stateController.text,
-                        decoration: _inputDecoration('State *', Iconsax.global),
-                        style: _inputTextStyle(),
-                        dropdownColor: widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-                        items: _malaysianStates.map((String state) {
-                          return DropdownMenuItem<String>(
-                            value: state,
-                            child: Text(
-                              state,
-                              style: _inputTextStyle(),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            _stateController.text = newValue;
-                            _checkAddressCompletion();
-                          }
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'State is required';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Action Buttons
-            Container(
-              padding: const EdgeInsets.all(FSizes.lg),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: widget.dark ? FColors.adminDarkDivider : FColors.adminLightDivider,
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.back(),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: widget.dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: FSizes.md),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: FSizes.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _saveLocation,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: widget.dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: FSizes.md),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                        ),
-                      ),
-                      child: const Text(
-                        'Save Location',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+  Widget _buildHeader(LocationInputController controller) {
+    return Container(
+      padding: const EdgeInsets.all(FSizes.lg),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: dark ? FColors.adminDarkDivider : FColors.adminLightDivider,
+            width: 0.5,
+          ),
         ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Iconsax.location,
+            color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+          ),
+          const SizedBox(width: FSizes.sm),
+          Text(
+            'Event Location',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: dark ? FColors.adminDarkText : FColors.adminLightText,
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: () => Get.back(),
+            icon: Icon(
+              Iconsax.close_circle,
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _saveLocation() {
-    if (_formKey.currentState!.validate()) {
-      final address = Address(
-        unitNo: _unitNoController.text.trim(),
-        area: _areaController.text.trim(),
-        postcode: _postcodeController.text.trim(),
-        city: _cityController.text.trim(),
-        state: _stateController.text.trim(),
-      );
+  Widget _buildMapPreview(LocationInputController controller) {
+    if (!controller.showMap.value) {
+      return _buildMapPlaceholder();
+    }
 
-      // In real implementation, you would get the actual coordinates from Google Maps API
-      final geoPoint = GeoPointModel(
-        latitude: 3.1390, // Default Kuala Lumpur coordinates
-        longitude: 101.6869,
-      );
+    if (controller.isLoading.value) {
+      return _buildLoadingWidget();
+    }
 
-      final location = Location(
-        address: address,
-        geoPoint: geoPoint,
-      );
+    return Column(
+      children: [
+        Container(
+          height: 300,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+            border: Border.all(
+              color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+            child: _buildSafeGoogleMap(controller),
+          ),
+        ),
+        const SizedBox(height: FSizes.sm),
+        _buildMapControls(controller),
+        // if (controller.errorMessage.value != null) ...[
+        //   const SizedBox(height: FSizes.sm),
+        //   _buildErrorMessage(controller),
+        // ],
+      ],
+    );
+  }
 
-      widget.onLocationSelected(location);
-      Get.back();
+  Widget _buildSafeGoogleMap(LocationInputController controller) {
+    try {
+      return GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: controller.currentMarkerPosition.value ?? const LatLng(3.1390, 101.6869),
+          zoom: 15,
+        ),
+        onMapCreated: controller.onMapCreated,
+        markers: controller.currentMarkerPosition.value != null
+            ? {
+          Marker(
+            markerId: const MarkerId('event_location'),
+            position: controller.currentMarkerPosition.value!,
+            draggable: true,
+            onDragEnd: controller.onMarkerDragEnd,
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          ),
+        }
+            : {},
+        myLocationButtonEnabled: false,
+        zoomControlsEnabled: true,
+        onCameraMove: (position) {
+          // 添加空回调防止 disposed view 错误
+        },
+      );
+    } catch (e) {
+      print('GoogleMap widget error: $e');
+      return _buildMapErrorWidget();
     }
   }
 
-  InputDecoration _inputDecoration(String hint, IconData icon) {
+  Widget _buildMapPlaceholder() {
+    return Container(
+      height: 300,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+        borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+        border: Border.all(
+          color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Iconsax.map,
+            size: 64,
+            color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+          ),
+          const SizedBox(height: FSizes.md),
+          Text(
+            'Map will appear here',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+          const SizedBox(height: FSizes.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: FSizes.xl),
+            child: Text(
+              'Fill in all address fields below and wait 5 seconds to see the location on the map',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingWidget() {
+    return Container(
+      height: 300,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+        borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+        border: Border.all(
+          color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+          ),
+          const SizedBox(height: FSizes.md),
+          Text(
+            'Searching location...',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapErrorWidget() {
+    return Container(
+      height: 300,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+        borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+        border: Border.all(
+          color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Iconsax.warning_2,
+            size: 48,
+            color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+          ),
+          const SizedBox(height: FSizes.md),
+          Text(
+            'Map Error',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+          const SizedBox(height: FSizes.xs),
+          Text(
+            'Please try again',
+            style: TextStyle(
+              fontSize: 12,
+              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapControls(LocationInputController controller) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(FSizes.sm),
+                decoration: BoxDecoration(
+                  color: (dark ? FColors.adminDarkInfo : FColors.adminLightInfo).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(FSizes.cardRadiusSm),
+                  border: Border.all(
+                    color: dark ? FColors.adminDarkInfo : FColors.adminLightInfo,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Iconsax.info_circle,
+                      size: 16,
+                      color: dark ? FColors.adminDarkInfo : FColors.adminLightInfo,
+                    ),
+                    const SizedBox(width: FSizes.xs),
+                    Expanded(
+                      child: Text(
+                        'You can drag the red marker to adjust the exact location (within 500m)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: FSizes.sm),
+            IconButton(
+              onPressed: controller.resetMarkerToOriginal,
+              icon: Icon(
+                Iconsax.refresh,
+                color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+              ),
+              tooltip: 'Reset to original position',
+            ),
+          ],
+        ),
+        // const SizedBox(height: FSizes.xs),
+        // Container(
+        //   padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+        //   decoration: BoxDecoration(
+        //     color: (dark ? FColors.adminDarkWarning : FColors.adminLightWarning).withOpacity(0.1),
+        //     borderRadius: BorderRadius.circular(FSizes.cardRadiusSm),
+        //     border: Border.all(
+        //       color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+        //     ),
+        //   ),
+        //   child: Row(
+        //     mainAxisAlignment: MainAxisAlignment.center,
+        //     children: [
+        //       Icon(
+        //         Iconsax.warning_2,
+        //         size: 12,
+        //         color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+        //       ),
+        //       const SizedBox(width: FSizes.xs),
+        //       Expanded(
+        //         child: Text(
+        //           'Marker must stay within 500m, on land, and within Malaysia',
+        //           textAlign: TextAlign.left,
+        //           style: TextStyle(
+        //             fontSize: 10,
+        //             color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+        //           ),
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ),
+      ],
+    );
+  }
+
+  // Widget _buildErrorMessage(LocationInputController controller) {
+  //   return Container(
+  //     padding: const EdgeInsets.all(FSizes.sm),
+  //     decoration: BoxDecoration(
+  //       color: (dark ? FColors.adminDarkError : FColors.adminLightError).withOpacity(0.1),
+  //       borderRadius: BorderRadius.circular(FSizes.cardRadiusSm),
+  //       border: Border.all(
+  //         color: dark ? FColors.adminDarkError : FColors.adminLightError,
+  //       ),
+  //     ),
+  //     child: Row(
+  //       children: [
+  //         Icon(
+  //           Iconsax.danger,
+  //           size: 16,
+  //           color: dark ? FColors.adminDarkError : FColors.adminLightError,
+  //         ),
+  //         const SizedBox(width: FSizes.xs),
+  //         Expanded(
+  //           child: Text(
+  //             controller.errorMessage.value!,
+  //             style: TextStyle(
+  //               fontSize: 11,
+  //               color: dark ? FColors.adminDarkError : FColors.adminLightError,
+  //             ),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  Widget _buildAddressForm(LocationInputController controller) {
+    return Form(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Address Details',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: dark ? FColors.adminDarkText : FColors.adminLightText,
+            ),
+          ),
+          const SizedBox(height: FSizes.spaceBtwItems),
+
+          // Unit Number
+          TextFormField(
+            controller: controller.unitNoController,
+            decoration: _inputDecoration('Unit/Building Number *', Iconsax.home_2),
+            style: _inputTextStyle(),
+            validator: (value) => FValidator.validateEmptyText('Unit number', value),
+          ),
+          const SizedBox(height: FSizes.spaceBtwInputFields),
+
+          // Area/Street
+          TextFormField(
+            controller: controller.areaController,
+            decoration: _inputDecoration('Area/Street *', Iconsax.map),
+            style: _inputTextStyle(),
+            validator: (value) => FValidator.validateEmptyText('Area/Street', value),
+          ),
+          const SizedBox(height: FSizes.spaceBtwInputFields),
+
+          // Postcode and City Row
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: controller.postcodeController,
+                  decoration: _inputDecoration('Postcode *', Iconsax.location),
+                  style: _inputTextStyle(),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Required';
+                    }
+                    if (value.trim().length < 5) {
+                      return 'Invalid';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: FSizes.md),
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: controller.cityController,
+                  decoration: _inputDecoration('City *', Iconsax.building),
+                  style: _inputTextStyle(),
+                  validator: (value) => FValidator.validateEmptyText('City', value),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: FSizes.spaceBtwInputFields),
+
+          // State
+          DropdownButtonFormField<String>(
+            value: controller.stateController.text.isEmpty ? null : controller.stateController.text,
+            decoration: _inputDecoration('State *', Iconsax.global),
+            style: _inputTextStyle(),
+            dropdownColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+            items: _malaysianStates.map((String state) {
+              return DropdownMenuItem<String>(
+                value: state,
+                child: Text(state, style: _inputTextStyle()),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                controller.stateController.text = newValue;
+              }
+            },
+            validator: (value) => value == null ? 'Please select state' : null,
+          ),
+          const SizedBox(height: FSizes.xs),
+          Obx(() => Text(
+            controller.isEditingMode.value
+                ? controller.hasChanges.value
+                ? 'Address changed. Fill all fields and wait 5 seconds to update map'
+                : 'Edit the address fields to update map location'
+                : 'Fill in all address fields and wait 5 seconds for automatic map validation',
+            style: TextStyle(
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(LocationInputController controller) {
+    return Container(
+      padding: const EdgeInsets.all(FSizes.lg),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: dark ? FColors.adminDarkDivider : FColors.adminLightDivider,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => Get.back(),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+                ),
+                padding: const EdgeInsets.symmetric(vertical: FSizes.md),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                ),
+              ),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: FSizes.md),
+          Expanded(
+            child: Obx(() => ElevatedButton(
+              onPressed: controller.isValidLocation.value
+                  ? () {
+                final location = controller.getLocation();
+                if (location != null) {
+                  // 重置变化检测状态
+                  controller.resetChangeDetection();
+                  onLocationSelected(location);
+                  Get.back();
+                }
+              }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+                disabledBackgroundColor: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+                padding: const EdgeInsets.symmetric(vertical: FSizes.md),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                ),
+              ),
+              child: const Text(
+                'Save Location',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            )),
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(
-        color: widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+      labelText: label,
+      labelStyle: TextStyle(
+        color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
       ),
       prefixIcon: Icon(
         icon,
-        color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+        color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
         borderSide: BorderSide(
-          color: widget.dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+          color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
         ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
         borderSide: BorderSide(
-          color: widget.dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+          color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
         ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
         borderSide: BorderSide(
-          color: widget.dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+          color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
           width: 2,
         ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
         borderSide: BorderSide(
-          color: widget.dark ? FColors.adminDarkError : FColors.adminLightError,
+          color: dark ? FColors.adminDarkError : FColors.adminLightError,
         ),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
         borderSide: BorderSide(
-          color: widget.dark ? FColors.adminDarkError : FColors.adminLightError,
+          color: dark ? FColors.adminDarkError : FColors.adminLightError,
           width: 2,
         ),
       ),
       filled: true,
-      fillColor: widget.dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+      fillColor: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
     );
   }
 
   TextStyle _inputTextStyle() {
     return TextStyle(
-      color: widget.dark ? FColors.adminDarkText : FColors.adminLightText,
+      color: dark ? FColors.adminDarkText : FColors.adminLightText,
     );
   }
 

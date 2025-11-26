@@ -1,10 +1,10 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
 import '../../../features/event/models/event_model.dart';
 import '../../../features/event/models/location_model.dart';
-import '../../../features/event/models/address_model.dart';
-import '../../../features/event/models/geopoint_model.dart';
 import '../../../utils/exceptions/firebase_exceptions.dart';
 
 class EventRepository extends GetxController {
@@ -16,7 +16,102 @@ class EventRepository extends GetxController {
   // Storage paths
   static const String _eventPosterPath = 'event/event_poster';
 
-  /// Get all events as stream with contained location objects
+  /// Create new event
+  Future<void> createEvent(Event event) async {
+    try {
+      await _db.collection('events').add(event.toJson());
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      throw 'Failed to create event: $e';
+    }
+  }
+
+  /// Update existing event
+  Future<void> updateEvent(Event event) async {
+    try {
+      await _db.collection('events').doc(event.eventId).update(event.toJson());
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      throw 'Failed to update event: $e';
+    }
+  }
+
+  /// Upload event poster to Firebase Storage
+  Future<String> uploadEventPoster(Uint8List imageBytes, String fileName) async {
+    try {
+      print('Storage - Starting upload: $_eventPosterPath/$fileName');
+      print('Storage - File size: ${imageBytes.length} bytes');
+
+      final ref = _storage.ref().child('$_eventPosterPath/$fileName');
+      final uploadTask = ref.putData(
+        imageBytes,
+        SettableMetadata(
+          contentType: 'image/webp', // 明确指定内容类型
+        ),
+      );
+
+      // 监听上传进度
+      uploadTask.snapshotEvents.listen((taskSnapshot) {
+        print('Storage - Upload progress: ${taskSnapshot.bytesTransferred}/${taskSnapshot.totalBytes}');
+      });
+
+      final taskSnapshot = await uploadTask;
+      print('Storage - Upload completed: ${taskSnapshot.totalBytes} bytes');
+
+      return fileName;
+    } on FirebaseException catch (e) {
+      print('Storage - FirebaseException: ${e.code} - ${e.message}');
+      print('Storage - Stack trace: ${e.stackTrace}');
+      throw 'Firebase Storage error (${e.code}): ${e.message}';
+    } catch (e) {
+      print('Storage - Unexpected error: $e');
+      print('Storage - Stack trace: $e');
+      throw 'Failed to upload event poster: $e';
+    }
+  }
+
+  /// Delete event poster from Firebase Storage
+  Future<void> deleteEventPoster(String fileName) async {
+    try {
+      if (fileName.isEmpty) return;
+
+      final ref = _storage.ref().child('$_eventPosterPath/$fileName');
+      await ref.delete();
+    } on FirebaseException catch (e) {
+      // Ignore if file doesn't exist
+      if (e.code != 'object-not-found') {
+        throw FFirebaseException(e.code).message;
+      }
+    } catch (e) {
+      print('Failed to delete event poster: $e');
+    }
+  }
+
+  /// Get event poster URL from Firebase Storage
+  Future<String?> getEventPosterUrl(String posterFileName) async {
+    try {
+      if (posterFileName.isEmpty) {
+        return null;
+      }
+
+      final path = '$_eventPosterPath/$posterFileName';
+      final ref = _storage.ref().child(path);
+      final downloadUrl = await ref.getDownloadURL();
+      return downloadUrl;
+    } on FirebaseException catch (e) {
+      if (e.code == 'object-not-found') {
+        print('Event poster not found: $posterFileName');
+        return null;
+      }
+      throw 'Failed to get event poster URL: ${e.message ?? e.code}';
+    } catch (e) {
+      throw 'Failed to get event poster URL: $e';
+    }
+  }
+
+  /// Get all events as stream
   Stream<List<Event>> getAllEvents() {
     try {
       return _db
@@ -24,7 +119,6 @@ class EventRepository extends GetxController {
           .orderBy('startDateTime', descending: false)
           .snapshots()
           .asyncMap((snapshot) async {
-        // Process each event document
         final events = await Future.wait(
           snapshot.docs.map((doc) async {
             return await _buildEventWithLocation(doc);
@@ -43,37 +137,16 @@ class EventRepository extends GetxController {
   Future<Event> _buildEventWithLocation(
       DocumentSnapshot<Map<String, dynamic>> doc) async {
     final data = doc.data();
-    print('data: ${data}');
     if (data == null) return Event.empty();
 
     try {
       Location location = Location.empty();
 
-      // Check if location data exists as contained object
       if (data.containsKey('location') && data['location'] != null) {
         final locationData = data['location'] as Map<String, dynamic>;
-
-        Address address = Address.empty();
-        GeoPointModel geoPoint = GeoPointModel.empty();
-
-        // Build Address from contained object
-        if (locationData.containsKey('address') && locationData['address'] != null) {
-          final addressData = locationData['address'] as Map<String, dynamic>;
-          address = Address.fromJson(addressData);
-          print('test address: ${address.fullAddress}');
-        }
-
-        // Build GeoPoint from contained object
-        if (locationData.containsKey('geoPoint') && locationData['geoPoint'] != null) {
-          final geoPointData = locationData['geoPoint'] as Map<String, dynamic>;
-          geoPoint = GeoPointModel.fromJson(geoPointData);
-        }
-
-        location = Location(address: address, geoPoint: geoPoint);
-        print('location address: ${location.fullAddress}');
+        location = Location.fromJson(locationData);
       }
 
-      // Build Event with location data
       return Event(
         eventId: doc.id,
         title: data['title'] ?? '',
@@ -93,38 +166,81 @@ class EventRepository extends GetxController {
         registeredCount: (data['registeredCount'] as num?)?.toInt() ?? 0,
         createdAt:
         (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        isPublish: data['isPublish'] ?? false,
         status: data['status'] ?? 'active',
         eventRegistrations: [],
       );
     } catch (e) {
-      print('Error building event ${doc.id} with location: $e');
-      // Return event with empty location if loading fails
-      return Event(
-        eventId: doc.id,
-        title: data['title'] ?? '',
-        description: data['description'] ?? '',
-        contactEmail: data['contactEmail'] ?? '',
-        contactPhoneNo: data['contactPhoneNo'] ?? '',
-        location: Location.empty(),
-        poster: data['poster'] ?? '',
-        startDateTime:
-        (data['startDateTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        endDateTime:
-        (data['endDateTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        registrationDeadline:
-        (data['registrationDeadline'] as Timestamp?)?.toDate() ??
-            DateTime.now(),
-        maxParticipants: (data['maxParticipants'] as num?)?.toInt() ?? 0,
-        registeredCount: (data['registeredCount'] as num?)?.toInt() ?? 0,
-        createdAt:
-        (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        status: data['status'] ?? 'active',
-        eventRegistrations: [],
-      );
+      print('Error building event ${doc.id}: $e');
+      return Event.empty();
     }
   }
 
-  /// Get events by status (Open, Full, Closed)
+  /// Get event by ID as stream
+  Stream<Event> getEventById(String eventId) {
+    try {
+      return _db
+          .collection('events')
+          .doc(eventId)
+          .snapshots()
+          .asyncMap((snapshot) async {
+        return await _buildEventWithLocation(snapshot);
+      });
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      throw 'Something went wrong. Please try again';
+    }
+  }
+
+  /// Get event by ID (future)
+  Future<Event> getEventByIdFuture(String eventId) async {
+    try {
+      final doc = await _db.collection('events').doc(eventId).get();
+      return await _buildEventWithLocation(doc);
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      throw 'Something went wrong. Please try again';
+    }
+  }
+
+  /// Update event status
+  Future<void> updateEventStatus(String eventId, String status) async {
+    try {
+      await _db.collection('events').doc(eventId).update({'status': status});
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      throw 'Failed to update event status: $e';
+    }
+  }
+
+  /// Toggle event publish status
+  Future<void> togglePublishStatus(String eventId, bool isPublish) async {
+    try {
+      await _db.collection('events').doc(eventId).update({'isPublish': isPublish});
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      throw 'Failed to toggle publish status: $e';
+    }
+  }
+
+  /// Update event registered count
+  Future<void> updateEventRegisteredCount(String eventId, int increment) async {
+    try {
+      await _db.collection('events').doc(eventId).update({
+        'registeredCount': FieldValue.increment(increment),
+      });
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      throw 'Something went wrong. Please try again';
+    }
+  }
+
+  /// Get events by status
   Stream<List<Event>> getEventsByStatus(String status) {
     try {
       return _db
@@ -139,7 +255,6 @@ class EventRepository extends GetxController {
           }),
         );
 
-        // Filter based on status
         switch (status) {
           case 'Open':
             return events.where((event) {
@@ -163,23 +278,6 @@ class EventRepository extends GetxController {
           default:
             return events.where((event) => !event.hasEnded).toList();
         }
-      });
-    } on FirebaseException catch (e) {
-      throw FFirebaseException(e.code).message;
-    } catch (e) {
-      throw 'Something went wrong. Please try again';
-    }
-  }
-
-  /// Get event by ID as stream
-  Stream<Event> getEventById(String eventId) {
-    try {
-      return _db
-          .collection('events')
-          .doc(eventId)
-          .snapshots()
-          .asyncMap((snapshot) async {
-        return await _buildEventWithLocation(snapshot);
       });
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
@@ -215,56 +313,6 @@ class EventRepository extends GetxController {
     }
   }
 
-  /// Update event registered count
-  Future<void> updateEventRegisteredCount(String eventId, int increment) async {
-    try {
-      await _db.collection('events').doc(eventId).update({
-        'registeredCount': FieldValue.increment(increment),
-      });
-    } on FirebaseException catch (e) {
-      throw FFirebaseException(e.code).message;
-    } catch (e) {
-      throw 'Something went wrong. Please try again';
-    }
-  }
-
-  /// Get event by ID (future)
-  Future<Event> getEventByIdFuture(String eventId) async {
-    try {
-      final doc = await _db.collection('events').doc(eventId).get();
-      return await _buildEventWithLocation(doc);
-    } on FirebaseException catch (e) {
-      throw FFirebaseException(e.code).message;
-    } catch (e) {
-      throw 'Something went wrong. Please try again';
-    }
-  }
-
-  /// Get event poster URL from Firebase Storage
-  Future<String?> getEventPosterUrl(String posterFileName) async {
-    try {
-      if (posterFileName.isEmpty) {
-        return null;
-      }
-
-      // Construct the full path
-      final path = '$_eventPosterPath/$posterFileName';
-      final ref = _storage.ref().child(path);
-
-      // Get download URL
-      final downloadUrl = await ref.getDownloadURL();
-      return downloadUrl;
-    } on FirebaseException catch (e) {
-      if (e.code == 'object-not-found') {
-        print('Event poster not found: $posterFileName');
-        return null;
-      }
-      throw 'Failed to get event poster URL: ${e.message ?? e.code}';
-    } catch (e) {
-      throw 'Failed to get event poster URL: $e';
-    }
-  }
-
   /// Check if event poster exists
   Future<bool> eventPosterExists(String posterFileName) async {
     try {
@@ -273,7 +321,6 @@ class EventRepository extends GetxController {
       final path = '$_eventPosterPath/$posterFileName';
       final ref = _storage.ref().child(path);
 
-      // Try to get metadata to check if file exists
       await ref.getMetadata();
       return true;
     } catch (e) {
@@ -281,7 +328,7 @@ class EventRepository extends GetxController {
     }
   }
 
-  /// Helper method to get location for a specific event (if needed separately)
+  /// Helper method to get location for a specific event
   Future<Location> getEventLocation(String eventId) async {
     try {
       final doc = await _db.collection('events').doc(eventId).get();
@@ -292,23 +339,7 @@ class EventRepository extends GetxController {
       }
 
       final locationData = data['location'] as Map<String, dynamic>;
-
-      Address address = Address.empty();
-      GeoPointModel geoPoint = GeoPointModel.empty();
-
-      // Build Address from contained object
-      if (locationData.containsKey('address') && locationData['address'] != null) {
-        final addressData = locationData['address'] as Map<String, dynamic>;
-        address = Address.fromJson(addressData);
-      }
-
-      // Build GeoPoint from contained object
-      if (locationData.containsKey('geoPoint') && locationData['geoPoint'] != null) {
-        final geoPointData = locationData['geoPoint'] as Map<String, dynamic>;
-        geoPoint = GeoPointModel.fromJson(geoPointData);
-      }
-
-      return Location(address: address, geoPoint: geoPoint);
+      return Location.fromJson(locationData);
     } catch (e) {
       print('Error getting event location: $e');
       return Location.empty();
