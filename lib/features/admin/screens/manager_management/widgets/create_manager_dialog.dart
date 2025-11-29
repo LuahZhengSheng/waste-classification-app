@@ -19,9 +19,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   String? _selectedRole;
-  bool _obscurePassword = true;
   bool _hasChanges = false;
 
   final List<Map<String, String>> _roles = [
@@ -35,14 +33,12 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
     super.initState();
     _usernameController.addListener(() => setState(() => _hasChanges = true));
     _emailController.addListener(() => setState(() => _hasChanges = true));
-    _passwordController.addListener(() => setState(() => _hasChanges = true));
   }
 
   @override
   void dispose() {
     _usernameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -50,13 +46,13 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor:
-          widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+      widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
       ),
       child: Container(
         width: 500,
-        constraints: const BoxConstraints(maxHeight: 650),
+        constraints: const BoxConstraints(maxHeight: 600),
         padding: const EdgeInsets.all(FSizes.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -71,8 +67,8 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                       padding: const EdgeInsets.all(FSizes.sm),
                       decoration: BoxDecoration(
                         color: (widget.dark
-                                ? FColors.adminDarkPrimary
-                                : FColors.adminLightPrimary)
+                            ? FColors.adminDarkPrimary
+                            : FColors.adminLightPrimary)
                             .withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
@@ -157,7 +153,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           border: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkBorder
@@ -166,7 +162,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkBorder
@@ -175,7 +171,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkPrimary
@@ -217,7 +213,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           border: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkBorder
@@ -226,7 +222,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkBorder
@@ -235,7 +231,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkPrimary
@@ -245,78 +241,6 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                         ),
                         validator: FValidator.validateEmail,
-                      ),
-                      const SizedBox(height: FSizes.spaceBtwItems),
-
-                      // Password Field
-                      Text(
-                        'Password',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: widget.dark
-                              ? FColors.adminDarkText
-                              : FColors.adminLightText,
-                        ),
-                      ),
-                      const SizedBox(height: FSizes.xs),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          hintText: 'Enter password',
-                          hintStyle: TextStyle(
-                            color: widget.dark
-                                ? FColors.adminDarkTextSecondary
-                                : FColors.adminLightTextSecondary,
-                          ),
-                          prefixIcon: Icon(
-                            Iconsax.lock,
-                            color: widget.dark
-                                ? FColors.adminDarkTextSecondary
-                                : FColors.adminLightTextSecondary,
-                          ),
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Iconsax.eye_slash
-                                  : Iconsax.eye,
-                            ),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
-                            borderSide: BorderSide(
-                              color: widget.dark
-                                  ? FColors.adminDarkBorder
-                                  : FColors.adminLightBorder,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
-                            borderSide: BorderSide(
-                              color: widget.dark
-                                  ? FColors.adminDarkBorder
-                                  : FColors.adminLightBorder,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
-                            borderSide: BorderSide(
-                              color: widget.dark
-                                  ? FColors.adminDarkPrimary
-                                  : FColors.adminLightPrimary,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        validator: FValidator.validatePassword,
                       ),
                       const SizedBox(height: FSizes.spaceBtwItems),
 
@@ -348,7 +272,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           border: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkBorder
@@ -357,7 +281,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkBorder
@@ -366,7 +290,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius:
-                                BorderRadius.circular(FSizes.cardRadiusMd),
+                            BorderRadius.circular(FSizes.cardRadiusMd),
                             borderSide: BorderSide(
                               color: widget.dark
                                   ? FColors.adminDarkPrimary
@@ -411,11 +335,11 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                         padding: const EdgeInsets.all(FSizes.md),
                         decoration: BoxDecoration(
                           color: (widget.dark
-                                  ? FColors.adminDarkInfo
-                                  : FColors.adminLightInfo)
+                              ? FColors.adminDarkInfo
+                              : FColors.adminLightInfo)
                               .withOpacity(0.1),
                           borderRadius:
-                              BorderRadius.circular(FSizes.cardRadiusMd),
+                          BorderRadius.circular(FSizes.cardRadiusMd),
                           border: Border.all(
                             color: widget.dark
                                 ? FColors.adminDarkInfo
@@ -434,7 +358,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                             const SizedBox(width: FSizes.sm),
                             Expanded(
                               child: Text(
-                                'A verification email will be sent to the manager\'s email address.',
+                                'A password reset email will be sent to the manager\'s email address. They will set their own password.',
                                 style: TextStyle(
                                   color: widget.dark
                                       ? FColors.adminDarkInfo
@@ -511,7 +435,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
     Get.dialog(
       AlertDialog(
         backgroundColor:
-            widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+        widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
         title: Text(
           'Discard Changes?',
           style: TextStyle(
@@ -563,7 +487,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         backgroundColor:
-            widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+        widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
         title: Text(
           'Create Manager',
           style: TextStyle(
@@ -571,7 +495,7 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
           ),
         ),
         content: Text(
-          'Are you sure you want to create this manager account?',
+          'A password reset email will be sent to ${_emailController.text}. Are you sure you want to create this manager account?',
           style: TextStyle(
             color: widget.dark
                 ? FColors.adminDarkTextSecondary
@@ -608,13 +532,10 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
       await controller.createManager(
         username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
-        password: _passwordController.text,
         role: _selectedRole!,
       );
-      // Remove the immediate Get.back() and let the controller handle it
-      // The controller will close the dialog after showing the success message
+
       if (controller.allManagers.isNotEmpty) {
-        // Only close if creation was successful (you might want to add a success flag)
         Get.back();
       }
     }

@@ -1,3 +1,5 @@
+// src/createStaff/staffEmailTemplates.ts
+
 export class StaffEmailTemplates {
   /**
    * 员工账户创建和密码重置邮件模板

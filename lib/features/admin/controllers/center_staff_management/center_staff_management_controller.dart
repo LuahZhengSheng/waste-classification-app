@@ -1,12 +1,10 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../data/repositories/user/center_staff_repository.dart';
-import '../../../../data/services/profile_image/profile_image_service.dart';
+import '../../../../data/repositories/user/user_repository.dart';
 import '../../../../utils/popups/loaders.dart';
 import '../../../recycling_center/models/recycling_center_staff_model.dart';
 
@@ -16,9 +14,8 @@ class StaffManagementController extends GetxController {
   static StaffManagementController get instance => Get.find();
 
   final StaffRepository _staffRepository = Get.put(StaffRepository());
+  final UserRepository _userRepository = Get.put(UserRepository());
   final TextEditingController searchController = TextEditingController();
-
-  // Firebase Functions instance
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   // Observables
@@ -73,7 +70,6 @@ class StaffManagementController extends GetxController {
   void applyFiltersAndSearch() {
     List<RecyclingCenterStaff> result = List.from(allStaff);
 
-    // Apply filter based on active/inactive/banned
     switch (currentFilter.value) {
       case StaffFilter.active:
         result = result.where((staff) => staff.isActive && !staff.isBanned).toList();
@@ -86,7 +82,6 @@ class StaffManagementController extends GetxController {
         break;
     }
 
-    // Apply search filter
     if (searchQuery.value.isNotEmpty) {
       result = result.where((staff) {
         return staff.username.toLowerCase().contains(searchQuery.value.toLowerCase()) ||
@@ -97,17 +92,14 @@ class StaffManagementController extends GetxController {
       }).toList();
     }
 
-    // Apply gender filter
     if (activeFilters['gender'] != null) {
       result = result.where((staff) => staff.gender == activeFilters['gender']).toList();
     }
 
-    // Apply center ID filter
     if (activeFilters['centerId'] != null && activeFilters['centerId'].isNotEmpty) {
       result = result.where((staff) => staff.centerId == activeFilters['centerId']).toList();
     }
 
-    // Apply verification filter
     if (activeFilters['isVerified'] != null) {
       result = result.where((staff) => staff.isVerified == activeFilters['isVerified']).toList();
     }
@@ -130,42 +122,41 @@ class StaffManagementController extends GetxController {
     sortColumnIndex.value = columnIndex;
     sortAscending.value = ascending;
 
-    // 使用 List.from 创建新列表以避免直接修改原列表
     final sortedStaff = List<RecyclingCenterStaff>.from(filteredStaff);
 
     sortedStaff.sort((a, b) {
       dynamic aValue, bValue;
 
       switch (columnIndex) {
-        case 0: // Username
+        case 0:
           aValue = a.username.toLowerCase();
           bValue = b.username.toLowerCase();
           break;
-        case 1: // Staff ID
+        case 1:
           aValue = a.userId.toLowerCase();
           bValue = b.userId.toLowerCase();
           break;
-        case 2: // Center ID
+        case 2:
           aValue = a.centerId.toLowerCase();
           bValue = b.centerId.toLowerCase();
           break;
-        case 3: // Email
+        case 3:
           aValue = a.email.toLowerCase();
           bValue = b.email.toLowerCase();
           break;
-        case 4: // Phone
+        case 4:
           aValue = a.phoneNo?.toLowerCase() ?? '';
           bValue = b.phoneNo?.toLowerCase() ?? '';
           break;
-        case 5: // Gender
+        case 5:
           aValue = a.gender?.toLowerCase() ?? '';
           bValue = b.gender?.toLowerCase() ?? '';
           break;
-        case 6: // Join Date
+        case 6:
           aValue = a.joinDate;
           bValue = b.joinDate;
           break;
-        case 7: // Verified
+        case 7:
           aValue = a.isVerified ? 1 : 0;
           bValue = b.isVerified ? 1 : 0;
           break;
@@ -187,7 +178,6 @@ class StaffManagementController extends GetxController {
       return ascending ? result : -result;
     });
 
-    // 更新 filteredStaff
     filteredStaff.value = sortedStaff;
   }
 
@@ -232,19 +222,17 @@ class StaffManagementController extends GetxController {
     }
   }
 
-  // Staff Actions - Updated to use Cloud Function
+  // Staff Actions
   Future<void> createStaff({
     required String centerId,
     required String username,
     required String email,
-    required String password,
   }) async {
     try {
       FLoaders.showLoading('Creating staff...');
 
-      // Call Cloud Function to create staff
       final HttpsCallable callable = _functions.httpsCallable(
-        'createStaffUser',
+        'createStaffManager',
         options: HttpsCallableOptions(
           timeout: const Duration(seconds: 60),
         ),
@@ -254,15 +242,14 @@ class StaffManagementController extends GetxController {
         'centerId': centerId,
         'username': username,
         'email': email,
-        'password': password,
         'role': 'center_staff',
       });
 
       final responseData = result.data;
 
-      if (responseData['success'] == true) {
-        FLoaders.stopLoading();
+      FLoaders.stopLoading();
 
+      if (responseData['success'] == true) {
         if (responseData['emailSent'] == true) {
           FLoaders.successSnackBar(
             title: 'Success',
@@ -275,10 +262,8 @@ class StaffManagementController extends GetxController {
           );
         }
 
-        // Refresh staff list
         loadStaff();
       } else {
-        FLoaders.stopLoading();
         FLoaders.errorSnackBar(
           title: 'Error',
           message: responseData['message'] ?? 'Failed to create staff',
@@ -288,7 +273,6 @@ class StaffManagementController extends GetxController {
     } catch (e) {
       FLoaders.stopLoading();
 
-      // Handle specific error cases
       String errorMessage = 'Failed to create staff: $e';
 
       if (e.toString().contains('already-exists')) {
@@ -312,33 +296,32 @@ class StaffManagementController extends GetxController {
     }
   }
 
-  // Additional method to send password reset to existing staff
-  Future<void> sendStaffPasswordReset(String staffId, String staffEmail, String staffName) async {
+  Future<void> sendStaffPasswordReset(RecyclingCenterStaff staff) async {
     try {
       FLoaders.showLoading('Sending password reset...');
 
       final HttpsCallable callable = _functions.httpsCallable(
-        'sendStaffPasswordReset',
+        'resendPasswordReset',
         options: HttpsCallableOptions(
           timeout: const Duration(seconds: 30),
         ),
       );
 
       final result = await callable.call(<String, dynamic>{
-        'staffId': staffId,
-        'staffEmail': staffEmail,
+        'userId': staff.userId,
+        'email': staff.email,
       });
 
       final responseData = result.data;
 
+      FLoaders.stopLoading();
+
       if (responseData['success'] == true) {
-        FLoaders.stopLoading();
         FLoaders.successSnackBar(
           title: 'Success',
-          message: 'Password reset email sent to $staffName',
+          message: 'Password reset email sent to ${staff.username}',
         );
       } else {
-        FLoaders.stopLoading();
         FLoaders.errorSnackBar(
           title: 'Error',
           message: responseData['message'] ?? 'Failed to send password reset email',
@@ -347,19 +330,36 @@ class StaffManagementController extends GetxController {
 
     } catch (e) {
       FLoaders.stopLoading();
-      FLoaders.errorSnackBar(
-        title: 'Error',
-        message: 'Failed to send password reset email: $e',
-      );
+
+      String errorMessage = e.toString();
+      if (errorMessage.contains('wait')) {
+        FLoaders.warningSnackBar(
+          title: 'Please Wait',
+          message: errorMessage,
+        );
+      } else if (errorMessage.contains('verified')) {
+        FLoaders.warningSnackBar(
+          title: 'Already Verified',
+          message: 'Cannot send password reset to verified users',
+        );
+      } else if (errorMessage.contains('inactive') || errorMessage.contains('banned')) {
+        FLoaders.errorSnackBar(
+          title: 'Account Inactive',
+          message: 'Cannot send password reset to inactive or banned users',
+        );
+      } else {
+        FLoaders.errorSnackBar(
+          title: 'Error',
+          message: 'Failed to send password reset email: $errorMessage',
+        );
+      }
     }
   }
 
   Future<void> banStaff(RecyclingCenterStaff staff) async {
     try {
       FLoaders.showLoading('Banning staff...');
-
       await _staffRepository.banStaff(staff);
-
       FLoaders.stopLoading();
       FLoaders.successSnackBar(
         title: 'Success',
@@ -377,9 +377,7 @@ class StaffManagementController extends GetxController {
   Future<void> recoverStaff(RecyclingCenterStaff staff) async {
     try {
       FLoaders.showLoading('Recovering staff...');
-
       await _staffRepository.recoverStaff(staff);
-
       FLoaders.stopLoading();
       FLoaders.successSnackBar(
         title: 'Success',
@@ -404,20 +402,14 @@ class StaffManagementController extends GetxController {
 
       RecyclingCenterStaff updatedStaff = staff;
 
-      // 处理图片删除
       if (pendingDeleteImage && staff.profileImg != null && staff.profileImg!.isNotEmpty) {
-        await ProfileImageService.deleteProfileImage(
-          userId: staff.userId,
-          profileImg: staff.profileImg,
-        );
+        await _staffRepository.deleteProfileImage(staff.profileImg!);
         updatedStaff = staff.copyWith(profileImg: '');
-      }
-      // 处理图片上传
-      else if (pendingImageBytes != null) {
-        final fileName = await ProfileImageService.uploadProfileImage(
-          imageBytes: pendingImageBytes,
-          userId: staff.userId,
-          currentProfileImg: staff.profileImg,
+      } else if (pendingImageBytes != null) {
+        final fileName = await _staffRepository.uploadProfileImageWeb(
+          pendingImageBytes,
+          staff.userId,
+          staff.profileImg,
         );
 
         if (fileName != null) {
@@ -441,11 +433,8 @@ class StaffManagementController extends GetxController {
     }
   }
 
-  Future<String> _createTempImageUrl(Uint8List imageBytes) async {
-    // 对于Web环境，我们可以使用Blob URL或者直接使用base64
-    // 这里使用base64数据URL作为临时解决方案
-    final base64String = base64Encode(imageBytes);
-    return 'data:image/webp;base64,$base64String';
+  String? getCachedProfileImageUrl(String? fileName) {
+    return _userRepository.getCachedProfileImageUrl(fileName);
   }
 
   @override

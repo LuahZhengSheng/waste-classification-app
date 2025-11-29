@@ -1,9 +1,8 @@
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../../common/widgets/admin/image_uploader.dart';
 import '../../../../../common/widgets/inputs/location_input_dialog.dart';
 import '../../../../../data/repositories/event/event_repository.dart';
 import '../../../../../utils/constants/colors.dart';
@@ -12,7 +11,7 @@ import '../../../../../utils/helpers/helper_functions.dart';
 import '../../../../../utils/validators/validation.dart';
 import '../../../../event/models/event_model.dart';
 import '../../../controllers/event_management/edit_event_controller.dart';
-import '../../community_management/widgets/admin_media_preview.dart';
+
 
 class EditEventScreen extends StatelessWidget {
   final Event event;
@@ -36,7 +35,7 @@ class EditEventScreen extends StatelessWidget {
         leading: IconButton(
           onPressed: () => Get.back(),
           icon: Icon(
-            Iconsax.arrow_left,
+            Iconsax.arrow_left_2,
             color: dark ? FColors.adminDarkText : FColors.adminLightText,
           ),
         ),
@@ -44,7 +43,7 @@ class EditEventScreen extends StatelessWidget {
           'Edit Event',
           style: TextStyle(
             color: dark ? FColors.adminDarkText : FColors.adminLightText,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
           ),
         ),
         actions: [
@@ -227,13 +226,26 @@ class EditEventScreen extends StatelessWidget {
 
               const SizedBox(height: FSizes.spaceBtwSections),
 
+              // 更新 Event Poster Section - 使用新的 ImageUploader 组件
               _EventFormSection(
                 title: 'Event Poster',
                 dark: dark,
                 children: [
-                  _buildPosterSection(controller, dark),
+                  Obx(() => ImageUploader(
+                    imageBytes: controller.selectedPosterBytes.value,
+                    existingImageName: controller.selectedPosterName.value,
+                    getImageUrl: (fileName) => EventRepository.instance.getEventPosterUrl(fileName),
+                    onSelectImage: controller.selectPoster,
+                    onRemoveImage: controller.removePoster,
+                    isCompressing: controller.isCompressing.value,
+                    dark: dark,
+                    required: true,
+                    label: 'Event Poster',
+                    description: 'Upload an eye-catching poster to promote your event (Required - JPG, PNG, WebP, Max 5MB)',
+                  )),
                 ],
               ),
+
 
               const SizedBox(height: FSizes.spaceBtwSections * 2),
             ],
@@ -389,526 +401,7 @@ class EditEventScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPosterSection(EditEventController controller, bool dark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Upload Event Poster (Optional - JPG, PNG, WebP, Max 5MB)',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: dark ? FColors.adminDarkText : FColors.adminLightText,
-          ),
-        ),
-        const SizedBox(height: FSizes.sm),
-        Text(
-          'Add an eye-catching poster to promote your event',
-          style: TextStyle(
-            fontSize: 12,
-            color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-          ),
-        ),
-        const SizedBox(height: FSizes.spaceBtwItems),
-
-        Obx(() {
-          if (controller.isCompressing.value) {
-            return Container(
-              height: 250,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
-                borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                border: Border.all(
-                  color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                  ),
-                  const SizedBox(height: FSizes.md),
-                  Text(
-                    'Compressing image...',
-                    style: TextStyle(
-                      color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // Show new poster if selected
-          if (controller.selectedPosterBytes.value != null) {
-            return _buildPosterPreview(
-              posterBytes: controller.selectedPosterBytes.value!,
-              onRemove: controller.removePoster,
-              onTap: () => _showPosterLightbox(controller, dark),
-              dark: dark,
-            );
-          }
-
-          // Show existing poster from storage
-          if (controller.selectedPosterName.value != null && controller.selectedPosterName.value!.isNotEmpty) {
-            return _buildExistingPosterPreview(
-              posterFileName: controller.selectedPosterName.value!,
-              onRemove: controller.removePoster,
-              onSelect: controller.selectPoster,
-              onTap: () => _showExistingPosterLightbox(controller.selectedPosterName.value!, dark),
-              dark: dark,
-            );
-          }
-
-          // Show upload prompt
-          return _buildUploadPrompt(
-            onTap: controller.selectPoster,
-            dark: dark,
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildPosterPreview({
-    required Uint8List posterBytes,
-    required VoidCallback onRemove,
-    required VoidCallback onTap,
-    required bool dark,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 250,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-          border: Border.all(
-            color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
-          ),
-        ),
-        child: Stack(
-          children: [
-            // 图片容器 - 使用 contain 保持比例
-            Container(
-              margin: const EdgeInsets.all(FSizes.sm),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(FSizes.cardRadiusMd - 2),
-                child: Image.memory(
-                  posterBytes,
-                  height: 230,
-                  width: double.infinity,
-                  fit: BoxFit.contain, // 改为 contain 保持比例
-                ),
-              ),
-            ),
-            // 删除按钮
-            Positioned(
-              top: FSizes.sm,
-              right: FSizes.sm,
-              child: GestureDetector(
-                onTap: onRemove,
-                child: Container(
-                  padding: const EdgeInsets.all(FSizes.xs),
-                  decoration: BoxDecoration(
-                    color: dark ? FColors.adminDarkError : FColors.adminLightError,
-                    borderRadius: BorderRadius.circular(FSizes.cardRadiusXs),
-                  ),
-                  child: const Icon(
-                    Iconsax.trash,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExistingPosterPreview({
-    required String posterFileName,
-    required VoidCallback onRemove,
-    required VoidCallback onSelect,
-    required VoidCallback onTap,
-    required bool dark,
-  }) {
-    return FutureBuilder<String?>(
-      future: EventRepository.instance.getEventPosterUrl(posterFileName),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            height: 250,
-            decoration: BoxDecoration(
-              color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
-              borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-            ),
-            child: Center(
-              child: CircularProgressIndicator(
-                color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-              ),
-            ),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data == null) {
-          return _buildUploadPrompt(onTap: onSelect, dark: dark);
-        }
-
-        return GestureDetector(
-          onTap: onTap,
-          child: Container(
-            height: 250,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-              border: Border.all(
-                color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
-              ),
-            ),
-            child: Stack(
-              children: [
-                // 图片容器 - 使用 contain 保持比例
-                Container(
-                  margin: const EdgeInsets.all(FSizes.sm),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(FSizes.cardRadiusMd - 2),
-                    child: Image.network(
-                      snapshot.data!,
-                      height: 230,
-                      width: double.infinity,
-                      fit: BoxFit.contain, // 改为 contain 保持比例
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Iconsax.image,
-                              size: 48,
-                              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                            ),
-                            const SizedBox(height: FSizes.sm),
-                            Text(
-                              'Failed to load image',
-                              style: TextStyle(
-                                color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: FSizes.sm,
-                  right: FSizes.sm,
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: onSelect,
-                        child: Container(
-                          padding: const EdgeInsets.all(FSizes.xs),
-                          decoration: BoxDecoration(
-                            color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                            borderRadius: BorderRadius.circular(FSizes.cardRadiusXs),
-                          ),
-                          child: const Icon(
-                            Iconsax.edit,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: FSizes.xs),
-                      GestureDetector(
-                        onTap: onRemove,
-                        child: Container(
-                          padding: const EdgeInsets.all(FSizes.xs),
-                          decoration: BoxDecoration(
-                            color: dark ? FColors.adminDarkError : FColors.adminLightError,
-                            borderRadius: BorderRadius.circular(FSizes.cardRadiusXs),
-                          ),
-                          child: const Icon(
-                            Iconsax.trash,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildUploadPrompt({
-    required VoidCallback onTap,
-    required bool dark,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        height: 250,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
-          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-          border: Border.all(
-            color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
-            style: BorderStyle.solid,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Iconsax.gallery_add,
-              size: 48,
-              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-            ),
-            const SizedBox(height: FSizes.sm),
-            Text(
-              'Click to upload poster',
-              style: TextStyle(
-                color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-              ),
-            ),
-            const SizedBox(height: FSizes.xs),
-            Text(
-              'PNG, JPG, WebP up to 5MB',
-              style: TextStyle(
-                fontSize: 12,
-                color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPosterLightbox(EditEventController controller, bool dark) {
-    if (controller.selectedPosterBytes.value != null) {
-      Get.dialog(
-        Dialog(
-          backgroundColor: Colors.black.withOpacity(0.9),
-          insetPadding: EdgeInsets.zero,
-          child: Stack(
-            children: [
-              GestureDetector(
-                onTap: () => Get.back(),
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: Get.width,
-                  height: Get.height,
-                  color: Colors.transparent,
-                ),
-              ),
-              Center(
-                child: Container(
-                  width: Get.width * 0.7,  // 固定宽度为屏幕70%
-                  height: Get.height * 0.7, // 固定高度为屏幕70%
-                  child: InteractiveViewer(
-                    panEnabled: true,
-                    scaleEnabled: true,
-                    minScale: 0.5,
-                    maxScale: 4.0,
-                    child: Image.memory(
-                      controller.selectedPosterBytes.value!,
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.high,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Iconsax.image,
-                              size: 64,
-                              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                            ),
-                            const SizedBox(height: FSizes.md),
-                            Text(
-                              'Failed to load image',
-                              style: TextStyle(
-                                color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // 关闭按钮
-              Positioned(
-                top: 40,
-                right: 20,
-                child: GestureDetector(
-                  onTap: () => Get.back(),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-              // 底部标题
-              Positioned(
-                bottom: 40,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Event Poster Preview - Pinch to zoom',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-  }
-
-  void _showExistingPosterLightbox(String posterFileName, bool dark) {
-    // 获取现有海报的URL
-    EventRepository.instance.getEventPosterUrl(posterFileName).then((imageUrl) {
-      if (imageUrl != null) {
-        Get.dialog(
-          Dialog(
-            backgroundColor: Colors.black.withOpacity(0.9),
-            insetPadding: EdgeInsets.zero,
-            child: Stack(
-              children: [
-                GestureDetector(
-                  onTap: () => Get.back(),
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: Get.width,
-                    height: Get.height,
-                    color: Colors.transparent,
-                  ),
-                ),
-                Center(
-                  child: Container(
-                    width: Get.width * 0.7,  // 固定宽度为屏幕70%
-                    height: Get.height * 0.7, // 固定高度为屏幕70%
-                    child: InteractiveViewer(
-                      panEnabled: true,
-                      scaleEnabled: true,
-                      minScale: 0.5,
-                      maxScale: 4.0,
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.high,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Iconsax.image,
-                                size: 64,
-                                color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                              ),
-                              const SizedBox(height: FSizes.md),
-                              Text(
-                                'Failed to load image',
-                                style: TextStyle(
-                                  color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // 关闭按钮
-                Positioned(
-                  top: 40,
-                  right: 20,
-                  child: GestureDetector(
-                    onTap: () => Get.back(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-                // 底部标题
-                Positioned(
-                  bottom: 40,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Event Poster Preview - Pinch to zoom',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    });
-  }
+  // 删除旧的 _buildPosterSection 方法，因为现在使用 ImageUploader 组件
 
   Widget _buildTextField({
     required TextEditingController controller,

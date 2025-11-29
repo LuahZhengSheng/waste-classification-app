@@ -6,10 +6,11 @@ import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
 import 'package:fyp/features/community/models/post_model.dart';
 import 'package:fyp/features/authentication/models/user_model.dart';
-import 'package:fyp/features/admin/screens/community_management/widgets/post_type_badge.dart';
 
 import '../../../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../../../common/widgets/admin/badge.dart';
+import '../../../../../../utils/popups/admin_loaders.dart';
+import '../../../../controllers/community_management/community_management_controller.dart';
 import '../../community_management_detail/community_management_detail.dart';
 import '../../widgets/admin_media_preview.dart';
 import 'post_actions_dialog.dart';
@@ -615,18 +616,28 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
     );
   }
 
+  // void _showActionDialog(PostModel post) {
+  //   if (post.isDisabled) {
+  //     Get.dialog(
+  //       RecoverPostDialog(post: post),
+  //       barrierDismissible: false,
+  //     );
+  //   } else {
+  //     Get.dialog(
+  //       DisablePostDialog(post: post),
+  //       barrierDismissible: false,
+  //     );
+  //   }
+  // }
+
   void _showActionDialog(PostModel post) {
-    if (post.isDisabled) {
-      Get.dialog(
-        RecoverPostDialog(post: post),
-        barrierDismissible: false,
-      );
-    } else {
-      Get.dialog(
-        DisablePostDialog(post: post),
-        barrierDismissible: false,
-      );
-    }
+    final controller = CommunityManagementController.instance;
+
+    FAdminLoaders.showPostDisableRecoverDialog(
+      postContent: post.content.length > 50 ? '${post.content.substring(0, 50)}...' : post.content,
+      isDisabled: post.isDisabled,
+      onConfirm: () => controller.togglePostStatus(post),
+    );
   }
 
   String _formatDateTime(DateTime dateTime) {

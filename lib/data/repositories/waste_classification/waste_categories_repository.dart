@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
-import '../../../features/recycling_center/models/waste_category_model.dart';
+import '../../../features/waste_classification/models/waste_category_model.dart';
 
 class WasteCategoryRepository extends GetxController {
   static WasteCategoryRepository get instance => Get.find();

@@ -9,7 +9,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../common/widgets/appbar/appbar.dart';
-import '../../../personalization/models/recycle_activity_model.dart';
+import '../../../recycling_center/models/recycle_activity_model.dart';
 import '../../controllers/reward_point_controller.dart';
 import '../../models/reward_redemption_enums.dart';
 import '../transaction_detail/transaction_detail.dart';
@@ -151,7 +151,7 @@ class MyRewardPointsScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              Iconsax.award5,
+              Iconsax.medal,
               color: FColors.white,
               size: 28,
             ),

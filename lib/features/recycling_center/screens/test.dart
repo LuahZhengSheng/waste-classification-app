@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:get/get.dart';
-import '../models/waste_category_model.dart';
+import '../../waste_classification/models/waste_category_model.dart';
 
 class AddWasteCategoryScreen extends StatelessWidget {
   AddWasteCategoryScreen({super.key});

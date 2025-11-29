@@ -9,11 +9,13 @@ class ImageCompressor {
   static const int imageQuality = 85;
   static const List<String> allowedImageFormats = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
 
-  /// Compress image and convert to WebP format
+  /// Compress image and convert to WebP format with UUID filename
   static Future<File> compressAndConvertToWebP(File imageFile) async {
     try {
       final tempDir = await getTemporaryDirectory();
-      final targetPath = '${tempDir.path}/${_uuid.v4()}.webp';
+      // 🎯 使用UUID作为文件名
+      final fileName = '${_uuid.v4()}.webp';
+      final targetPath = '${tempDir.path}/$fileName';
 
       final result = await FlutterImageCompress.compressAndGetFile(
         imageFile.absolute.path,
@@ -29,6 +31,7 @@ class ImageCompressor {
         throw 'Failed to compress image';
       }
 
+      print('✅ Image compressed to: $targetPath with UUID: $fileName');
       return File(result.path);
     } catch (e) {
       print('Image compression failed: $e, using original file');
@@ -41,5 +44,10 @@ class ImageCompressor {
     final path = file.path.toLowerCase();
     final extension = path.split('.').last;
     return allowedImageFormats.contains(extension);
+  }
+
+  // 获取UUID的方法
+  static String generateUUID() {
+    return _uuid.v4();
   }
 }

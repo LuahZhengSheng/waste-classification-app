@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../features/recycling_center/models/waste_category_model.dart';
+import 'waste_category_model.dart';
 
 class DetectionResult {
   final String label;

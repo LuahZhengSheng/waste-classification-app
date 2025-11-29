@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
-import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
-import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
+import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
+import 'package:fyp/features/waste_classification/models/waste_category_model.dart';
 import 'package:fyp/features/recycling_center/models/partner_recycling_center_model.dart';
 import 'package:fyp/data/repositories/recycling_center/recycling_center_repository.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';

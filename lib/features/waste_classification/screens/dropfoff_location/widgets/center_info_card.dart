@@ -54,39 +54,45 @@ class CenterInfoCard extends StatelessWidget {
                   ),
                   child: center.image.isNotEmpty
                       ? CachedNetworkImage(
-                    imageUrl: center.image,
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      height: 150,
-                      color: dark ? FColors.darkContainer : FColors.lightContainer,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: FColors.primary,
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      height: 150,
-                      color: dark ? FColors.darkContainer : FColors.lightContainer,
-                      child: Icon(
-                        Iconsax.gallery,
-                        color: dark ? FColors.darkGrey : FColors.grey,
-                        size: FSizes.iconLg,
-                      ),
-                    ),
-                  )
+                          imageUrl: center.image,
+                          height: 150,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            height: 150,
+                            color: dark
+                                ? FColors.darkContainer
+                                : FColors.lightContainer,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: FColors.primary,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            height: 150,
+                            color: dark
+                                ? FColors.darkContainer
+                                : FColors.lightContainer,
+                            child: Icon(
+                              Iconsax.gallery,
+                              color: dark ? FColors.darkGrey : FColors.grey,
+                              size: FSizes.iconLg,
+                            ),
+                          ),
+                        )
                       : Container(
-                    height: 150,
-                    color: dark ? FColors.darkContainer : FColors.lightContainer,
-                    child: Icon(
-                      Iconsax.gallery,
-                      color: dark ? FColors.darkGrey : FColors.grey,
-                      size: FSizes.iconLg,
-                    ),
-                  ),
+                          height: 150,
+                          color: dark
+                              ? FColors.darkContainer
+                              : FColors.lightContainer,
+                          child: Icon(
+                            Iconsax.gallery,
+                            color: dark ? FColors.darkGrey : FColors.grey,
+                            size: FSizes.iconLg,
+                          ),
+                        ),
                 ),
                 // Close button overlay
                 Positioned(
@@ -98,7 +104,8 @@ class CenterInfoCard extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.close_rounded, color: FColors.white),
+                      icon:
+                          const Icon(Icons.close_rounded, color: FColors.white),
                       onPressed: onClose,
                       iconSize: 20,
                     ),
@@ -116,7 +123,8 @@ class CenterInfoCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: FColors.primary,
-                        borderRadius: BorderRadius.circular(FSizes.borderRadiusSm),
+                        borderRadius:
+                            BorderRadius.circular(FSizes.borderRadiusSm),
                         boxShadow: [
                           BoxShadow(
                             color: FColors.primary.withOpacity(0.3),
@@ -135,10 +143,11 @@ class CenterInfoCard extends StatelessWidget {
                           const SizedBox(width: FSizes.xs),
                           Text(
                             'Partner',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: FColors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: FColors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                           ),
                         ],
                       ),
@@ -160,9 +169,9 @@ class CenterInfoCard extends StatelessWidget {
                       child: Text(
                         center.name,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: dark ? FColors.white : FColors.textPrimary,
-                        ),
+                              fontWeight: FontWeight.bold,
+                              color: dark ? FColors.white : FColors.textPrimary,
+                            ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -171,7 +180,8 @@ class CenterInfoCard extends StatelessWidget {
                       IconButton(
                         icon: Icon(
                           Icons.close_rounded,
-                          color: dark ? FColors.darkGrey : FColors.textSecondary,
+                          color:
+                              dark ? FColors.darkGrey : FColors.textSecondary,
                         ),
                         onPressed: onClose,
                       ),
@@ -205,7 +215,8 @@ class CenterInfoCard extends StatelessWidget {
                       context,
                       icon: Iconsax.clock,
                       label: center.isOpenNow ? 'Open Now' : 'Closed',
-                      iconColor: center.isOpenNow ? FColors.success : FColors.error,
+                      iconColor:
+                          center.isOpenNow ? FColors.success : FColors.error,
                       dark: dark,
                     ),
                   ],
@@ -226,9 +237,12 @@ class CenterInfoCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           center.centerLocation.fullAddress,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: dark ? FColors.darkGrey : FColors.textSecondary,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: dark
+                                        ? FColors.darkGrey
+                                        : FColors.textSecondary,
+                                  ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -245,16 +259,20 @@ class CenterInfoCard extends StatelessWidget {
                     // Directions Button
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => controller.openGoogleMapsNavigation(center),
+                        onPressed: () =>
+                            controller.openGoogleMapsNavigation(center),
                         icon: const Icon(Iconsax.routing, size: FSizes.iconSm),
                         label: const Text('Directions'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: FColors.primary,
-                          side: BorderSide(color: FColors.primary.withOpacity(0.5)),
+                          side: BorderSide(
+                              color: FColors.primary.withOpacity(0.5)),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
+                            borderRadius:
+                                BorderRadius.circular(FSizes.borderRadiusMd),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: FSizes.sm),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: FSizes.sm),
                         ),
                       ),
                     ),
@@ -270,9 +288,11 @@ class CenterInfoCard extends StatelessWidget {
                           backgroundColor: FColors.primary,
                           foregroundColor: FColors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
+                            borderRadius:
+                                BorderRadius.circular(FSizes.borderRadiusMd),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: FSizes.sm),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: FSizes.sm),
                           elevation: 0,
                         ),
                       ),
@@ -288,12 +308,12 @@ class CenterInfoCard extends StatelessWidget {
   }
 
   Widget _buildInfoChip(
-      BuildContext context, {
-        required IconData icon,
-        required String label,
-        Color? iconColor,
-        required bool dark,
-      }) {
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    Color? iconColor,
+    required bool dark,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: FSizes.sm,
@@ -309,15 +329,16 @@ class CenterInfoCard extends StatelessWidget {
           Icon(
             icon,
             size: 14,
-            color: iconColor ?? (dark ? FColors.darkGrey : FColors.textSecondary),
+            color:
+                iconColor ?? (dark ? FColors.darkGrey : FColors.textSecondary),
           ),
           const SizedBox(width: FSizes.xs),
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: dark ? FColors.white : FColors.textPrimary,
-              fontWeight: FontWeight.w500,
-            ),
+                  color: dark ? FColors.white : FColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
           ),
         ],
       ),

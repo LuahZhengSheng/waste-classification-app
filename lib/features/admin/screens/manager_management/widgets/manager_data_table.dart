@@ -7,9 +7,11 @@ import 'package:fyp/data/repositories/user/user_repository.dart';
 
 import '../../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../../common/widgets/admin/badge.dart';
+import '../../../controllers/manager_management/manager_management_controller.dart';
 import '../../../models/admin_model.dart';
 import 'manager_actions_dialog.dart';
 import 'manager_detail_dialog.dart';
+import 'send_password_reset_dialog.dart';
 
 class ManagerDataTable extends StatefulWidget {
   final List<AdminModel> managers;
@@ -61,7 +63,6 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
     if (!mounted) return;
     final screenWidth = MediaQuery.of(context).size.width - (FSizes.lg * 9);
     final tableWidth = _calculateTableWidth();
-    print('screenwidth: $screenWidth, tablewidth: $tableWidth');
     final hasHorizontalScroll = tableWidth > screenWidth;
     final isScrolledRight = _horizontalScrollController.offset > 0;
     final shouldShowFixed = hasHorizontalScroll && isScrolledRight;
@@ -73,8 +74,7 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
   }
 
   double _calculateTableWidth() {
-    // Profile(80) + Username(150) + Manager ID(200) + Email(200) + Phone(150) + Role(180) + Verified(120) + Spacer(100) + Actions(150)
-    return 80 + 150 + 200 + 200 + 150 + 180 + 120 + 100 + 150;
+    return 80 + 150 + 200 + 200 + 150 + 180 + 120 + 100 + 200; // 增加Action Column宽度
   }
 
   @override
@@ -137,7 +137,7 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
             top: 0,
             bottom: 0,
             child: Container(
-              width: 150,
+              width: 200, // 增加固定列的宽度
               decoration: BoxDecoration(
                 color: widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
                 boxShadow: [
@@ -262,7 +262,7 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
   DataColumn _buildEmptySpacerColumn() {
     return DataColumn(
       label: SizedBox(
-        width: 100,
+        width: 150,
         child: const Text(''),
       ),
     );
@@ -271,7 +271,7 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
   DataColumn _buildActionColumn() {
     return DataColumn(
       label: SizedBox(
-        width: 150,
+        width: 200, // 增加Action Column宽度
         child: Text('Actions', style: _headerStyle()),
       ),
     );
@@ -328,7 +328,7 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
   DataCell _buildEmptySpacerCell() {
     return DataCell(
       Container(
-        width: 100,
+        width: 150,
         child: const Text(''),
       ),
     );
@@ -427,12 +427,15 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
   }
 
   DataCell _buildActionCell(AdminModel manager) {
+    final controller = ManagerManagementController.instance;
+
     return DataCell(
       Container(
-        width: 150,
+        width: 200, // 增加Action Cell宽度
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 查看按钮
             IconButton(
               onPressed: () => _viewManager(manager),
               icon: Icon(
@@ -444,6 +447,8 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
               ),
               tooltip: 'View Manager',
             ),
+
+            // 编辑按钮
             IconButton(
               onPressed: () => _editManager(manager),
               icon: Icon(
@@ -455,16 +460,47 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
               ),
               tooltip: 'Edit Manager',
             ),
-            IconButton(
-              onPressed: () => widget.isBannedView ? _recoverManager(manager) : _banManager(manager),
-              icon: Icon(
-                widget.isBannedView ? Iconsax.refresh : Iconsax.slash,
-                color: widget.isBannedView
-                    ? (widget.dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess)
-                    : (widget.dark ? FColors.adminDarkError : FColors.adminLightError),
-                size: 18,
+
+            // 封禁/恢复按钮
+            if (!manager.isBanned)
+              IconButton(
+                onPressed: () => _banManager(manager),
+                icon: Icon(
+                  Iconsax.slash,
+                  size: 18,
+                  color: widget.dark ? FColors.adminDarkError : FColors.adminLightError,
+                ),
+                tooltip: 'Ban Manager',
+              )
+            else
+              IconButton(
+                onPressed: () => _recoverManager(manager),
+                icon: Icon(
+                  Iconsax.refresh,
+                  size: 18,
+                  color: widget.dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess,
+                ),
+                tooltip: 'Recover Manager',
               ),
-              tooltip: widget.isBannedView ? 'Recover Manager' : 'Ban Manager',
+
+            // 发送密码重置链接按钮 - 现在是第四个按钮
+            // 移除条件限制，始终显示但根据条件启用/禁用
+            IconButton(
+              onPressed: manager.canSendPasswordResetLink() && !manager.isVerified && manager.isActive && !manager.isBanned
+                  ? () => _showSendResetLinkDialog(manager)
+                  : null,
+              icon: Icon(
+                Iconsax.send_2,
+                size: 18,
+                color: manager.canSendPasswordResetLink() && !manager.isVerified && manager.isActive && !manager.isBanned
+                    ? widget.dark ? FColors.adminDarkInfo : FColors.adminLightInfo
+                    : widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+              ),
+              tooltip: manager.canSendPasswordResetLink() && !manager.isVerified && manager.isActive && !manager.isBanned
+                  ? 'Send Password Reset Link'
+                  : manager.canSendPasswordResetLink()
+                  ? 'Only available for unverified, active, and unbanned managers'
+                  : 'Wait ${manager.getFormattedRemainingResetTime()} before sending again',
             ),
           ],
         ),
@@ -512,6 +548,53 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
     Get.dialog(
       RecoverManagerDialog(manager: manager),
       barrierDismissible: false,
+    );
+  }
+
+  void _showSendResetLinkDialog(AdminModel manager) {
+    // 检查是否可以发送
+    if (!manager.canSendPasswordResetLink()) {
+      final remainingTime = manager.getFormattedRemainingResetTime();
+      Get.snackbar(
+        'Wait Required',
+        'Please wait $remainingTime before sending another reset link.',
+        backgroundColor: widget.dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    // 使用 SendPasswordResetDialog 替代原来的自定义对话框
+    Get.dialog(
+      SendPasswordResetDialog(manager: manager),
+      barrierDismissible: false,
+    );
+  }
+
+  // 辅助方法：构建信息行
+  Widget _buildInfoRow(String label, String value, bool dark) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: dark ? FColors.adminDarkText : FColors.adminLightText,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(width: FSizes.xs),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+              fontSize: 13,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

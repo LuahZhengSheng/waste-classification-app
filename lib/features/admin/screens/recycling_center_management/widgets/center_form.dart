@@ -4,12 +4,9 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
-import 'package:fyp/utils/helpers/helper_functions.dart';
-import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
-import 'package:fyp/features/recycling_center/models/partner_recycling_center_model.dart';
+import 'package:fyp/features/waste_classification/models/waste_category_model.dart';
 import 'package:fyp/features/event/models/location_model.dart';
 import 'package:fyp/common/widgets/inputs/location_input_dialog.dart';
-import 'package:fyp/data/repositories/event/event_repository.dart';
 
 /// Shared section card widget
 class CenterFormSection extends StatelessWidget {

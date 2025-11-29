@@ -8,7 +8,7 @@ import 'package:fyp/utils/helpers/helper_functions.dart';
 import '../../../../common/widgets/appbar/appbar.dart';
 import '../../../../utils/popups/loaders.dart';
 import '../../../community/screens/create_post/widgets/media_lightbox.dart';
-import '../../../personalization/models/recycle_activity_model.dart';
+import '../../models/recycle_activity_model.dart';
 import '../../controllers/add_activity_controller.dart';
 import '../../controllers/center_staff_home_controller.dart';
 

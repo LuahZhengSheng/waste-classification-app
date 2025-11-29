@@ -54,10 +54,19 @@ class _StaffDetailDialogState extends State<StaffDetailDialog> {
   }
 
   void _updateHasChanges() {
+    final usernameChanged = _usernameController.text.trim() != widget.staff.username;
+    final imageChanged = _pendingImageBytes != null;
+    final deleteRequested = _pendingDeleteImage;
+
+    final hasChanges = usernameChanged || imageChanged || deleteRequested;
+
+    print('🔄 Updating hasChanges: $hasChanges');
+    print('   - Username changed: $usernameChanged');
+    print('   - Has pending image: $imageChanged');
+    print('   - Pending delete: $deleteRequested');
+
     setState(() {
-      _hasChanges = _usernameController.text != widget.staff.username ||
-          _pendingImageBytes != null ||
-          _pendingDeleteImage;
+      _hasChanges = hasChanges;
     });
   }
 
@@ -309,6 +318,12 @@ class _StaffDetailDialogState extends State<StaffDetailDialog> {
   }
 
   Widget _buildProfileImage(bool dark) {
+    print('🔍 Building ProfileImageHandler with:');
+    print('   - Current profileImg: ${widget.staff.profileImg}');
+    print('   - Pending image bytes: ${_pendingImageBytes != null}');
+    print('   - Pending delete: $_pendingDeleteImage');
+    print('   - Has changes: $_hasChanges');
+
     return ProfileImageHandler(
       profileImg: widget.staff.profileImg,
       username: widget.staff.username,
@@ -317,16 +332,22 @@ class _StaffDetailDialogState extends State<StaffDetailDialog> {
       radius: 60,
       isEditMode: _isEditMode,
       onImageChanged: (Uint8List? newImageBytes) {
+        print('🖼️ onImageChanged called with new image: ${newImageBytes != null}');
         setState(() {
           _pendingImageBytes = newImageBytes;
-          _pendingDeleteImage = false;
+          if (newImageBytes != null) {
+            _pendingDeleteImage = false; // 只有选择新图片时才取消删除标记
+          }
           _updateHasChanges();
         });
       },
       onDeleteRequested: (bool isDeleteRequested) {
+        print('🗑️ onDeleteRequested called: $isDeleteRequested');
         setState(() {
           _pendingDeleteImage = isDeleteRequested;
-          _pendingImageBytes = null;
+          if (isDeleteRequested) {
+            _pendingImageBytes = null; // 请求删除时清除新图片
+          }
           _updateHasChanges();
         });
       },
@@ -444,47 +465,12 @@ class _StaffDetailDialogState extends State<StaffDetailDialog> {
   }
 
   void _showUpdateDialog(BuildContext context, bool dark) async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-        title: Text(
-          'Update Staff Profile',
-          style: TextStyle(
-            color: dark ? FColors.adminDarkText : FColors.adminLightText,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to update this staff profile?',
-          style: TextStyle(
-            color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-            ),
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate()) {
+      // Check username uniqueness (only if username changed)
+      if (_usernameController.text.trim() != widget.staff.username) {
         final repo = StaffRepository.instance;
         final isUsernameUnique = await repo.isUsernameUnique(
-          _usernameController.text,
+          _usernameController.text.trim(),
           widget.staff.userId,
         );
 
@@ -495,9 +481,47 @@ class _StaffDetailDialogState extends State<StaffDetailDialog> {
           );
           return;
         }
+      }
 
+      final confirmed = await Get.dialog<bool>(
+        AlertDialog(
+          backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+          title: Text(
+            'Update Staff Profile',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkText : FColors.adminLightText,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to update this staff profile?',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+              ),
+              child: const Text('Update', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
         final updatedStaff = widget.staff.copyWith(
-          username: _usernameController.text,
+          username: _usernameController.text.trim(),
         );
 
         final controller = StaffManagementController.instance;

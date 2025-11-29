@@ -268,55 +268,16 @@ class AchievementDetailsController extends GetxController {
     if (achievementModel == null) return;
 
     final currentStatus = getAchievementStatus();
-    final newStatus = currentStatus == 'active' ? 'inactive' : 'active';
+    final isActivating = currentStatus != 'active';
 
-    // Show confirmation dialog
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: Get.isDarkMode ? const Color(0xFF111B2B) : Colors.white,
-        title: Text(
-          '${newStatus == 'active' ? 'Activate' : 'Deactivate'} Achievement',
-          style: TextStyle(
-            color: Get.isDarkMode ? const Color(0xFFE2E8F0) : const Color(0xFF32325D),
-          ),
-        ),
-        content: Text(
-          newStatus == 'active'
-              ? 'Are you sure you want to activate "${achievementModel.title}"? Users will be able to unlock this achievement and its levels.'
-              : 'Are you sure you want to deactivate "${achievementModel.title}"? Users will no longer be able to unlock new levels for this achievement.',
-          style: TextStyle(
-            color: Get.isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF8898AA),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Get.isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF8898AA),
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: newStatus == 'active'
-                  ? (Get.isDarkMode ? const Color(0xFF4FD69C) : const Color(0xFF2DCE89))
-                  : (Get.isDarkMode ? const Color(0xFFFC7C8A) : const Color(0xFFF5365C)),
-            ),
-            child: Text(
-              newStatus == 'active' ? 'Activate' : 'Deactivate',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+    // 使用 FAdminLoaders 显示确认对话框
+    FAdminLoaders.showAchievementStatusToggleDialog(
+      achievementTitle: achievementModel.title,
+      isActivating: isActivating,
+      onConfirm: () async {
+        await _updateAchievementStatus(isActivating ? 'active' : 'inactive');
+      },
     );
-
-    if (confirmed == true) {
-      await _updateAchievementStatus(newStatus);
-    }
   }
 
   Future<void> _updateAchievementStatus(String newStatus) async {

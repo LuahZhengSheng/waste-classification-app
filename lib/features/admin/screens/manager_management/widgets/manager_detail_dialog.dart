@@ -1,19 +1,20 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/utils/validators/validation.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
-import 'package:fyp/features/admin/controllers/manager_management/manager_management_controller.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
 
+import '../../../../../common/widgets/admin/admin_lightbox.dart';
+import '../../../../../common/widgets/admin/profile_image_handler.dart';
 import '../../../../../data/repositories/user/manager_repository.dart';
-import '../../../../community/screens/create_post/widgets/media_lightbox.dart';
+import '../../../controllers/manager_management/manager_management_controller.dart';
 import '../../../models/admin_model.dart';
 
 class ManagerDetailDialog extends StatefulWidget {
@@ -33,8 +34,10 @@ class ManagerDetailDialog extends StatefulWidget {
 class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
   late bool _isEditMode;
   late TextEditingController _usernameController;
+  late String _selectedRole;
   final _formKey = GlobalKey<FormState>();
-  File? _newProfileImage;
+  Uint8List? _pendingImageBytes;
+  bool _pendingDeleteImage = false;
   bool _hasChanges = false;
   final UserRepository _userRepo = UserRepository.instance;
 
@@ -43,10 +46,26 @@ class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
     super.initState();
     _isEditMode = widget.isEditMode;
     _usernameController = TextEditingController(text: widget.manager.username);
-    _usernameController.addListener(() {
-      setState(() {
-        _hasChanges = _usernameController.text != widget.manager.username || _newProfileImage != null;
-      });
+    _selectedRole = widget.manager.role;
+    _usernameController.addListener(_updateHasChanges);
+  }
+
+  void _updateHasChanges() {
+    final usernameChanged = _usernameController.text.trim() != widget.manager.username;
+    final roleChanged = _selectedRole != widget.manager.role;
+    final imageChanged = _pendingImageBytes != null;
+    final deleteRequested = _pendingDeleteImage;
+
+    final hasChanges = usernameChanged || roleChanged || imageChanged || deleteRequested;
+
+    print('🔄 Updating hasChanges: $hasChanges');
+    print('   - Username changed: $usernameChanged');
+    print('   - Role changed: $roleChanged');
+    print('   - Has pending image: $imageChanged');
+    print('   - Pending delete: $deleteRequested');
+
+    setState(() {
+      _hasChanges = hasChanges;
     });
   }
 
@@ -183,16 +202,69 @@ class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
                           ],
                         ),
 
+                      // Role
+                      if (_isEditMode)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Role',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                              ),
+                            ),
+                            const SizedBox(height: FSizes.xs),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: FSizes.md),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+                                ),
+                                borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                              ),
+                              child: DropdownButton<String>(
+                                value: _selectedRole,
+                                onChanged: (String? newValue) {
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _selectedRole = newValue;
+                                      _updateHasChanges();
+                                    });
+                                  }
+                                },
+                                items: [
+                                  _buildDropdownMenuItem('community_manager', 'Community Manager', dark),
+                                  _buildDropdownMenuItem('event_manager', 'Event Manager', dark),
+                                  _buildDropdownMenuItem('reward_manager', 'Reward Manager', dark),
+                                ],
+                                isExpanded: true,
+                                underline: const SizedBox(),
+                                dropdownColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+                                icon: Icon(
+                                  Iconsax.arrow_down_1,
+                                  color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: FSizes.spaceBtwItems),
+                          ],
+                        )
+                      else
+                        Column(
+                          children: [
+                            _buildInfoRow('Role', _formatRole(widget.manager.role), dark),
+                            const SizedBox(height: FSizes.spaceBtwItems),
+                          ],
+                        ),
+
                       // Email
                       _buildInfoRow('Email', widget.manager.email, dark),
                       const SizedBox(height: FSizes.spaceBtwItems),
 
                       // Phone Number
                       _buildInfoRow('Phone Number', widget.manager.phoneNo ?? 'N/A', dark),
-                      const SizedBox(height: FSizes.spaceBtwItems),
-
-                      // Role
-                      _buildInfoRow('Role', _formatRole(widget.manager.role), dark),
                       const SizedBox(height: FSizes.spaceBtwItems),
 
                       // Login Attempt Count
@@ -247,6 +319,11 @@ class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
                         } else {
                           setState(() {
                             _isEditMode = false;
+                            // 重置所有状态
+                            _pendingImageBytes = null;
+                            _pendingDeleteImage = false;
+                            _usernameController.text = widget.manager.username;
+                            _selectedRole = widget.manager.role;
                           });
                         }
                       },
@@ -290,89 +367,52 @@ class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
     );
   }
 
-  Widget _buildProfileImage(bool dark) {
-    final userRepo = UserRepository.instance;
-    final cachedUrl = userRepo.getCachedProfileImageUrl(widget.manager.profileImg);
-
-    return Stack(
-      children: [
-        GestureDetector(
-          onTap: () {
-            if (cachedUrl != null && cachedUrl.isNotEmpty) {
-              Get.to(() => UnifiedMediaLightbox(
-                mediaItems: [
-                  UnifiedMediaItem.network(
-                    id: widget.manager.userId,
-                    networkUrl: cachedUrl,
-                    isVideo: false,
-                  ),
-                ],
-                initialIndex: 0,
-              ));
-            }
-          },
-          child: CircleAvatar(
-            radius: 60,
-            backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-            backgroundImage: _newProfileImage != null
-                ? FileImage(_newProfileImage!)
-                : (cachedUrl != null && cachedUrl.isNotEmpty
-                ? NetworkImage(cachedUrl)
-                : null),
-            child: _newProfileImage == null && (cachedUrl == null || cachedUrl.isEmpty)
-                ? const Icon(Iconsax.user, size: 40, color: Colors.white)
-                : null,
-          ),
+  DropdownMenuItem<String> _buildDropdownMenuItem(String value, String text, bool dark) {
+    return DropdownMenuItem<String>(
+      value: value,
+      child: Text(
+        text,
+        style: TextStyle(
+          color: dark ? FColors.adminDarkText : FColors.adminLightText,
         ),
-        if (_isEditMode)
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: PopupMenuButton<String>(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Iconsax.camera, color: Colors.white, size: 20),
-              ),
-              onSelected: (value) {
-                if (value == 'upload') {
-                  _pickImage();
-                } else if (value == 'delete') {
-                  setState(() {
-                    _newProfileImage = null;
-                    _hasChanges = true;
-                  });
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'upload',
-                  child: Row(
-                    children: [
-                      Icon(Iconsax.gallery_add),
-                      SizedBox(width: 8),
-                      Text('Upload Photo'),
-                    ],
-                  ),
-                ),
-                if (widget.manager.profileImg != null && widget.manager.profileImg!.isNotEmpty)
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Iconsax.trash, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Delete Photo', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildProfileImage(bool dark) {
+    print('🔍 Building ProfileImageHandler with:');
+    print('   - Current profileImg: ${widget.manager.profileImg}');
+    print('   - Pending image bytes: ${_pendingImageBytes != null}');
+    print('   - Pending delete: $_pendingDeleteImage');
+    print('   - Has changes: $_hasChanges');
+
+    return ProfileImageHandler(
+      profileImg: widget.manager.profileImg,
+      username: widget.manager.username,
+      userId: widget.manager.userId,
+      dark: dark,
+      radius: 60,
+      isEditMode: _isEditMode,
+      onImageChanged: (Uint8List? newImageBytes) {
+        print('🖼️ onImageChanged called with new image: ${newImageBytes != null}');
+        setState(() {
+          _pendingImageBytes = newImageBytes;
+          if (newImageBytes != null) {
+            _pendingDeleteImage = false; // 只有选择新图片时才取消删除标记
+          }
+          _updateHasChanges();
+        });
+      },
+      onDeleteRequested: (bool isDeleteRequested) {
+        print('🗑️ onDeleteRequested called: $isDeleteRequested');
+        setState(() {
+          _pendingDeleteImage = isDeleteRequested;
+          if (isDeleteRequested) {
+            _pendingImageBytes = null; // 请求删除时清除新图片
+          }
+          _updateHasChanges();
+        });
+      },
     );
   }
 
@@ -451,18 +491,6 @@ class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
     }
   }
 
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
-      setState(() {
-        _newProfileImage = File(image.path);
-        _hasChanges = true;
-      });
-    }
-  }
-
   void _showDiscardDialog(BuildContext context, bool dark) {
     Get.dialog(
       AlertDialog(
@@ -491,6 +519,14 @@ class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
           ),
           ElevatedButton(
             onPressed: () {
+              // 完全重置所有状态到初始值
+              setState(() {
+                _pendingImageBytes = null;
+                _pendingDeleteImage = false;
+                _hasChanges = false;
+                _usernameController.text = widget.manager.username; // 重置用户名
+                _selectedRole = widget.manager.role; // 重置角色
+              });
               Get.back();
               Get.back();
             },
@@ -505,47 +541,12 @@ class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
   }
 
   void _showUpdateDialog(BuildContext context, bool dark) async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-        title: Text(
-          'Update Manager Profile',
-          style: TextStyle(
-            color: dark ? FColors.adminDarkText : FColors.adminLightText,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to update this manager profile?',
-          style: TextStyle(
-            color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-            ),
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate()) {
+      // Check username uniqueness (only if username changed)
+      if (_usernameController.text.trim() != widget.manager.username) {
         final repo = ManagerRepository.instance;
         final isUsernameUnique = await repo.isUsernameUnique(
-          _usernameController.text,
+          _usernameController.text.trim(),
           widget.manager.userId,
         );
 
@@ -556,13 +557,59 @@ class _ManagerDetailDialogState extends State<ManagerDetailDialog> {
           );
           return;
         }
+      }
 
+      final confirmed = await Get.dialog<bool>(
+        AlertDialog(
+          backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+          title: Text(
+            'Update Manager Profile',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkText : FColors.adminLightText,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to update this manager profile?',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+              ),
+              child: const Text('Update', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
         final updatedManager = widget.manager.copyWith(
-          username: _usernameController.text,
+          username: _usernameController.text.trim(),
+          role: _selectedRole,
         );
 
         final controller = ManagerManagementController.instance;
-        await controller.updateManager(updatedManager, _newProfileImage);
+
+        // 只有在确认更新时才处理图片
+        await controller.updateManager(
+            updatedManager,
+            _pendingImageBytes,
+            _pendingDeleteImage
+        );
+
         Get.back();
       }
     }

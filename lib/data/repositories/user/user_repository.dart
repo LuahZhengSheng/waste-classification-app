@@ -144,6 +144,15 @@ class UserRepository extends GetxController {
     });
   }
 
+  /// 为任意用户列表加载头像（支持 Staff 和 User）
+  Future<void> loadProfileImagesForUsers(List<UserModel> users) async {
+    for (final user in users) {
+      if (user.profileImg != null && user.profileImg!.isNotEmpty) {
+        await _loadProfileImage(user.profileImg!);
+      }
+    }
+  }
+
   /// 批量加载用户头像并更新用户对象的profileImg字段
   Future<void> _loadProfileImagesForUsers(List<UserModel> users) async {
     print("==> Start loading profile images for users. Total users: ${users.length}");

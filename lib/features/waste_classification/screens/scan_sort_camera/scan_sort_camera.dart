@@ -37,7 +37,7 @@ class ScanSortCameraScreen extends StatelessWidget {
               child: _buildCameraPreview(controller),
             ),
 
-          // Top Buttons (Drop Off & Categories)
+          // Top Buttons (Drop Off, Categories & History)
           if (!controller.isLoading && !controller.hasError)
             _buildTopButtons(context, dark),
 
@@ -49,8 +49,12 @@ class ScanSortCameraScreen extends StatelessWidget {
           if (!controller.isLoading && !controller.hasError)
             _buildBottomControls(controller, context, dark),
 
+          // Zoom Controls
+          if (controller.isInitialized && !controller.isLoading)
+            _buildZoomControls(controller, context, dark),
+
           // Zoom Indicator
-          if (controller.isInitialized && controller.currentZoom > controller.minZoom)
+          if (controller.isInitialized && controller.currentZoom > 1.0)
             _buildZoomIndicator(controller, context, dark),
         ],
       )),
@@ -124,50 +128,170 @@ class ScanSortCameraScreen extends StatelessWidget {
             ),
           ),
 
-          // Categories Button
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => controller.navigateToCategories(),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FSizes.md,
-                  vertical: FSizes.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: FColors.white,
+          // Right side buttons
+          Row(
+            children: [
+              // Categories Button
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                  onTap: () => controller.navigateToCategories(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FSizes.md,
+                      vertical: FSizes.sm,
                     ),
-                  ],
+                    decoration: BoxDecoration(
+                      color: FColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Iconsax.category,
+                          size: 20,
+                          color: FColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Categories',
+                          style: TextStyle(
+                            color: FColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Iconsax.category,
+              ),
+              const SizedBox(width: 8),
+
+              // History Button (NEW)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => controller.navigateToHistory(),
+                  child: Container(
+                    padding: const EdgeInsets.all(FSizes.sm),
+                    decoration: BoxDecoration(
+                      color: FColors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Iconsax.document,
                       size: 20,
                       color: FColors.primary,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Categories',
-                      style: TextStyle(
-                        color: FColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildZoomControls(ScanSortCameraController controller, BuildContext context, bool dark) {
+    return Positioned(
+      right: 16,
+      top: MediaQuery.of(context).size.height * 0.4,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: dark ? Colors.black.withOpacity(0.6) : Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: FColors.primary.withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Zoom In Button
+            _buildZoomButton(
+              icon: Iconsax.add,
+              onTap: controller.zoomIn,
+              dark: dark,
+              isEnabled: controller.currentZoom < controller.maxZoom,
+            ),
+            const SizedBox(height: 12),
+            // Zoom Level Display
+            Container(
+              width: 40,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                controller.zoomText,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: dark ? FColors.white : FColors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            // Zoom Out Button
+            _buildZoomButton(
+              icon: Iconsax.minus,
+              onTap: controller.zoomOut,
+              dark: dark,
+              isEnabled: controller.currentZoom > 1.0,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZoomButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool dark,
+    required bool isEnabled,
+  }) {
+    return GestureDetector(
+      onTap: isEnabled ? onTap : null,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isEnabled
+              ? FColors.primary
+              : (dark ? FColors.darkGrey : FColors.grey),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: (dark ? Colors.black : Colors.grey).withOpacity(0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: isEnabled ? FColors.white : FColors.lightGrey,
+          size: 20,
+        ),
       ),
     );
   }
@@ -179,7 +303,7 @@ class ScanSortCameraScreen extends StatelessWidget {
         height: MediaQuery.of(context).size.width * 0.75,
         child: Stack(
           children: [
-            // 左上角L形
+            // Corner frames
             Positioned(
               top: 0,
               left: 0,
@@ -197,7 +321,6 @@ class ScanSortCameraScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // 右上角L形
             Positioned(
               top: 0,
               right: 0,
@@ -215,7 +338,6 @@ class ScanSortCameraScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // 左下角L形
             Positioned(
               bottom: 0,
               left: 0,
@@ -233,7 +355,6 @@ class ScanSortCameraScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // 右下角L形
             Positioned(
               bottom: 0,
               right: 0,
@@ -251,7 +372,7 @@ class ScanSortCameraScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // 文字内容
+            // Text
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -330,13 +451,12 @@ class ScanSortCameraScreen extends StatelessWidget {
             // Gallery Button
             _buildControlButton(
               icon: Iconsax.gallery,
-              onTap: () async {
+              onTap: controller.canTakePhoto ? () async {
                 print('🖼️ Gallery button pressed');
                 try {
                   final file = await controller.pickFromGallery();
                   if (file != null) {
                     print('📸 Gallery image obtained: ${file.path}');
-                    // Process image for detection
                     await controller.processCapturedImage(file);
                   } else {
                     print('❌ Gallery picker returned null');
@@ -349,19 +469,19 @@ class ScanSortCameraScreen extends StatelessWidget {
                     snackPosition: SnackPosition.BOTTOM,
                   );
                 }
-              },
+              } : null, // 🎯 上传时禁用相册按钮
               dark: dark,
+              isEnabled: controller.canTakePhoto, // 🎯 根据状态设置启用状态
             ),
 
             // Capture Button
             GestureDetector(
-              onTap: () async {
+              onTap: controller.canTakePhoto ? () async {
                 print('🎯 Capture button pressed');
                 try {
                   final file = await controller.capturePhoto();
                   if (file != null) {
                     print('📸 Photo file obtained: ${file.path}');
-                    // Process image for detection
                     await controller.processCapturedImage(file);
                   } else {
                     print('❌ Photo capture returned null');
@@ -379,14 +499,16 @@ class ScanSortCameraScreen extends StatelessWidget {
                     snackPosition: SnackPosition.BOTTOM,
                   );
                 }
-              },
+              } : null, // 🎯 上传时禁用拍照按钮
               child: Container(
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: dark ? FColors.white : FColors.primary,
+                    color: controller.canTakePhoto
+                        ? (dark ? FColors.white : FColors.primary)
+                        : (dark ? FColors.darkGrey : FColors.grey), // 🎯 根据状态改变颜色
                     width: 5,
                   ),
                 ),
@@ -394,10 +516,12 @@ class ScanSortCameraScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(5),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: dark ? FColors.white : FColors.primary,
+                      color: controller.canTakePhoto
+                          ? (dark ? FColors.white : FColors.primary)
+                          : (dark ? FColors.darkGrey : FColors.grey), // 🎯 根据状态改变颜色
                       shape: BoxShape.circle,
                     ),
-                    child: controller.isCapturing
+                    child: controller.isCapturing || controller.isUploading
                         ? Padding(
                       padding: const EdgeInsets.all(16),
                       child: CircularProgressIndicator(
@@ -414,9 +538,10 @@ class ScanSortCameraScreen extends StatelessWidget {
             // Flash Toggle Button
             _buildControlButton(
               icon: controller.isFlashOn ? Iconsax.flash_15 : Iconsax.flash_slash,
-              onTap: controller.toggleFlash,
+              onTap: controller.canTakePhoto ? controller.toggleFlash : null, // 🎯 上传时禁用闪光灯
               dark: dark,
               isActive: controller.isFlashOn,
+              isEnabled: controller.canTakePhoto, // 🎯 根据状态设置启用状态
             ),
           ],
         ),
@@ -426,9 +551,10 @@ class ScanSortCameraScreen extends StatelessWidget {
 
   Widget _buildControlButton({
     required IconData icon,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
     required bool dark,
     bool isActive = false,
+    bool isEnabled = true, // 🎯 新增启用状态参数
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -436,29 +562,29 @@ class ScanSortCameraScreen extends StatelessWidget {
         width: 60,
         height: 60,
         decoration: BoxDecoration(
-          color: isActive
-              ? FColors.primary
-              : (dark ? FColors.darkContainer : FColors.white),
+          color: isEnabled
+              ? (isActive ? FColors.primary : (dark ? FColors.darkContainer : FColors.white))
+              : (dark ? FColors.darkGrey : FColors.grey), // 🎯 根据启用状态改变颜色
           shape: BoxShape.circle,
           border: Border.all(
-            color: isActive
-                ? FColors.primary
-                : (dark ? FColors.borderPrimary.withOpacity(0.3) : FColors.borderPrimary),
+            color: isEnabled
+                ? (isActive ? FColors.primary : (dark ? FColors.borderPrimary.withOpacity(0.3) : FColors.borderPrimary))
+                : (dark ? FColors.darkGrey : FColors.grey), // 🎯 根据启用状态改变边框颜色
             width: 2,
           ),
-          boxShadow: [
+          boxShadow: isEnabled ? [ // 🎯 禁用时不显示阴影
             BoxShadow(
               color: (dark ? Colors.black : Colors.grey).withOpacity(0.2),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
-          ],
+          ] : [],
         ),
         child: Icon(
           icon,
-          color: isActive
-              ? FColors.white
-              : (dark ? FColors.white : FColors.textPrimary),
+          color: isEnabled
+              ? (isActive ? FColors.white : (dark ? FColors.white : FColors.textPrimary))
+              : (dark ? FColors.lightGrey : FColors.textSecondary), // 🎯 根据启用状态改变图标颜色
           size: 28,
         ),
       ),

@@ -12,7 +12,7 @@ class OnnxInferenceService {
   bool _isInitialized = false;
 
   static const int inputSize = 640;
-  static const double confidenceThreshold = 0.5;
+  static const double confidenceThreshold = 0.3;
   static const double iouThreshold = 0.45;
 
   static const List<String> classLabels = [
@@ -133,6 +133,12 @@ class OnnxInferenceService {
       final detections = _parseOutputs(outputs, originalSize);
       print('✅ Found ${detections.length} detections');
 
+      print('Dart Output shape snapshot:');
+      if (outputs.isNotEmpty && outputs[0] != null) {
+        print('Dart Output type=${outputs[0]!.value.runtimeType}');
+        print('Dart Output length (top): ${(outputs[0]!.value as List).length}');
+      }
+
       return ImageDetectionResult(
         imagePath: imagePath,
         detections: detections,
@@ -192,12 +198,17 @@ class OnnxInferenceService {
     final detections = <DetectionResult>[];
     final numDetections = predictions[0].length;
     final numClasses = classLabels.length;
-    print('🔍 Parsing 3D output: $numDetections');
-
+    print('🔍 Parsing 3D output: $numDetections, numClasses=$numClasses');
     for (int i = 0; i < numDetections; i++) {
       final detection = predictions[0][i];
       final bboxRaw = detection.sublist(0, 4);
       final clsScores = detection.sublist(4, 4 + numClasses);
+
+      // 打印每个detection的前10个值
+      if (i < 5) {
+        print('Dart detection[$i] bboxRaw: $bboxRaw');
+        print('Dart detection[$i] clsScores (top5): ${clsScores.take(5).toList()}');
+      }
 
       double maxScore = 0;
       int maxClass = 0;
@@ -207,9 +218,12 @@ class OnnxInferenceService {
           maxClass = j;
         }
       }
+      if (i < 5) {
+        print("Dart detection[$i] maxScore=$maxScore, maxClass=$maxClass/${classLabels[maxClass]}");
+      }
+
       if (maxScore < confidenceThreshold) continue;
       final bbox = _xywh2xyxy(bboxRaw);
-
       if (bbox[2] <= bbox[0] || bbox[3] <= bbox[1]) continue;
       double x1, y1, x2, y2;
       if (bbox.every((val) => val >= 0 && val <= 1)) {
@@ -234,10 +248,13 @@ class OnnxInferenceService {
         detections.add(DetectionResult(
           label: label, confidence: maxScore, boundingBox: rect,
         ));
-        print('✅ Detection: $label (${maxScore.toStringAsFixed(3)}), box: [${x1.toInt()}, ${y1.toInt()}, ${x2.toInt()}, ${y2.toInt()}]');
+        print('✅ Dart Detection: $label (${maxScore.toStringAsFixed(3)}), box: [${x1.toInt()}, ${y1.toInt()}, ${x2.toInt()}, ${y2.toInt()}]');
       }
     }
-    return _applyNMS(detections);
+    print('🎯 Dart NMS before: ${detections.length}');
+    final kept = _applyNMS(detections);
+    print('🎯 Dart NMS after: ${kept.length}');
+    return kept;
   }
 
   List<DetectionResult> _parse2DOutput(List<List<double>> predictions, Size originalSize) {

@@ -1,3 +1,5 @@
+// src/createStaff/sendStaffPasswordReset.ts
+
 import * as admin from 'firebase-admin';
 import { onCall } from 'firebase-functions/v2/https';
 import { sendStaffPasswordResetEmail, getCenterName, getAdminName } from './staffEmailService';
@@ -36,7 +38,7 @@ export const sendStaffPasswordReset = onCall(async (request: SendPasswordResetCa
       const staffQuery = await admin.firestore()
         .collection('users')
         .where('email', '==', data.staffEmail)
-        .where('role', '==', 'center_staff')
+        .where('role', 'in', ['center_staff', 'community_manager', 'event_manager', 'reward_manager'])
         .limit(1)
         .get();
 

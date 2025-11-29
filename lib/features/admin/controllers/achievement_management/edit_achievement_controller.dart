@@ -257,36 +257,78 @@ class EditAchievementController extends GetxController {
   Future<void> saveChanges() async {
     if (!canSave.value) return;
 
-    try {
-      isSaving.value = true;
-      FLoaders.showLoading('Saving changes...');
+    // 显示确认对话框
+    FAdminLoaders.showAchievementUpdateDialog(
+      changedFields: _getChangedFields(),
+      onConfirm: () async {
+        try {
+          isSaving.value = true;
+          FLoaders.showLoading('Saving changes...');
 
-      // Update achievement in Firestore
-      await _achievementRepo.updateAchievementWithLevels(
-        achievementId: achievement.value.achievementId,
-        levels: editedLevels,
-      );
+          // Update achievement in Firestore
+          await _achievementRepo.updateAchievementWithLevels(
+            achievementId: achievement.value.achievementId,
+            levels: editedLevels,
+          );
 
-      FLoaders.stopLoading();
+          FLoaders.stopLoading();
 
-      FAdminLoaders.successSnackBar(
-        title: 'Success',
-        message: 'Achievement updated successfully',
-      );
-    } catch (e) {
-      print('$e');
-      FLoaders.stopLoading();
-      FAdminLoaders.errorSnackBar(
-        title: 'Error',
-        message: 'Failed to update achievement: $e',
-      );
-    } finally {
-      isSaving.value = false;
-    }
+          FAdminLoaders.successSnackBar(
+            title: 'Success',
+            message: 'Achievement updated successfully',
+          );
+
+          Get.back(); // 关闭编辑对话框
+        } catch (e) {
+          print('$e');
+          FLoaders.stopLoading();
+          FAdminLoaders.errorSnackBar(
+            title: 'Error',
+            message: 'Failed to update achievement: $e',
+          );
+        } finally {
+          isSaving.value = false;
+        }
+      },
+    );
   }
 
-  @override
-  void onClose() {
-    super.onClose();
+  /// 获取更改的字段列表
+  List<String> _getChangedFields() {
+    final List<String> changes = [];
+
+    // 检查等级数量变化
+    if (editedLevels.length != achievement.value.achievementLevels.length) {
+      changes.add('Number of levels (${achievement.value.achievementLevels.length} → ${editedLevels.length})');
+    }
+
+    // 检查每个等级的变化
+    for (int i = 0; i < editedLevels.length; i++) {
+      final editedLevel = editedLevels[i];
+      final originalLevel = i < achievement.value.achievementLevels.length
+          ? achievement.value.achievementLevels[i]
+          : null;
+
+      if (originalLevel == null) {
+        changes.add('Added Level ${editedLevel.level}');
+        continue;
+      }
+
+      // 检查具体字段变化
+      if (editedLevel.title != originalLevel.title) {
+        changes.add('Level ${editedLevel.level} title');
+      }
+      if (editedLevel.description != originalLevel.description) {
+        changes.add('Level ${editedLevel.level} description');
+      }
+      if (editedLevel.badgeImage != originalLevel.badgeImage) {
+        changes.add('Level ${editedLevel.level} badge');
+      }
+      if (editedLevel.unlockCriteria != originalLevel.unlockCriteria) {
+        changes.add('Level ${editedLevel.level} unlock criteria (${originalLevel.unlockCriteria} → ${editedLevel.unlockCriteria})');
+      }
+    }
+
+    return changes;
   }
 }

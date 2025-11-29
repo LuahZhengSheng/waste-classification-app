@@ -8,7 +8,7 @@ import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
 import 'package:iconsax/iconsax.dart';
 
-import '../../../personalization/models/recycle_activity_model.dart';
+import '../../../recycling_center/models/recycle_activity_model.dart';
 import '../../controllers/reward_point_controller.dart';
 
 class TransactionDetailsScreen extends StatelessWidget {
@@ -420,9 +420,9 @@ class TransactionDetailsScreen extends StatelessWidget {
             label: 'Status',
             value: redemption.statusDisplayText,
             dark: dark,
-            valueColor: redemption.isPending
-                ? FColors.warning
-                : (redemption.isUsed ? FColors.success : FColors.error),
+            valueColor: redemption.isActive
+                ? FColors.success
+                : FColors.error,
           ),
         ],
       ),

@@ -7,6 +7,7 @@ import 'package:fyp/features/leaderboard_achievement/models/achievement_model.da
 import 'package:fyp/features/admin/controllers/achievement_management/achievement_management_controller.dart';
 
 import '../../../../../../common/widgets/admin/badge.dart';
+import '../../../../../../utils/popups/admin_loaders.dart';
 import '../../achievement_management_detail/achievement_management_detail.dart';
 
 class AchievementDataTable extends StatefulWidget {
@@ -443,52 +444,10 @@ class _AdminAchievementDataTableState extends State<AchievementDataTable> {
   }
 
   void _showStatusToggleConfirmation(Achievement achievement) {
-    final isActivating = achievement.status != 'active';
-
-    Get.dialog(
-      AlertDialog(
-        backgroundColor: widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-        title: Text(
-          isActivating ? 'Activate Achievement' : 'Deactivate Achievement',
-          style: TextStyle(
-            color: widget.dark ? FColors.adminDarkText : FColors.adminLightText,
-          ),
-        ),
-        content: Text(
-          isActivating
-              ? 'Are you sure you want to activate "${achievement.title}"? Users will be able to unlock this achievement.'
-              : 'Are you sure you want to deactivate "${achievement.title}"? Users will no longer be able to progress in this achievement.',
-          style: TextStyle(
-            color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              widget.controller.toggleAchievementStatus(achievement);
-              Get.back();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isActivating
-                  ? (widget.dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess)
-                  : (widget.dark ? FColors.adminDarkError : FColors.adminLightError),
-            ),
-            child: Text(
-              isActivating ? 'Activate' : 'Deactivate',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+    FAdminLoaders.showAchievementStatusToggleDialog(
+      achievementTitle: achievement.title,
+      isActivating: achievement.status != 'active',
+      onConfirm: () => widget.controller.toggleAchievementStatus(achievement),
     );
   }
 

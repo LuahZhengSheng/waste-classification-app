@@ -7,6 +7,7 @@ import 'package:fyp/firebase_options.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
+import 'auth_state_listener.dart';
 import 'config/env_config.dart';
 
 void mainWeb() async {
@@ -24,6 +25,12 @@ void mainWeb() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).then(
         (FirebaseApp value) => Get.put(AuthenticationRepository()),
   );
+
+  // 启动认证状态监听
+  print('🚀 [Main] Initializing AuthStateListener...');
+  final authStateListener = AuthStateListener();
+  authStateListener.startListening();
+  print('✅ [Main] AuthStateListener initialized successfully');
 
   // Load all the Material Design / Themes / Localizations / Bindings
   runApp(const AdminApp());

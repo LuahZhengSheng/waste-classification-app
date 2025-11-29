@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:flutter/services.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/features/admin/controllers/reward_management/add_reward_controller.dart';
 
+import '../../../../../common/widgets/admin/image_uploader.dart';
 import '../widgets/reward_form.dart';
 
 class AddRewardScreen extends StatelessWidget {
@@ -133,6 +135,9 @@ class AddRewardScreen extends StatelessWidget {
                           keyboardType: TextInputType.number,
                           prefixIcon: Iconsax.coin,
                           required: true,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                         ),
                       ),
                       const SizedBox(width: FSizes.md),
@@ -146,6 +151,9 @@ class AddRewardScreen extends StatelessWidget {
                           keyboardType: TextInputType.number,
                           prefixIcon: Iconsax.box,
                           required: true,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                         ),
                       ),
                     ],
@@ -169,25 +177,22 @@ class AddRewardScreen extends StatelessWidget {
                 title: 'Reward Image',
                 icon: Iconsax.image,
                 children: [
-                  Obx(() => RewardImageUploader(
+                  Obx(() => ImageUploader(
                     imageBytes: controller.selectedImageBytes.value,
+                    existingImageName: null, // 新增：Add 时没有旧图
+                    getImageUrl: controller.getImageUrl,
                     onSelectImage: controller.pickImage,
                     onRemoveImage: controller.removeImage,
                     isCompressing: controller.isCompressing.value,
                     dark: dark,
+                    required: true, // 必填
+                    label: 'Reward Image',
+                    description:
+                    'Upload a clear image of the reward (Required - JPG, PNG, WebP, Max 5MB)',
                   )),
-                  const SizedBox(height: FSizes.sm),
-                  Text(
-                    'Upload a clear image of the reward (optional)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: dark
-                          ? FColors.adminDarkTextMuted
-                          : FColors.adminLightTextMuted,
-                    ),
-                  ),
                 ],
               ),
+
               const SizedBox(height: FSizes.spaceBtwSections),
 
               // Status Section

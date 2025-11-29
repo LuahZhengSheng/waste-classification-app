@@ -8,7 +8,6 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
 import 'package:fyp/features/authentication/screens/login/login.dart';
 import 'package:fyp/features/authentication/screens/onboarding/onboarding.dart';
-import 'package:fyp/features/authentication/screens/signup/verify_email.dart';
 import 'package:fyp/navigation_menu.dart';
 import 'package:fyp/utils/exceptions/firebase_auth_exceptions.dart';
 import 'package:fyp/utils/exceptions/firebase_exceptions.dart';
@@ -50,40 +49,63 @@ class AuthenticationRepository extends GetxController {
     final User? user = _auth.currentUser;
 
     if (user != null) {
-      // ✅ 已登录
-      if (user.emailVerified) {
-        // 获取用户角色（假设角色信息存储在Firestore中）
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+      // ✅ Already logged in
+      // Get user role from Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-        final String role = userDoc.data()?['role'] ?? 'user'; // 默认角色为 'user'
+      final String role = userDoc.data()?['role'] ?? 'user';
 
-        if (kIsWeb) {
-          // 👉 Web 用 Sidebar（可根据角色调整）
-          Get.offAll(() => UserManagementPage());
-        } else {
-          // 👉 App 用 Navigation Menu，根据角色重定向到不同页面
-          switch (role) {
-            case 'user':
-              Get.offAll(() => const NavigationMenu());
-              break;
-            case 'center_staff':
-              Get.offAll(() => const StaffNavigationMenu());
-              break;
-            default: // 普通用户
-              Get.offAll(() => const NavigationMenu());
-          }
+      if (kIsWeb) {
+        // 👉 Web - Navigate based on role
+        switch (role) {
+          case 'admin':
+          // Admin can access all pages, default to User Management
+            Get.offAll(() => const UserManagementPage());
+            break;
+          case 'community_manager':
+          // Community Manager - default to Dashboard (since they can't access User Management)
+            Get.offAll(() => const AdminDashboard());
+            break;
+          case 'event_manager':
+          // Event Manager - default to Dashboard
+            Get.offAll(() => const AdminDashboard());
+            break;
+          case 'reward_manager':
+          // Reward Manager - default to Dashboard
+            Get.offAll(() => const AdminDashboard());
+            break;
+          default:
+          // Unknown role or regular user - shouldn't access web admin
+            Get.offAll(() => const AdminLoginScreen());
         }
       } else {
-        // 账号存在但还没验证邮箱
-        Get.offAll(() => VerifyEmailScreen(email: user.email));
+        // 👉 App - Navigate based on role
+        switch (role) {
+          case 'user':
+            Get.offAll(() => const NavigationMenu());
+            break;
+          case 'center_staff':
+            Get.offAll(() => const StaffNavigationMenu());
+            break;
+          case 'admin':
+          case 'community_manager':
+          case 'event_manager':
+          case 'reward_manager':
+          // Admin roles should not use mobile app
+          // Redirect to login or show error
+            Get.offAll(() => const LoginScreen());
+            break;
+          default:
+            Get.offAll(() => const NavigationMenu());
+        }
       }
     } else {
-      // ✅ 未登录
+      // ✅ Not logged in
       if (kIsWeb) {
-        // 👉 Web 直接去 AdminLogin
+        // 👉 Web - Go to Admin Login
         Get.offAll(() => const AdminLoginScreen());
       } else {
         // 👉 App
@@ -91,34 +113,15 @@ class AuthenticationRepository extends GetxController {
         final isFirstTime = deviceStorage.read('IsFirstTime') ?? true;
 
         if (isFirstTime) {
-          // 第一次使用 → OnBoarding
+          // First time - OnBoarding
           Get.offAll(() => const OnBoardingScreen());
         } else {
-          // 非第一次 → Login
+          // Not first time - Login
           Get.offAll(() => const LoginScreen());
         }
       }
     }
   }
-
-  // /// Function to Show Relevant Screen
-  // Future<void> screenRedirect() async {
-  //   final User? user = _auth.currentUser;
-  //   if (user != null) {
-  //     if (user.emailVerified) {
-  //       Get.offAll(() => const NavigationMenu());
-  //     } else {
-  //       Get.offAll(() => VerifyEmailScreen(email: _auth.currentUser?.email));
-  //     }
-  //   } else {
-  //     // Local Storage
-  //     deviceStorage.writeIfNull('IsFirstTime', true);
-  //     // Check if it's the first time launching the app
-  //     deviceStorage.read('IsFirstTime') != true
-  //         ? Get.offAll(() => const LoginScreen()) // Redirect to Login Screen if not the first time
-  //         : Get.offAll(const OnBoardingScreen()); // Redirect to OnBoarding Screen if It's the first time
-  //   }
-  // }
 
   /// 更新用户 FCM Token
   Future<void> _updateUserFCMToken(String userId) async {

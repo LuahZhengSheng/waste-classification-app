@@ -170,19 +170,43 @@ class LocationInputController extends GetxController {
     return '${unitNoController.text.trim()}, ${areaController.text.trim()}, ${postcodeController.text.trim()} ${cityController.text.trim()}, ${stateController.text.trim()}';
   }
 
+  // ==================== 变化检测核心方法 ====================
   void _checkForChanges() {
     if (isEditingMode.value) {
+      // 编辑模式：检查实际变化
       final hasUnitNoChanged = unitNoController.text.trim() != _originalUnitNo;
       final hasAreaChanged = areaController.text.trim() != _originalArea;
       final hasPostcodeChanged = postcodeController.text.trim() != _originalPostcode;
       final hasCityChanged = cityController.text.trim() != _originalCity;
       final hasStateChanged = stateController.text.trim() != _originalState;
-      final hasMarkerMoved = currentMarkerPosition.value != _originalMarkerPosition;
+
+      // 检查标记位置变化
+      bool hasMarkerMoved = false;
+      if (currentMarkerPosition.value != null && _originalMarkerPosition != null) {
+        hasMarkerMoved = currentMarkerPosition.value!.latitude != _originalMarkerPosition!.latitude ||
+            currentMarkerPosition.value!.longitude != _originalMarkerPosition!.longitude;
+      } else {
+        hasMarkerMoved = currentMarkerPosition.value != _originalMarkerPosition;
+      }
 
       hasChanges.value = hasUnitNoChanged || hasAreaChanged || hasPostcodeChanged ||
           hasCityChanged || hasStateChanged || hasMarkerMoved;
+
+      print('🔄 Change Detection - Editing Mode:');
+      print('   📝 UnitNo Changed: $hasUnitNoChanged');
+      print('   📝 Area Changed: $hasAreaChanged');
+      print('   📝 Postcode Changed: $hasPostcodeChanged');
+      print('   📝 City Changed: $hasCityChanged');
+      print('   📝 State Changed: $hasStateChanged');
+      print('   📍 Marker Moved: $hasMarkerMoved');
+      print('   ✅ Has Changes: ${hasChanges.value}');
     } else {
+      // 新建模式：只要有完整地址就认为有变化
       hasChanges.value = _isAddressComplete();
+
+      print('🔄 Change Detection - New Mode:');
+      print('   📝 Address Complete: ${_isAddressComplete()}');
+      print('   ✅ Has Changes: ${hasChanges.value}');
     }
   }
 
@@ -193,6 +217,14 @@ class LocationInputController extends GetxController {
     _originalCity = cityController.text.trim();
     _originalState = stateController.text.trim();
     _originalMarkerPosition = currentMarkerPosition.value;
+
+    print('💾 Saved Original Address:');
+    print('   📝 UnitNo: "$_originalUnitNo"');
+    print('   📝 Area: "$_originalArea"');
+    print('   📝 Postcode: "$_originalPostcode"');
+    print('   📝 City: "$_originalCity"');
+    print('   📝 State: "$_originalState"');
+    print('   📍 Marker: $_originalMarkerPosition');
   }
 
   // 重置变化状态（当用户保存后调用）
@@ -200,8 +232,45 @@ class LocationInputController extends GetxController {
     if (isEditingMode.value) {
       _saveOriginalAddress();
       hasChanges.value = false;
+      print('🔄 Change detection reset');
     }
   }
+
+  // 检查是否可以保存（用于启用/禁用保存按钮）
+  bool get canSaveChanges {
+    if (!isValidLocation.value) return false;
+    if (!isEditingMode.value) return true; // 新建模式只要有有效位置就可以保存
+    return hasChanges.value; // 编辑模式需要有变化
+  }
+
+  // 获取变化摘要（用于显示给用户）
+  List<String> getChangedFields() {
+    final List<String> changes = [];
+
+    if (!isEditingMode.value) return ['New Location'];
+
+    if (unitNoController.text.trim() != _originalUnitNo) {
+      changes.add('Unit Number');
+    }
+    if (areaController.text.trim() != _originalArea) {
+      changes.add('Area');
+    }
+    if (postcodeController.text.trim() != _originalPostcode) {
+      changes.add('Postcode');
+    }
+    if (cityController.text.trim() != _originalCity) {
+      changes.add('City');
+    }
+    if (stateController.text.trim() != _originalState) {
+      changes.add('State');
+    }
+    if (currentMarkerPosition.value != _originalMarkerPosition) {
+      changes.add('Location Marker');
+    }
+
+    return changes;
+  }
+  // ==================== 变化检测核心方法结束 ====================
 
   // 地图创建回调方法
   void onMapCreated(GoogleMapController controller) {
@@ -397,6 +466,7 @@ class LocationInputController extends GetxController {
         print('   📍 New Coordinates: (${newPosition.latitude}, ${newPosition.longitude})');
         print('   📍 New Place ID: ${newPlaceInfo['placeId']}');
         print('   📍 New Address: ${newPlaceInfo['formattedAddress']}');
+        print('   🔄 Has Changes: ${hasChanges.value}');
       } else {
         errorMessage.value = 'Unable to get address information for new location';
         currentMarkerPosition.value = originalMarkerPosition.value;
@@ -417,6 +487,8 @@ class LocationInputController extends GetxController {
       if (isEditingMode.value) {
         hasChanges.value = true;
       }
+      print('🔄 Marker reset to original position');
+      print('   🔄 Has Changes: ${hasChanges.value}');
     }
   }
 

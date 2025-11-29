@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
-import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
+import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
 
 import '../../../utils/helpers/activity_image.dart';
 

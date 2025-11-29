@@ -285,7 +285,13 @@ class _EventDataTableState extends State<EventDataTable> {
               event.daysUntilDeadlineText,
               style: TextStyle(
                 fontSize: 11,
-                color: widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+                color: event.daysUntilDeadlineText == 'Closed'
+                    ? (widget.dark
+                    ? FColors.adminDarkError
+                    : FColors.adminLightError)
+                    : (widget.dark
+                    ? FColors.adminDarkTextMuted
+                    : FColors.adminLightTextMuted),
               ),
             ),
           ],

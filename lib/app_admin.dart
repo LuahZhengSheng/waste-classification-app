@@ -14,6 +14,7 @@ class AdminApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       theme: FAppTheme.adminLightTheme,
       darkTheme: FAppTheme.adminDarkTheme,
+      debugShowCheckedModeBanner: false,
       initialBinding: GeneralBindings(),
       /// Show Loader or Circular Progress Indicator meanwhile Authentication Repository is deciding to show relevant screen
       home: const Scaffold(backgroundColor: FColors.primary, body: Center(child: CircularProgressIndicator(color: Colors.white))),

@@ -90,24 +90,28 @@ class EventRepository extends GetxController {
   }
 
   /// Get event poster URL from Firebase Storage
-  Future<String?> getEventPosterUrl(String posterFileName) async {
+  Future<String?> getEventPosterUrl(String fileName) async {
     try {
-      if (posterFileName.isEmpty) {
-        return null;
+      print('📁 Getting event poster URL for: $fileName');
+
+      if (fileName.isEmpty) return null;
+
+      String storagePath = fileName;
+      if (!storagePath.startsWith('$_eventPosterPath/')) {
+        storagePath = '$_eventPosterPath/$storagePath';
       }
 
-      final path = '$_eventPosterPath/$posterFileName';
-      final ref = _storage.ref().child(path);
-      final downloadUrl = await ref.getDownloadURL();
-      return downloadUrl;
+      final ref = _storage.ref().child(storagePath);
+      final url = await ref.getDownloadURL();
+
+      print('✅ Event poster URL generated: $url');
+      return url;
     } on FirebaseException catch (e) {
-      if (e.code == 'object-not-found') {
-        print('Event poster not found: $posterFileName');
-        return null;
-      }
-      throw 'Failed to get event poster URL: ${e.message ?? e.code}';
+      print('📁 ❌ FirebaseException for event poster: ${e.code} - ${e.message}');
+      return null;
     } catch (e) {
-      throw 'Failed to get event poster URL: $e';
+      print('📁 ❌ Error getting event poster URL: $e');
+      return null;
     }
   }
 
@@ -124,7 +128,8 @@ class EventRepository extends GetxController {
             return await _buildEventWithLocation(doc);
           }),
         );
-        return events;
+        // 转换 poster 为下载 URL
+        return await _convertPostersToDownloadUrls(events);
       });
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
@@ -132,6 +137,7 @@ class EventRepository extends GetxController {
       throw 'Something went wrong. Please try again';
     }
   }
+
 
   /// Build Event object with contained Location objects
   Future<Event> _buildEventWithLocation(
@@ -184,7 +190,8 @@ class EventRepository extends GetxController {
           .doc(eventId)
           .snapshots()
           .asyncMap((snapshot) async {
-        return await _buildEventWithLocation(snapshot);
+        final event = await _buildEventWithLocation(snapshot);
+        return await _convertPosterToDownloadUrl(event);
       });
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
@@ -197,7 +204,8 @@ class EventRepository extends GetxController {
   Future<Event> getEventByIdFuture(String eventId) async {
     try {
       final doc = await _db.collection('events').doc(eventId).get();
-      return await _buildEventWithLocation(doc);
+      final event = await _buildEventWithLocation(doc);
+      return await _convertPosterToDownloadUrl(event);
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
     } catch (e) {
@@ -255,29 +263,37 @@ class EventRepository extends GetxController {
           }),
         );
 
+        List<Event> filtered;
         switch (status) {
           case 'Open':
-            return events.where((event) {
+            filtered = events.where((event) {
               return event.isRegistrationOpen &&
                   !event.isFullyBooked &&
                   !event.hasEnded;
             }).toList();
+            break;
 
           case 'Full':
-            return events.where((event) {
+            filtered = events.where((event) {
               return event.isFullyBooked &&
                   !event.isRegistrationClosed &&
                   !event.hasEnded;
             }).toList();
+            break;
 
           case 'Closed':
-            return events.where((event) {
+            filtered = events.where((event) {
               return event.isRegistrationClosed && !event.hasEnded;
             }).toList();
+            break;
 
           default:
-            return events.where((event) => !event.hasEnded).toList();
+            filtered = events.where((event) => !event.hasEnded).toList();
+            break;
         }
+
+        // 在返回前批量转换 poster
+        return await _convertPostersToDownloadUrls(filtered);
       });
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
@@ -304,7 +320,8 @@ class EventRepository extends GetxController {
             return await _buildEventWithLocation(doc);
           }),
         );
-        return events.where((event) => !event.hasEnded).toList();
+        final upcoming = events.where((event) => !event.hasEnded).toList();
+        return await _convertPostersToDownloadUrls(upcoming);
       });
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
@@ -345,4 +362,41 @@ class EventRepository extends GetxController {
       return Location.empty();
     }
   }
+
+  /// 将单个 Event 的 poster 文件名转换为下载 URL
+  Future<Event> _convertPosterToDownloadUrl(Event event) async {
+    try {
+      // 已经是完整 URL 或为空时，直接返回
+      if (event.poster.isEmpty || event.poster.startsWith('http')) {
+        return event;
+      }
+
+      // 生成下载 URL
+      final downloadUrl = await getEventPosterUrl(event.poster);
+      if (downloadUrl == null || downloadUrl.isEmpty) {
+        return event;
+      }
+
+      return event.copyWith(poster: downloadUrl);
+    } catch (e) {
+      print('❌ Failed to convert poster to download URL for event ${event.eventId}: $e');
+      return event;
+    }
+  }
+
+  /// 批量转换 Event 列表的 poster 为下载 URL
+  Future<List<Event>> _convertPostersToDownloadUrls(List<Event> events) async {
+    final List<Event> result = [];
+    for (final event in events) {
+      try {
+        final updatedEvent = await _convertPosterToDownloadUrl(event);
+        result.add(updatedEvent);
+      } catch (e) {
+        print('❌ Failed to convert poster for event ${event.eventId}: $e');
+        result.add(event);
+      }
+    }
+    return result;
+  }
+
 }

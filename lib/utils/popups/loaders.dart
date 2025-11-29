@@ -189,21 +189,39 @@ class FLoaders {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () => Get.back(result: false),
-                    style: TextButton.styleFrom(
-                      foregroundColor: cancelColor,
+                  // Cancel Button
+                  SizedBox(
+                    height: 40, // 固定高度
+                    child: TextButton(
+                      onPressed: () => Get.back(result: false),
+                      style: TextButton.styleFrom(
+                        foregroundColor: cancelColor,
+                        padding: const EdgeInsets.symmetric(horizontal: 20), // 增加水平padding
+                        textStyle: const TextStyle(
+                          fontSize: 16, // 调整字体大小
+                          fontWeight: FontWeight.w600, // 中等字重
+                        ),
+                      ),
+                      child: Text(cancelText),
                     ),
-                    child: Text(cancelText),
                   ),
                   const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () => Get.back(result: true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: confirmColor,
-                      foregroundColor: FColors.white,
+                  // Confirm Button
+                  SizedBox(
+                    height: 40, // 固定高度
+                    child: ElevatedButton(
+                      onPressed: () => Get.back(result: true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: confirmColor,
+                        foregroundColor: FColors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24), // 增加水平padding
+                        textStyle: const TextStyle(
+                          fontSize: 16, // 调整字体大小
+                          fontWeight: FontWeight.w600, // 中等字重
+                        ),
+                      ),
+                      child: Text(confirmText),
                     ),
-                    child: Text(confirmText),
                   ),
                 ],
               ),

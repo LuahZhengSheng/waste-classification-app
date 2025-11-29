@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -7,6 +8,7 @@ import 'package:fyp/features/recycling_center/models/partner_recycling_center_mo
 import 'package:fyp/data/repositories/recycling_center/recycling_center_repository.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 
+import '../../../data/repositories/recycling_center/waste_category_repository.dart';
 import '../../../data/services/google_places/google_places_service.dart';
 import '../../../utils/constants/google_maps_config.dart';
 import '../../../config/google_places_config.dart';
@@ -20,6 +22,7 @@ class DropoffLocationsController extends GetxController {
   static DropoffLocationsController get instance => Get.find();
 
   final centerRepository = Get.put(RecyclingCenterRepository());
+  final wasteCategoryRepository = Get.put(WasteCategoryRepository());
   final googlePlacesService = GooglePlacesService();
 
   // Observables
@@ -38,26 +41,16 @@ class DropoffLocationsController extends GetxController {
   final RxList<String> selectedMaterials = <String>[].obs;
   final RxBool isSearchMode = false.obs;
   final Rx<OpeningHoursFilter> openingHoursFilter = OpeningHoursFilter.anyTime.obs;
+  final RxList<String> availableMaterials = <String>[].obs;
 
   // Map controller
   Completer<GoogleMapController> mapController = Completer();
-
-  // Available materials for filtering
-  final List<String> availableMaterials = [
-    'Plastic',
-    'Paper',
-    'Glass',
-    'Metal',
-    'Electronics',
-    'Cardboard',
-    'Aluminum',
-    'Batteries',
-  ];
 
   @override
   void onInit() {
     super.onInit();
     _initializeLocation();
+    _loadAvailableMaterials();
   }
 
   @override
@@ -68,6 +61,33 @@ class DropoffLocationsController extends GetxController {
       print('Error disposing map controller: $e');
     }
     super.onClose();
+  }
+
+  /// Load available materials from waste categories
+  Future<void> _loadAvailableMaterials() async {
+    try {
+      final categories = await wasteCategoryRepository.getAllWasteCategories();
+      final materials = categories
+          .where((cat) => cat.isRecyclable)
+          .map((cat) => cat.name)
+          .toSet()
+          .toList();
+      availableMaterials.value = materials;
+      print('✅ Loaded ${materials.length} available materials');
+    } catch (e) {
+      print('❌ Error loading materials: $e');
+      // Fallback to default materials
+      availableMaterials.value = [
+        'Plastic',
+        'Paper',
+        'Glass',
+        'Metal',
+        'Electronics',
+        'Cardboard',
+        'Aluminum',
+        'Batteries',
+      ];
+    }
   }
 
   /// Initialize user location and load nearby centers
@@ -83,7 +103,6 @@ class DropoffLocationsController extends GetxController {
           title: 'Location Permission Required',
           message: 'Please enable location to view nearby recycling centers.',
         );
-        // Use default location from GooglePlacesConfig
         currentLocation.value = LatLng(
           GooglePlacesConfig.defaultLocation['lat']!,
           GooglePlacesConfig.defaultLocation['lng']!,
@@ -97,9 +116,8 @@ class DropoffLocationsController extends GetxController {
         print('✅ Current location: ${currentLocation.value}');
       }
 
-      await _loadCentersNearLocation(currentLocation.value!);
+      await _searchAndFilterCenters();
 
-      // Update map camera position
       if (currentLocation.value != null && isMapReady.value) {
         try {
           final controller = await mapController.future;
@@ -126,60 +144,86 @@ class DropoffLocationsController extends GetxController {
     }
   }
 
-  /// Load centers near specified location (both partner and Google Places)
-  Future<void> _loadCentersNearLocation(LatLng location) async {
+  /// Main search and filter method
+  Future<void> _searchAndFilterCenters() async {
     try {
-      print('📥 Loading centers near location...');
+      print('🔍 Starting search and filter...');
       isLoading.value = true;
 
-      // Get partner centers from Firebase
-      final partnerCenters = await centerRepository.getCentersNearLocation(
-        latitude: location.latitude,
-        longitude: location.longitude,
-        radiusKm: currentRadius.value / 1000,
-      );
+      final targetLocation = isSearchMode.value ? searchedLocation.value : currentLocation.value;
+      if (targetLocation == null) {
+        print('❌ No target location available');
+        return;
+      }
 
-      print('✅ Found ${partnerCenters.length} partner centers');
-
-      // Get Google Places centers using validated radius
+      // Step 1: Get centers from Google Places API
+      print('📥 Fetching from Google Places API...');
       final googleCenters = await googlePlacesService.searchNearbyRecyclingCenters(
-        latitude: location.latitude,
-        longitude: location.longitude,
+        latitude: targetLocation.latitude,
+        longitude: targetLocation.longitude,
         radius: GooglePlacesConfig.validateRadius(currentRadius.value.toInt()),
         includeDetails: true,
       );
 
-      print('✅ Found ${googleCenters.length} Google Places centers');
+      print('✅ Found ${googleCenters.length} centers from Google Places');
 
-      // Convert Google Places to PartnerRecyclingCenter (non-partner)
-      final nonPartnerCenters = <PartnerRecyclingCenter>[];
-      for (final place in googleCenters) {
-        if (!_isMatchingPartner(place['place_id'], partnerCenters)) {
-          // Calculate actual driving distance
-          final drivingDistance = await googlePlacesService.calculateDrivingDistance(
-            originLat: location.latitude,
-            originLng: location.longitude,
-            destLat: place['geometry']['location']['lat'].toDouble(),
-            destLng: place['geometry']['location']['lng'].toDouble(),
-          );
+      // Step 2: Get partner centers from Firestore
+      print('📥 Fetching partner centers from Firestore...');
+      final partnerCenters = await centerRepository.getAllActiveCenters();
+      print('✅ Found ${partnerCenters.length} partner centers from Firestore');
 
-          // Only include if within radius (actual driving distance)
-          if (drivingDistance != null && drivingDistance <= currentRadius.value / 1000) {
-            final center = _convertToPartnerCenter(place, isPartner: false);
-            nonPartnerCenters.add(center);
-          }
+      // Step 3: Batch calculate distances
+      print('📏 Calculating driving distances...');
+      final allLocations = <Map<String, double>>[];
+      final locationToCenterMap = <String, dynamic>{};
+
+      // Collect all locations
+      for (final googlePlace in googleCenters) {
+        final geometry = googlePlace['geometry'] ?? {};
+        final location = geometry['location'] ?? {};
+        final lat = location['lat']?.toDouble() ?? 0.0;
+        final lng = location['lng']?.toDouble() ?? 0.0;
+        final key = '$lat,$lng';
+
+        allLocations.add({'lat': lat, 'lng': lng});
+        locationToCenterMap[key] = {'type': 'google', 'data': googlePlace};
+      }
+
+      for (final partner in partnerCenters) {
+        final lat = partner.centerLocation.geoPoint.latitude;
+        final lng = partner.centerLocation.geoPoint.longitude;
+        final key = '$lat,$lng';
+
+        if (!locationToCenterMap.containsKey(key)) {
+          allLocations.add({'lat': lat, 'lng': lng});
+          locationToCenterMap[key] = {'type': 'partner', 'data': partner};
         }
       }
 
-      print('✅ ${nonPartnerCenters.length} centers within actual driving distance');
+      // Batch calculate distances
+      final distances = await googlePlacesService.batchCalculateDistances(
+        originLat: targetLocation.latitude,
+        originLng: targetLocation.longitude,
+        destinations: allLocations,
+      );
 
-      // Combine both lists
-      allCenters.value = [...partnerCenters, ...nonPartnerCenters];
-      print('✅ Total centers loaded: ${allCenters.length}');
+      print('✅ Calculated ${distances.length} distances');
 
+      // Step 4: Merge results with distances
+      final mergedCenters = await _mergeCentersWithDistances(
+        googleCenters,
+        partnerCenters,
+        distances,
+        targetLocation,
+      );
+
+      print('✅ Merged to ${mergedCenters.length} total centers');
+
+      allCenters.value = mergedCenters;
       applyFilters();
+
     } catch (e) {
-      print('❌ Error loading centers: $e');
+      print('❌ Error in search and filter: $e');
       FLoaders.errorSnackBar(
         title: 'Error',
         message: 'Failed to load centers',
@@ -189,23 +233,158 @@ class DropoffLocationsController extends GetxController {
     }
   }
 
-  /// Check if Google Places center matches any partner center
-  bool _isMatchingPartner(String? placeId, List<PartnerRecyclingCenter> partners) {
-    if (placeId == null) return false;
-    return partners.any((p) => p.placeId == placeId);
+  /// Merge Google Places centers with Partner centers and distances
+  Future<List<PartnerRecyclingCenter>> _mergeCentersWithDistances(
+      List<Map<String, dynamic>> googleCenters,
+      List<PartnerRecyclingCenter> partnerCenters,
+      Map<String, double> distances,
+      LatLng targetLocation,
+      ) async {
+    final Map<String, PartnerRecyclingCenter> centerMap = {};
+    final Map<String, Map<String, dynamic>> googleDataByPlaceId = {};
+
+    // Build Google data lookup map
+    for (final googlePlace in googleCenters) {
+      final placeId = googlePlace['place_id'] as String?;
+      if (placeId != null) {
+        googleDataByPlaceId[placeId] = googlePlace;
+      }
+    }
+
+    // Process partner centers first
+    for (final partner in partnerCenters) {
+      final placeId = partner.centerLocation.address.placeId;
+
+      // Get distance for this partner center
+      final lat = partner.centerLocation.geoPoint.latitude;
+      final lng = partner.centerLocation.geoPoint.longitude;
+      final key = '$lat,$lng';
+      final distance = distances[key];
+
+      // Only include if within radius
+      if (distance != null && distance <= currentRadius.value / 1000) {
+        // Check if we have Google data for this partner center
+        Map<String, dynamic>? googleData;
+        if (placeId != null && googleDataByPlaceId.containsKey(placeId)) {
+          googleData = googleDataByPlaceId[placeId];
+        }
+
+        // Update partner with Google data (especially rating) if available
+        if (googleData != null) {
+          centerMap[placeId!] = partner.copyWith(
+            rating: googleData['rating']?.toDouble() ?? partner.rating,
+            userRatingsTotal: googleData['user_ratings_total'] ?? partner.userRatingsTotal,
+            openingHours: googleData['opening_hours'] ?? partner.openingHours,
+            drivingDistance: distance,
+          );
+        } else {
+          // No Google data, but still include the partner center
+          centerMap[placeId ?? partner.centerId] = partner.copyWith(
+            drivingDistance: distance,
+          );
+        }
+      }
+    }
+
+    // Process Google Places results (non-partner centers)
+    for (final googlePlace in googleCenters) {
+      final placeId = googlePlace['place_id'] as String?;
+      if (placeId == null) continue;
+
+      // Skip if already added as partner center
+      if (centerMap.containsKey(placeId)) continue;
+
+      final geometry = googlePlace['geometry'] ?? {};
+      final location = geometry['location'] ?? {};
+      final lat = location['lat']?.toDouble() ?? 0.0;
+      final lng = location['lng']?.toDouble() ?? 0.0;
+      final key = '$lat,$lng';
+      final distance = distances[key];
+
+      // Only include if within radius
+      if (distance != null && distance <= currentRadius.value / 1000) {
+        final center = _convertToNonPartnerCenter(googlePlace, distance);
+        centerMap[placeId] = center;
+      }
+    }
+
+    // For partner centers without placeId, check by location
+    for (final partner in partnerCenters) {
+      final placeId = partner.centerLocation.address.placeId;
+
+      // Skip if already processed
+      if (placeId != null && centerMap.containsKey(placeId)) continue;
+
+      // Check by location
+      final lat = partner.centerLocation.geoPoint.latitude;
+      final lng = partner.centerLocation.geoPoint.longitude;
+      final key = '$lat,$lng';
+      final distance = distances[key];
+
+      if (distance != null && distance <= currentRadius.value / 1000) {
+        final mapKey = placeId ?? partner.centerId;
+
+        // Try to find matching Google data by location
+        Map<String, dynamic>? matchingGoogleData;
+        for (final googlePlace in googleCenters) {
+          final googleGeometry = googlePlace['geometry'] ?? {};
+          final googleLocation = googleGeometry['location'] ?? {};
+          final googleLat = googleLocation['lat']?.toDouble() ?? 0.0;
+          final googleLng = googleLocation['lng']?.toDouble() ?? 0.0;
+
+          // Check if coordinates match (within 100m)
+          final distanceBetween = _calculateStraightDistance(lat, lng, googleLat, googleLng);
+          if (distanceBetween < 0.1) { // Less than 100m
+            matchingGoogleData = googlePlace;
+            break;
+          }
+        }
+
+        if (matchingGoogleData != null) {
+          centerMap[mapKey] = partner.copyWith(
+            rating: matchingGoogleData['rating']?.toDouble() ?? partner.rating,
+            userRatingsTotal: matchingGoogleData['user_ratings_total'] ?? partner.userRatingsTotal,
+            openingHours: matchingGoogleData['opening_hours'] ?? partner.openingHours,
+            drivingDistance: distance,
+          );
+        } else {
+          centerMap[mapKey] = partner.copyWith(
+            drivingDistance: distance,
+          );
+        }
+      }
+    }
+
+    return centerMap.values.toList();
   }
 
-  /// Convert Google Places data to PartnerRecyclingCenter model
-  PartnerRecyclingCenter _convertToPartnerCenter(Map<String, dynamic> place, {required bool isPartner}) {
+  /// Calculate straight-line distance in km (for matching nearby locations)
+  double _calculateStraightDistance(double lat1, double lng1, double lat2, double lng2) {
+    const double earthRadius = 6371; // km
+    final dLat = _degreesToRadians(lat2 - lat1);
+    final dLng = _degreesToRadians(lng2 - lng1);
+
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degreesToRadians(lat1)) * cos(_degreesToRadians(lat2)) *
+            sin(dLng / 2) * sin(dLng / 2);
+
+    final c = 2 * asin(sqrt(a));
+    return earthRadius * c;
+  }
+
+  double _degreesToRadians(double degrees) {
+    return degrees * (pi / 180);
+  }
+
+  /// Convert Google Places data to non-partner center
+  PartnerRecyclingCenter _convertToNonPartnerCenter(Map<String, dynamic> place, double distance) {
     final geometry = place['geometry'] ?? {};
     final location = geometry['location'] ?? {};
 
-    // Get first photo if available using GooglePlacesConfig
     String imageUrl = '';
     final photos = place['photos'] as List<dynamic>?;
     if (photos != null && photos.isNotEmpty) {
-      final firstPhoto = photos.first;
-      final photoReference = firstPhoto['photo_reference'] as String?;
+      final photoReference = photos.first['photo_reference'] as String?;
       if (photoReference != null) {
         imageUrl = GooglePlacesConfig.buildPhotoUrl(
           photoReference,
@@ -213,10 +392,6 @@ class DropoffLocationsController extends GetxController {
         );
       }
     }
-
-    final List<String> acceptedMaterials = place['recycling_items'] != null
-        ? List<String>.from(place['recycling_items'])
-        : [];
 
     return PartnerRecyclingCenter(
       centerId: place['place_id'] ?? '',
@@ -232,6 +407,7 @@ class DropoffLocationsController extends GetxController {
           city: '',
           state: '',
           fullAddress: place['formatted_address'],
+          placeId: place['place_id'],
         ),
         geoPoint: GeoPointModel(
           latitude: location['lat']?.toDouble() ?? 0.0,
@@ -240,31 +416,17 @@ class DropoffLocationsController extends GetxController {
       ),
       image: imageUrl,
       openingHours: place['opening_hours'],
-      acceptedMaterials: acceptedMaterials,
+      acceptedMaterials: [],
       numberOfStaff: 0,
       createdAt: DateTime.now(),
-      status: isPartner ? 'active' : 'non-partner',
+      status: 'non-partner',
       rating: place['rating']?.toDouble(),
       userRatingsTotal: place['user_ratings_total'],
-      placeId: place['place_id'],
+      drivingDistance: distance,
     );
   }
 
-  /// Extract materials from Google Places types
-  List<String> _extractMaterialsFromTypes(List<dynamic>? types) {
-    if (types == null) return ['Plastic', 'Paper', 'Glass', 'Metal'];
-
-    final materials = <String>[];
-    if (types.contains('recycling_center') || types.contains('waste_management')) {
-      materials.addAll(['Plastic', 'Paper', 'Glass', 'Metal', 'Cardboard']);
-    }
-    if (types.contains('electronics_store')) {
-      materials.add('Electronics');
-    }
-    return materials.isEmpty ? ['Plastic', 'Paper', 'Glass', 'Metal'] : materials;
-  }
-
-  /// Handle location permission requests
+  /// Handle location permission
   Future<bool> _handleLocationPermission() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -284,7 +446,7 @@ class DropoffLocationsController extends GetxController {
     }
   }
 
-  /// Apply all active filters to the centers list
+  /// Apply filters
   void applyFilters() {
     try {
       print('🎯 Applying filters...');
@@ -300,8 +462,8 @@ class DropoffLocationsController extends GetxController {
         filtered = filtered.where((c) => (c.rating ?? 0) >= minRating.value).toList();
       }
 
-      // Material filter
-      if (selectedMaterials.isNotEmpty) {
+      // Material filter (only for partner centers)
+      if (selectedMaterials.isNotEmpty && showPartnerOnly.value) {
         filtered = filtered.where((center) {
           return selectedMaterials.any((material) => center.acceptsMaterial(material));
         }).toList();
@@ -325,15 +487,12 @@ class DropoffLocationsController extends GetxController {
   /// Check if center is open 24 hours
   bool _isOpen24Hours(PartnerRecyclingCenter center) {
     if (center.openingHours == null) return false;
-
     final periods = center.openingHours!['periods'] as List<dynamic>?;
     if (periods == null || periods.isEmpty) return false;
-
-    // Check if there's only one period with open time '0000'
     return periods.length == 1 && periods[0]['open']?['time'] == '0000';
   }
 
-  /// Update map markers based on filtered centers
+  /// Update map markers
   void updateMarkers() {
     try {
       print('📍 Updating markers...');
@@ -342,20 +501,8 @@ class DropoffLocationsController extends GetxController {
       for (var center in filteredCenters) {
         final bool isPartner = center.status == 'active';
         final BitmapDescriptor markerIcon = isPartner
-            ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan)
-            : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-
-        String distanceText = 'Unknown distance';
-        final targetLocation = isSearchMode.value ? searchedLocation.value : currentLocation.value;
-        if (targetLocation != null) {
-          final distance = calculateDistance(
-            targetLocation.latitude,
-            targetLocation.longitude,
-            center.centerLocation.geoPoint.latitude,
-            center.centerLocation.geoPoint.longitude,
-          );
-          distanceText = formatDistance(distance);
-        }
+            ? BitmapDescriptor.defaultMarkerWithHue(GoogleMapsConfig.partnerPinHue)
+            : BitmapDescriptor.defaultMarkerWithHue(GoogleMapsConfig.otherPinHue);
 
         newMarkers.add(
           Marker(
@@ -368,7 +515,7 @@ class DropoffLocationsController extends GetxController {
             onTap: () => selectCenter(center),
             infoWindow: InfoWindow(
               title: center.name,
-              snippet: '${isPartner ? '🤝 Partner' : '📍 Center'} • $distanceText${center.rating != null ? ' • ⭐${center.rating}' : ''}',
+              snippet: '${isPartner ? '🤝 Partner' : '📍 Center'} • ${center.formattedDistance}${center.rating != null ? ' • ⭐${center.rating}' : ''}',
             ),
           ),
         );
@@ -381,12 +528,12 @@ class DropoffLocationsController extends GetxController {
     }
   }
 
-  /// Calculate distance between two coordinates in kilometers
+  /// Calculate distance
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
   }
 
-  /// Format distance for display (meters or kilometers)
+  /// Format distance
   String formatDistance(double distanceKm) {
     if (distanceKm < 1) {
       return '${(distanceKm * 1000).toStringAsFixed(0)} m';
@@ -394,17 +541,17 @@ class DropoffLocationsController extends GetxController {
     return '${distanceKm.toStringAsFixed(1)} km';
   }
 
-  /// Select a center for detailed view
+  /// Select center
   void selectCenter(PartnerRecyclingCenter center) {
     selectedCenter.value = center;
   }
 
-  /// Deselect currently selected center
+  /// Deselect center
   void deselectCenter() {
     selectedCenter.value = null;
   }
 
-  /// Open Google Maps navigation to selected center
+  /// Open navigation
   Future<void> openGoogleMapsNavigation(PartnerRecyclingCenter center) async {
     try {
       await FLoaders.showMapNavigationDialog(
@@ -425,7 +572,7 @@ class DropoffLocationsController extends GetxController {
     }
   }
 
-  /// Search for locations or recycling centers based on query
+  /// Search location
   Future<void> searchLocation(String query) async {
     if (query.trim().isEmpty) {
       returnToCurrentLocation();
@@ -436,101 +583,26 @@ class DropoffLocationsController extends GetxController {
       isLoading.value = true;
       searchQuery.value = query;
 
-      // Use GooglePlacesConfig to determine query type
-      final isLocation = GooglePlacesConfig.isLocationQuery(query);
+      // Use API to determine place type
+      print('🔍 Analyzing place query: $query');
+      final placeInfo = await googlePlacesService.analyzePlaceQuery(query);
 
-      if (isLocation) {
-        // Search for location and show nearby centers
-        final predictions = await googlePlacesService.searchPlaces(query);
-
-        if (predictions.isEmpty) {
-          FLoaders.warningSnackBar(
-            title: 'No Results',
-            message: 'No locations found for "$query"',
-          );
-          return;
-        }
-
-        final placeDetails = await googlePlacesService.getPlaceDetails(predictions.first['place_id']);
-        final geometry = placeDetails['geometry'] ?? {};
-        final location = geometry['location'] ?? {};
-
-        final searchedLat = location['lat']?.toDouble() ?? 0.0;
-        final searchedLng = location['lng']?.toDouble() ?? 0.0;
-
-        searchedLocation.value = LatLng(searchedLat, searchedLng);
-        isSearchMode.value = true;
-
-        await _loadCentersNearLocation(searchedLocation.value!);
-
-        final controller = await mapController.future;
-        await controller.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: searchedLocation.value!,
-              zoom: GoogleMapsConfig.defaultZoom,
-            ),
-          ),
+      if (placeInfo == null) {
+        FLoaders.warningSnackBar(
+          title: 'No Results',
+          message: 'No locations found for "$query"',
         );
+        return;
+      }
 
-        FLoaders.successSnackBar(
-          title: 'Location Found',
-          message: 'Showing centers near ${predictions.first['description']}',
-        );
+      print('✅ Place type: ${placeInfo.type}');
+
+      if (placeInfo.type == PlaceType.specificLocation) {
+        // Specific location - show only this center
+        await _handleSpecificLocationSearch(placeInfo);
       } else {
-        // Search for specific recycling center
-        if (currentLocation.value == null) {
-          FLoaders.errorSnackBar(
-            title: 'Error',
-            message: 'Location not available',
-          );
-          return;
-        }
-
-        final centers = await googlePlacesService.searchRecyclingCenterByName(
-          name: query,
-          latitude: currentLocation.value!.latitude,
-          longitude: currentLocation.value!.longitude,
-          radius: GooglePlacesConfig.defaultRadiusMeters,
-        );
-
-        if (centers.isEmpty) {
-          FLoaders.warningSnackBar(
-            title: 'No Results',
-            message: 'No recycling centers found for "$query"',
-          );
-          return;
-        }
-
-        // Convert to PartnerRecyclingCenter and filter
-        allCenters.value = centers.map((place) {
-          return _convertToPartnerCenter(place, isPartner: false);
-        }).toList();
-
-        isSearchMode.value = true;
-        applyFilters();
-
-        // Focus on first result
-        if (filteredCenters.isNotEmpty) {
-          final firstCenter = filteredCenters.first;
-          final controller = await mapController.future;
-          await controller.animateCamera(
-            CameraUpdate.newCameraPosition(
-              CameraPosition(
-                target: LatLng(
-                  firstCenter.centerLocation.geoPoint.latitude,
-                  firstCenter.centerLocation.geoPoint.longitude,
-                ),
-                zoom: GoogleMapsConfig.defaultZoom + 1,
-              ),
-            ),
-          );
-
-          FLoaders.successSnackBar(
-            title: 'Center Found',
-            message: 'Found ${filteredCenters.length} result(s) for "$query"',
-          );
-        }
+        // Region - show nearby centers
+        await _handleRegionSearch(placeInfo);
       }
     } catch (e) {
       print('❌ Error searching location: $e');
@@ -543,7 +615,167 @@ class DropoffLocationsController extends GetxController {
     }
   }
 
-  /// Return to current location view
+  /// Handle specific location search
+  Future<void> _handleSpecificLocationSearch(PlaceInfo placeInfo) async {
+    print('📍 Handling specific location search');
+
+    searchedLocation.value = LatLng(placeInfo.latitude, placeInfo.longitude);
+    isSearchMode.value = true;
+
+    // Get place details
+    final details = await googlePlacesService.getPlaceDetails(placeInfo.placeId);
+
+    // IMPORTANT: Verify it's a recycling center
+    // final types = List<String>.from(details['types'] ?? []);
+    // if (!googlePlacesService.isRecyclingCenter(types)) {
+    //   FLoaders.errorSnackBar(
+    //     title: 'Not a Recycling Center',
+    //     message: 'The location you searched is not a recycling center.',
+    //   );
+    //   isLoading.value = false;
+    //   return;
+    // }
+
+    // Calculate driving distance
+    final distance = await googlePlacesService.calculateDrivingDistance(
+      originLat: currentLocation.value!.latitude,
+      originLng: currentLocation.value!.longitude,
+      destLat: placeInfo.latitude,
+      destLng: placeInfo.longitude,
+    );
+
+    if (distance == null) {
+      FLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Could not calculate distance to this location.',
+      );
+      isLoading.value = false;
+      return;
+    }
+
+    // Check if within search radius
+    if (distance > currentRadius.value / 1000) {
+      FLoaders.warningSnackBar(
+        title: 'Outside Range',
+        message: 'This center is ${distance.toStringAsFixed(1)} km away, which exceeds your search radius of ${(currentRadius.value / 1000).toStringAsFixed(1)} km.',
+      );
+    }
+
+    // Check if it's a partner center
+    final partnerCenters = await centerRepository.getAllActiveCenters();
+    final matchingPartner = partnerCenters.firstWhereOrNull(
+            (p) => p.centerLocation.address.placeId == placeInfo.placeId
+    );
+
+    PartnerRecyclingCenter center;
+    if (matchingPartner != null) {
+      // Use partner center with Google data
+      center = matchingPartner.copyWith(
+        rating: details['rating']?.toDouble(),
+        userRatingsTotal: details['user_ratings_total'],
+        openingHours: details['opening_hours'],
+        drivingDistance: distance,
+      );
+    } else {
+      // Create non-partner center with full details
+      final geometry = details['geometry'] ?? {};
+      final location = geometry['location'] ?? {};
+
+      String imageUrl = '';
+      final photos = details['photos'] as List<dynamic>?;
+      if (photos != null && photos.isNotEmpty) {
+        final photoReference = photos.first['photo_reference'] as String?;
+        if (photoReference != null) {
+          imageUrl = GooglePlacesConfig.buildPhotoUrl(
+            photoReference,
+            maxWidth: GooglePlacesConfig.highResPhotoMaxWidth,
+          );
+        }
+      }
+
+      center = PartnerRecyclingCenter(
+        centerId: placeInfo.placeId,
+        name: details['name'] ?? placeInfo.name,
+        email: '',
+        phoneNo: details['formatted_phone_number'] ?? '',
+        website: details['website'] ?? '',
+        centerLocation: Location(
+          address: Address(
+            unitNo: '',
+            area: '',
+            postcode: '',
+            city: '',
+            state: '',
+            fullAddress: details['formatted_address'],
+            placeId: placeInfo.placeId,
+          ),
+          geoPoint: GeoPointModel(
+            latitude: location['lat']?.toDouble() ?? placeInfo.latitude,
+            longitude: location['lng']?.toDouble() ?? placeInfo.longitude,
+          ),
+        ),
+        image: imageUrl,
+        openingHours: details['opening_hours'],
+        acceptedMaterials: [],
+        numberOfStaff: 0,
+        createdAt: DateTime.now(),
+        status: 'non-partner',
+        rating: details['rating']?.toDouble(),
+        userRatingsTotal: details['user_ratings_total'],
+        drivingDistance: distance,
+      );
+    }
+
+    // Show only this center
+    allCenters.value = [center];
+    applyFilters();
+
+    // Move camera and auto-select
+    final controller = await mapController.future;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: searchedLocation.value!,
+          zoom: GoogleMapsConfig.defaultZoom + 2,
+        ),
+      ),
+    );
+
+    // Auto-select center
+    selectCenter(center);
+
+    FLoaders.successSnackBar(
+      title: 'Location Found',
+      message: 'Showing: ${center.name} (${center.formattedDistance})',
+    );
+  }
+
+  /// Handle region search
+  Future<void> _handleRegionSearch(PlaceInfo placeInfo) async {
+    print('📍 Handling region search');
+
+    searchedLocation.value = LatLng(placeInfo.latitude, placeInfo.longitude);
+    isSearchMode.value = true;
+
+    await _searchAndFilterCenters();
+
+    final controller = await mapController.future;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: searchedLocation.value!,
+          zoom: GoogleMapsConfig.defaultZoom,
+        ),
+      ),
+    );
+
+    FLoaders.successSnackBar(
+      title: 'Location Found',
+      message: 'Showing centers near ${placeInfo.name}',
+    );
+  }
+
+  /// Return to current location
   Future<void> returnToCurrentLocation() async {
     try {
       if (currentLocation.value == null) return;
@@ -552,7 +784,7 @@ class DropoffLocationsController extends GetxController {
       searchedLocation.value = null;
       searchQuery.value = '';
 
-      await _loadCentersNearLocation(currentLocation.value!);
+      await _searchAndFilterCenters();
 
       final controller = await mapController.future;
       await controller.animateCamera(
@@ -573,33 +805,28 @@ class DropoffLocationsController extends GetxController {
     }
   }
 
-  /// Update search query text
-  void updateSearchQuery(String query) {
-    searchQuery.value = query;
-  }
-
-  /// Toggle partner-only filter
+  /// Toggle partner filter
   void togglePartnerFilter() {
     showPartnerOnly.value = !showPartnerOnly.value;
+    if (!showPartnerOnly.value) {
+      selectedMaterials.clear();
+    }
     applyFilters();
   }
 
-  /// Update search radius and reload centers
+  /// Update radius
   Future<void> updateRadius(double radiusKm) async {
     currentRadius.value = radiusKm * 1000;
-    final targetLocation = isSearchMode.value ? searchedLocation.value : currentLocation.value;
-    if (targetLocation != null) {
-      await _loadCentersNearLocation(targetLocation);
-    }
+    await _searchAndFilterCenters();
   }
 
-  /// Update minimum rating filter
+  /// Update rating
   void updateMinRating(double rating) {
     minRating.value = rating;
     applyFilters();
   }
 
-  /// Toggle material filter for recycling centers
+  /// Toggle material
   void toggleMaterialFilter(String material) {
     if (selectedMaterials.contains(material)) {
       selectedMaterials.remove(material);
@@ -615,7 +842,7 @@ class DropoffLocationsController extends GetxController {
     applyFilters();
   }
 
-  /// Clear all active filters
+  /// Clear filters
   void clearFilters() {
     searchQuery.value = '';
     showPartnerOnly.value = false;
@@ -626,19 +853,16 @@ class DropoffLocationsController extends GetxController {
     applyFilters();
   }
 
-  /// Get formatted text showing center counts
+  /// Get place count text
   String get placeCountText {
     final count = filteredCenters.length;
     final partnerCount = filteredCenters.where((c) => c.status == 'active').length;
     return '$count centers ($partnerCount partners)';
   }
 
-  /// Refresh centers data
+  /// Refresh data
   Future<void> refreshData() async {
-    final targetLocation = isSearchMode.value ? searchedLocation.value : currentLocation.value;
-    if (targetLocation != null) {
-      await _loadCentersNearLocation(targetLocation);
-    }
+    await _searchAndFilterCenters();
     FLoaders.successSnackBar(
       title: 'Refreshed',
       message: 'Centers updated successfully',

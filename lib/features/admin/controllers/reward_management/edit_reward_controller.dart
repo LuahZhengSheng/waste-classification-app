@@ -3,14 +3,14 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fyp/data/repositories/reward_redemption/reward_repository.dart';
 import 'package:fyp/features/reward_redemption/models/reward_model.dart';
-import 'package:fyp/utils/popups/admin_loaders.dart';
 import 'package:fyp/utils/validators/validation.dart';
 
-import '../../../../utils/constants/colors.dart';
+import '../../../../utils/helpers/image_compressor.dart';
+import '../../../../utils/popups/admin_loaders.dart';
 
 class EditRewardController extends GetxController {
   static EditRewardController get instance => Get.find();
@@ -38,9 +38,13 @@ class EditRewardController extends GetxController {
   final RxnString existingImageName = RxnString();
   final RxnString newImageName = RxnString();
   final Rx<DateTime?> selectedValidUntilDate = Rx<DateTime?>(null);
+  final RxBool imageChanged = false.obs;
 
   // Original reward data
   final Rxn<RewardModel> originalReward = Rxn<RewardModel>();
+
+  // 原始文件名（Firestore 里的值）
+  String? _originalImageFileName;
 
   // Image compression settings
   static const int imageQuality = 85;
@@ -73,7 +77,8 @@ class EditRewardController extends GetxController {
   void _checkForChanges() {
     if (originalReward.value == null) return;
 
-    final titleChanged = titleController.text != originalReward.value!.title;
+    final titleChanged =
+        titleController.text != originalReward.value!.title;
     final descChanged =
         descriptionController.text != originalReward.value!.description;
     final termsChanged =
@@ -84,10 +89,15 @@ class EditRewardController extends GetxController {
         quantityController.text != originalReward.value!.quantity.toString();
     final dateChanged = selectedValidUntilDate.value != null &&
         selectedValidUntilDate.value != originalReward.value!.validUntil;
-    // final statusChanged =
-    //     isActive.value != (originalReward.value!.status == 'active');
-    final imageChanged = selectedImageBytes.value != null ||
-        (existingImageName.value != originalReward.value!.rewardImage);
+
+    // 与原始文件名比较，而不是与 URL 比较
+    final imageChangedFlag = selectedImageBytes.value != null ||
+        (existingImageName.value != null &&
+            existingImageName.value!.isNotEmpty &&
+            _originalImageFileName != null &&
+            existingImageName.value != _originalImageFileName);
+
+    print('change: $existingImageName');
 
     hasChanges.value = titleChanged ||
         descChanged ||
@@ -95,12 +105,12 @@ class EditRewardController extends GetxController {
         pointsChanged ||
         qtyChanged ||
         dateChanged ||
-        // statusChanged ||
-        imageChanged;
+        imageChangedFlag;
   }
 
   String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} '
+        '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> loadRewardData(String rewardId) async {
@@ -125,34 +135,52 @@ class EditRewardController extends GetxController {
       quantityController.text = reward.quantity.toString();
       selectedValidUntilDate.value = reward.validUntil;
       validUntilController.text = _formatDateTime(reward.validUntil);
-      // isActive.value = reward.status == 'active';
+      isActive.value = reward.status == 'active';
 
-      // Set existing image
+      // 原始文件名 & existingImage
+      _originalImageFileName = null;
+      existingImageName.value = null;
+
       if (reward.rewardImage.isNotEmpty) {
         String imageName = reward.rewardImage;
-        if (reward.rewardImage.startsWith('http')) {
+        print('imageName0: $imageName');
+
+        if (imageName.startsWith('http')) {
+          // 解析 URL -> 提取最后一个带扩展名的 segment
           try {
-            final uri = Uri.parse(reward.rewardImage);
-            final pathSegments = uri.pathSegments;
-            for (final segment in pathSegments) {
-              if (segment.contains('.webp') ||
-                  segment.contains('.jpg') ||
-                  segment.contains('.png')) {
-                imageName = segment;
-                break;
-              }
-            }
-            if (imageName == reward.rewardImage && pathSegments.isNotEmpty) {
-              imageName = pathSegments.last;
-            }
+            final uri = Uri.parse(imageName);
+            final segments = uri.pathSegments;
+
+            // 找第一个包含图片扩展名的 segment
+            final candidate = segments.firstWhere(
+                  (s) =>
+              s.contains('.webp') ||
+                  s.contains('.jpg') ||
+                  s.contains('.png') ||
+                  s.contains('.jpeg'),
+              orElse: () => segments.isNotEmpty ? segments.last : imageName,
+            );
+
+            imageName = candidate;
+            print('imageName1: $imageName');
           } catch (e) {
             print('Error parsing URL: $e');
           }
         }
+
+        // 不管是 URL 解析后，还是本来就是 "rewards/xxx.webp" 这种路径，这里统一再截一次
+        if (imageName.contains('/')) {
+          print('imageName-before-split: $imageName');
+          imageName = imageName.split('/').last;
+          print('imageName-after-split: $imageName');
+        }
+
+        _originalImageFileName = imageName;
         existingImageName.value = imageName;
       }
 
       hasChanges.value = false;
+      imageChanged.value = false;
       isLoading.value = false;
     } catch (e) {
       isLoading.value = false;
@@ -188,11 +216,11 @@ class EditRewardController extends GetxController {
         selectedValidUntilDate.value != originalReward.value!.validUntil) {
       changes.add('Valid Until');
     }
-    // if (isActive.value != (originalReward.value!.status == 'active')) {
-    //   changes.add('Status');
-    // }
     if (selectedImageBytes.value != null ||
-        (existingImageName.value != originalReward.value!.rewardImage)) {
+        (existingImageName.value != null &&
+            existingImageName.value!.isNotEmpty &&
+            _originalImageFileName != null &&
+            existingImageName.value != _originalImageFileName)) {
       changes.add('Reward Image');
     }
 
@@ -280,7 +308,8 @@ class EditRewardController extends GetxController {
     final selectedDate = selectedValidUntilDate.value!;
     final now = DateTime.now();
     final tomorrow = now.add(const Duration(days: 1));
-    final tomorrowMidnight = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+    final tomorrowMidnight =
+    DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
 
     if (selectedDate.isBefore(tomorrowMidnight)) {
       return 'Valid until must be at least 1 day from now';
@@ -289,30 +318,36 @@ class EditRewardController extends GetxController {
     return null;
   }
 
+  // 验证图片
+  String? validateImage() {
+    if ((existingImageName.value == null ||
+        existingImageName.value!.isEmpty) &&
+        selectedImageBytes.value == null) {
+      return 'Reward image is required';
+    }
+    return null;
+  }
+
   // Date selection with time picker
   Future<void> selectValidUntilDate() async {
     final now = DateTime.now();
     final tomorrow = now.add(const Duration(days: 1));
 
-    // 确保 initialDate 不小于 firstDate
     DateTime? initialDate = selectedValidUntilDate.value;
-    DateTime firstDate = tomorrow; // 最早可选日期是明天
+    DateTime firstDate = tomorrow;
 
-    // 如果 initialDate 早于 firstDate，使用 firstDate
     if (initialDate == null || initialDate.isBefore(firstDate)) {
       initialDate = firstDate;
     }
 
-    // Pick date
     final DateTime? pickedDate = await showDatePicker(
       context: Get.context!,
       initialDate: initialDate,
-      firstDate: firstDate, // 最早只能选明天
+      firstDate: firstDate,
       lastDate: DateTime.now().add(const Duration(days: 730)),
     );
 
     if (pickedDate != null) {
-      // Pick time
       final TimeOfDay? pickedTime = await showTimePicker(
         context: Get.context!,
         initialTime: TimeOfDay(
@@ -370,6 +405,7 @@ class EditRewardController extends GetxController {
 
       selectedImageBytes.value = compressedBytes;
       newImageName.value = '${_uuid.v4()}.webp';
+      imageChanged.value = true;
       _checkForChanges();
 
       FAdminLoaders.successSnackBar(
@@ -388,34 +424,31 @@ class EditRewardController extends GetxController {
     try {
       isCompressing.value = true;
 
-      Uint8List imageBytes;
-      if (file.bytes != null) {
-        imageBytes = file.bytes!;
-      } else if (file.path != null) {
-        final originalFile = File(file.path!);
-        imageBytes = await originalFile.readAsBytes();
+      late File imageFile;
+      if (file.path != null && file.path!.isNotEmpty) {
+        imageFile = File(file.path!);
+      } else if (file.bytes != null) {
+        final tempDir = await getTemporaryDirectory();
+        final tempPath = '${tempDir.path}/${file.name}';
+        imageFile = await File(tempPath).writeAsBytes(file.bytes!);
       } else {
         throw 'No file data available';
       }
 
-      final result = await FlutterImageCompress.compressWithList(
-        imageBytes,
-        format: CompressFormat.webp,
-        quality: imageQuality,
-        minWidth: 800,
-        minHeight: 800,
-        autoCorrectionAngle: true,
-      );
+      final compressedFile =
+      await ImageCompressor.compressAndConvertToWebP(imageFile);
+
+      final compressedBytes = await compressedFile.readAsBytes();
 
       isCompressing.value = false;
-      return result;
+      return compressedBytes;
     } catch (e) {
       isCompressing.value = false;
       if (file.bytes != null) {
         return file.bytes!;
-      } else if (file.path != null) {
-        final originalFile = File(file.path!);
-        return await originalFile.readAsBytes();
+      } else if (file.path != null && file.path!.isNotEmpty) {
+        final fallbackFile = File(file.path!);
+        return await fallbackFile.readAsBytes();
       } else {
         throw 'No file data available';
       }
@@ -426,14 +459,14 @@ class EditRewardController extends GetxController {
     selectedImageBytes.value = null;
     newImageName.value = null;
     existingImageName.value = null;
+    imageChanged.value = true;
     _checkForChanges();
-  }
 
-  // Status toggle
-  // void toggleStatus() {
-  //   isActive.value = !isActive.value;
-  //   _checkForChanges();
-  // }
+    FAdminLoaders.successSnackBar(
+      title: 'Image Removed',
+      message: 'Reward image will be removed when you save changes',
+    );
+  }
 
   Future<String?> getImageUrl(String fileNameOrUrl) async {
     try {
@@ -472,8 +505,17 @@ class EditRewardController extends GetxController {
     }
   }
 
-  // Validation
+  // 验证表单
   bool _validateForm() {
+    final imageError = validateImage();
+    if (imageError != null) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Image Required',
+        message: imageError,
+      );
+      return false;
+    }
+
     if (!formKey.currentState!.validate()) {
       FAdminLoaders.errorSnackBar(
         title: 'Form Error',
@@ -497,169 +539,13 @@ class EditRewardController extends GetxController {
       return;
     }
 
-    // Show confirmation dialog
-    await Get.dialog(
-      _buildConfirmationDialog(),
-      barrierDismissible: false,
-    );
-  }
+    final changedFields = getChangedFields();
 
-  Widget _buildConfirmationDialog() {
-    return Dialog(
-        backgroundColor: Get.isDarkMode
-            ? FColors.adminDarkSurface
-            : FColors.adminLightSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: 450, // 设置最大宽度
-            minWidth: 350, // 设置最小宽度
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: (Get.isDarkMode
-                            ? FColors.adminDarkPrimary
-                            : FColors.adminLightPrimary)
-                        .withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.edit_outlined,
-                    size: 40,
-                    color: Get.isDarkMode
-                        ? FColors.adminDarkPrimary
-                        : FColors.adminLightPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Update Reward?',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Get.isDarkMode
-                        ? FColors.adminDarkText
-                        : FColors.adminLightText,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Are you sure you want to save these changes?',
-                  style: TextStyle(
-                    color: Get.isDarkMode
-                        ? FColors.adminDarkTextSecondary
-                        : FColors.adminLightTextSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Get.isDarkMode
-                        ? FColors.adminDarkSurfaceVariant
-                        : FColors.adminLightSurfaceVariant,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Changes detected:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Get.isDarkMode
-                              ? FColors.adminDarkText
-                              : FColors.adminLightText,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...getChangedFields().map((field) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 16,
-                                  color: Get.isDarkMode
-                                      ? FColors.adminDarkSuccess
-                                      : FColors.adminLightSuccess,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  field,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Get.isDarkMode
-                                        ? FColors.adminDarkTextSecondary
-                                        : FColors.adminLightTextSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Get.back(),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: Get.isDarkMode
-                                ? FColors.adminDarkBorder
-                                : FColors.adminLightBorder,
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(
-                            color: Get.isDarkMode
-                                ? FColors.adminDarkTextSecondary
-                                : FColors.adminLightTextSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Get.back();
-                          _performUpdate();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Get.isDarkMode
-                              ? FColors.adminDarkPrimary
-                              : FColors.adminLightPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text(
-                          'Update',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        )
+    FAdminLoaders.showRewardUpdateDialog(
+      changedFields: changedFields,
+      onConfirm: () {
+        _performUpdate();
+      },
     );
   }
 
@@ -667,26 +553,25 @@ class EditRewardController extends GetxController {
     try {
       isLoading.value = true;
 
-      // Handle image update
+      // 只用文件名，不加 rewards/
       String finalImageName = existingImageName.value ?? '';
+      print('finalImageName: $finalImageName');
 
       if (selectedImageBytes.value != null && newImageName.value != null) {
-        // Upload new image
         finalImageName = await _rewardRepo.uploadRewardImage(
           selectedImageBytes.value!,
           newImageName.value!,
         );
 
-        // Delete old image if exists
-        if (existingImageName.value != null &&
-            existingImageName.value!.isNotEmpty) {
-          await _rewardRepo.deleteRewardImage(existingImageName.value!);
+        if (_originalImageFileName != null &&
+            _originalImageFileName!.isNotEmpty) {
+          await _rewardRepo.deleteRewardImage(_originalImageFileName!);
         }
       } else if (selectedImageBytes.value == null &&
           existingImageName.value == null) {
-        // Remove image
-        if (finalImageName.isNotEmpty) {
-          await _rewardRepo.deleteRewardImage(finalImageName);
+        if (_originalImageFileName != null &&
+            _originalImageFileName!.isNotEmpty) {
+          await _rewardRepo.deleteRewardImage(_originalImageFileName!);
         }
         finalImageName = '';
       }
@@ -711,7 +596,7 @@ class EditRewardController extends GetxController {
         message: 'Reward updated successfully',
       );
 
-      Get.back(result: true);
+      Navigator.of(Get.context!).pop();
     } catch (e) {
       isLoading.value = false;
       FAdminLoaders.errorSnackBar(

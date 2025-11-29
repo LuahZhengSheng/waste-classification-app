@@ -23,8 +23,8 @@ class EnvConfig {
 
   static Future<void> _loadEnvFile() async {
     try {
-      // 从 assets 加载
-      await dotenv.load(fileName: "../../.env");
+      // 修复：使用正确的路径，从根目录加载
+      await dotenv.load(fileName: ".env");
       print('✅ .env file loaded');
 
       // 验证必需变量
@@ -38,11 +38,11 @@ class EnvConfig {
 
   static void _validateRequiredVariables() {
     final requiredVars = [
+      'GOOGLE_PLACES_API_KEY', // 把这个放在第一个检查
       'JWT_SECRET_KEY',
       'BASE_URL',
       'API_KEY',
       'API_SECRET',
-      'GOOGLE_PLACES_API_KEY',
       'SENDGRID_API_KEY',
       'FCM_SERVER_KEY',
       'FCM_PRIVATE_KEY',
@@ -82,20 +82,20 @@ class EnvConfig {
   static int _getDisplayLength(String key, int maxLength) {
     switch (key) {
       case 'FCM_PRIVATE_KEY':
-        return 20; // 私钥显示前20个字符
+        return 20;
       case 'JWT_SECRET_KEY':
       case 'API_SECRET':
       case 'SENDGRID_API_KEY':
       case 'FCM_SERVER_KEY':
-        return 8; // 敏感密钥显示前8个字符
+        return 8;
+      case 'GOOGLE_PLACES_API_KEY':
+        return 12; // 特别显示 Google Places API Key 的前12位
       default:
-        return min.clamp(0, maxLength);
+        return 4.clamp(0, maxLength);
     }
   }
 
-  static int get min => 4;
-
-  // Getter 方法 - 原有密钥
+  // Getter 方法
   static String get jwtSecretKey => _getKey('JWT_SECRET_KEY');
   static String get baseUrl => _getKey('BASE_URL');
   static String get apiKey => _getKey('API_KEY');
@@ -105,7 +105,7 @@ class EnvConfig {
   static String get fcmServerKey => _getKey('FCM_SERVER_KEY');
   static bool get debug => _getBool('DEBUG', true);
 
-  // Getter 方法 - 新增 FCM 服务账户密钥
+  // FCM 服务账户密钥
   static String get fcmPrivateKey => _getKey('FCM_PRIVATE_KEY');
   static String get fcmPrivateKeyId => _getKey('FCM_PRIVATE_KEY_ID');
   static String get fcmClientEmail => _getKey('FCM_CLIENT_EMAIL');
@@ -139,56 +139,6 @@ class EnvConfig {
     }
   }
 
-  // 新增：验证 FCM 配置的方法
-  static void validateFCMConfig() {
-    if (!_initialized) {
-      throw Exception('EnvConfig not initialized. Call initialize() first.');
-    }
-
-    try {
-      print('🔧 Validating FCM configuration...');
-
-      // 检查 FCM 服务器密钥格式
-      final serverKey = fcmServerKey;
-      if (!serverKey.startsWith('AAAA')) {
-        print('⚠️ FCM_SERVER_KEY may be invalid - should start with AAAA');
-      }
-
-      // 检查私钥格式
-      final privateKey = fcmPrivateKey;
-      if (!privateKey.contains('BEGIN PRIVATE KEY') || !privateKey.contains('END PRIVATE KEY')) {
-        print('⚠️ FCM_PRIVATE_KEY format may be invalid');
-      }
-
-      // 检查客户端邮箱格式
-      final clientEmail = fcmClientEmail;
-      if (!clientEmail.contains('@') || !clientEmail.endsWith('.gserviceaccount.com')) {
-        print('⚠️ FCM_CLIENT_EMAIL format may be invalid');
-      }
-
-      print('✅ FCM configuration validation completed');
-    } catch (e) {
-      print('❌ FCM configuration validation failed: $e');
-      rethrow;
-    }
-  }
-
-  // 新增：获取 FCM 服务账户 JSON（用于直接使用）
-  static Map<String, dynamic> get fcmServiceAccountJson {
-    return {
-      'type': 'service_account',
-      'project_id': fcmProjectId,
-      'private_key_id': fcmPrivateKeyId,
-      'private_key': fcmPrivateKey,
-      'client_email': fcmClientEmail,
-      'client_id': fcmClientId,
-      'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
-      'token_uri': 'https://oauth2.googleapis.com/token',
-    };
-  }
-}
-
-class AppConfig {
-  static String get appName => 'SaveEarth App';
-  static String get version => '1.0.0';
+  // 检查初始化状态
+  static bool get isInitialized => _initialized;
 }

@@ -7,6 +7,7 @@ import 'package:fyp/firebase_options.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
+import 'auth_state_listener.dart';
 import 'config/env_config.dart';
 import 'data/services/notification/fcm_service.dart';
 import 'data/services/qr_code/jwt_service.dart';
@@ -32,6 +33,12 @@ void mainApp() async {
 
   // 等待确保 JWTService 完全初始化
   await Future.delayed(Duration(milliseconds: 100));
+
+  // 启动认证状态监听
+  print('🚀 [Main] Initializing AuthStateListener...');
+  final authStateListener = AuthStateListener();
+  authStateListener.startListening();
+  print('✅ [Main] AuthStateListener initialized successfully');
 
   runApp(const App());
 }

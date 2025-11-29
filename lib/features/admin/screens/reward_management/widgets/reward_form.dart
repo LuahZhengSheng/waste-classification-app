@@ -1,6 +1,6 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:flutter/services.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 
@@ -86,6 +86,7 @@ class RewardTextField extends StatelessWidget {
   final bool readOnly;
   final VoidCallback? onTap;
   final Widget? suffixIcon;
+  final List<TextInputFormatter>? inputFormatters; // 新增
 
   const RewardTextField({
     super.key,
@@ -101,6 +102,7 @@ class RewardTextField extends StatelessWidget {
     this.readOnly = false,
     this.onTap,
     this.suffixIcon,
+    this.inputFormatters, // 新增
   });
 
   @override
@@ -134,6 +136,7 @@ class RewardTextField extends StatelessWidget {
           keyboardType: keyboardType,
           readOnly: readOnly,
           onTap: onTap,
+          inputFormatters: inputFormatters, // 新增
           style: TextStyle(
             color: dark ? FColors.adminDarkText : FColors.adminLightText,
           ),
@@ -145,7 +148,9 @@ class RewardTextField extends StatelessWidget {
             prefixIcon: prefixIcon != null
                 ? Icon(
               prefixIcon,
-              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+              color: dark
+                  ? FColors.adminDarkTextMuted
+                  : FColors.adminLightTextMuted,
             )
                 : null,
             suffixIcon: suffixIcon,
@@ -168,14 +173,17 @@ class RewardTextField extends StatelessWidget {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
               borderSide: BorderSide(
-                color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+                color:
+                dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
                 width: 1.5,
               ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
               borderSide: BorderSide(
-                color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                color: dark
+                    ? FColors.adminDarkError
+                    : FColors.adminLightError,
               ),
             ),
             contentPadding: const EdgeInsets.all(FSizes.md),

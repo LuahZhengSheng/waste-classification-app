@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../models/detection_result_model.dart';
 
 class BoundingBoxPainter extends CustomPainter {
@@ -30,12 +29,21 @@ class BoundingBoxPainter extends CustomPainter {
       Colors.amber,
     ];
 
-    // Calculate scale factors to fit image in display
+    // 🎯 使用相对比例但设置合理的范围
+    final baseSize = (imageSize.width + imageSize.height) / 2;
+
+    // 计算相对值，但限制在合理范围内
+    final strokeWidth = _calculateStrokeWidth(baseSize);
+    final fontSize = _calculateFontSize(baseSize);
+    final cornerLength = _calculateCornerLength(baseSize);
+
+    print('📐 Base size: $baseSize, Stroke: ${strokeWidth}px, Font: ${fontSize}px');
+
+    // 计算缩放比例和偏移量
     final scaleX = displaySize.width / imageSize.width;
     final scaleY = displaySize.height / imageSize.height;
     final scale = scaleX < scaleY ? scaleX : scaleY;
 
-    // Calculate offset to center the image
     final offsetX = (displaySize.width - imageSize.width * scale) / 2;
     final offsetY = (displaySize.height - imageSize.height * scale) / 2;
 
@@ -43,7 +51,7 @@ class BoundingBoxPainter extends CustomPainter {
       final detection = detections[i];
       final color = colors[i % colors.length];
 
-      // Scale bounding box to display size
+      // 缩放 bounding box 到显示尺寸
       final scaledBox = Rect.fromLTWH(
         detection.boundingBox.left * scale + offsetX,
         detection.boundingBox.top * scale + offsetY,
@@ -51,74 +59,108 @@ class BoundingBoxPainter extends CustomPainter {
         detection.boundingBox.height * scale,
       );
 
-      // Draw bounding box
+      // 绘制 bounding box
       final boxPaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0;
+        ..strokeWidth = strokeWidth;
 
       canvas.drawRect(scaledBox, boxPaint);
 
-      // Draw label background
-      final textSpan = TextSpan(
-        text: '${detection.label} ${detection.confidencePercent}',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      );
+      // 绘制标签背景和文字
+      _drawLabel(canvas, detection, color, scaledBox, fontSize);
 
-      final textPainter = TextPainter(
-        text: textSpan,
-        textDirection: TextDirection.ltr,
-      );
-
-      textPainter.layout();
-
-      final textBackgroundRect = Rect.fromLTWH(
-        scaledBox.left,
-        scaledBox.top - textPainter.height - 4,
-        textPainter.width + 8,
-        textPainter.height + 4,
-      );
-
-      // Ensure text background doesn't go above the image
-      final adjustedTextBackgroundRect = Rect.fromLTWH(
-        textBackgroundRect.left,
-        textBackgroundRect.top < 0 ? scaledBox.top : textBackgroundRect.top,
-        textBackgroundRect.width,
-        textBackgroundRect.height,
-      );
-
-      final backgroundPaint = Paint()
-        ..color = color
-        ..style = PaintingStyle.fill;
-
-      canvas.drawRect(adjustedTextBackgroundRect, backgroundPaint);
-
-      // Draw label text
-      textPainter.paint(
-        canvas,
-        Offset(
-          scaledBox.left + 4,
-          (adjustedTextBackgroundRect.top < 0 ? scaledBox.top : adjustedTextBackgroundRect.top) + 2,
-        ),
-      );
-
-      // Draw corner indicators (optional, for better visual)
-      _drawCorners(canvas, scaledBox, color);
+      // 绘制角标
+      _drawCorners(canvas, scaledBox, color, cornerLength, strokeWidth);
     }
   }
 
-  void _drawCorners(Canvas canvas, Rect box, Color color) {
+  /// 🎯 计算线宽 - 使用相对比例但限制范围
+  double _calculateStrokeWidth(double baseSize) {
+    // 基础比例计算
+    double calculatedWidth = baseSize * 0.004;
+    // 限制在合理范围内：4px - 12px
+    return calculatedWidth.clamp(4.0, 12.0);
+  }
+
+  /// 🎯 计算字体大小 - 使用相对比例但限制范围
+  double _calculateFontSize(double baseSize) {
+    // 基础比例计算
+    double calculatedSize = baseSize * 0.02;
+    // 限制在合理范围内：20px - 40px
+    return calculatedSize.clamp(20.0, 40.0);
+  }
+
+  /// 🎯 计算角标长度 - 使用相对比例但限制范围
+  double _calculateCornerLength(double baseSize) {
+    // 基础比例计算
+    double calculatedLength = baseSize * 0.015;
+    // 限制在合理范围内：15px - 30px
+    return calculatedLength.clamp(15.0, 30.0);
+  }
+
+  /// 绘制标签（文字和背景）
+  void _drawLabel(Canvas canvas, DetectionResult detection, Color color, Rect box, double fontSize) {
+    final textSpan = TextSpan(
+      text: '${detection.label} ${detection.confidencePercent}',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: fontSize,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 0.5, // 增加字母间距提高可读性
+      ),
+    );
+
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+    );
+
+    textPainter.layout();
+
+    // 计算文本背景位置 - 根据字体大小动态调整间距
+    final verticalPadding = fontSize * 0.2;
+    final horizontalPadding = fontSize * 0.3;
+
+    final textBackgroundRect = Rect.fromLTWH(
+      box.left,
+      box.top - textPainter.height - verticalPadding,
+      textPainter.width + horizontalPadding * 2,
+      textPainter.height + verticalPadding,
+    );
+
+    // 确保文本背景不会超出图片上方
+    final adjustedTextBackgroundRect = Rect.fromLTWH(
+      textBackgroundRect.left,
+      textBackgroundRect.top < 0 ? box.top : textBackgroundRect.top,
+      textBackgroundRect.width,
+      textBackgroundRect.height,
+    );
+
+    // 绘制文本背景
+    final backgroundPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRect(adjustedTextBackgroundRect, backgroundPaint);
+
+    // 绘制文本
+    textPainter.paint(
+      canvas,
+      Offset(
+        box.left + horizontalPadding,
+        (adjustedTextBackgroundRect.top < 0 ? box.top : adjustedTextBackgroundRect.top) + verticalPadding / 2,
+      ),
+    );
+  }
+
+  /// 绘制角标
+  void _drawCorners(Canvas canvas, Rect box, Color color, double cornerLength, double strokeWidth) {
     final cornerPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = strokeWidth * 0.6 // 角标线宽是主框线宽的60%
       ..strokeCap = StrokeCap.round;
-
-    final cornerLength = 12.0;
 
     // Top-left corner
     canvas.drawLine(

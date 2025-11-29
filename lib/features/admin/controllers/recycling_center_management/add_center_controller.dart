@@ -7,7 +7,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fyp/data/repositories/recycling_center/recycling_center_repository.dart';
 import 'package:fyp/features/recycling_center/models/partner_recycling_center_model.dart';
-import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
+import 'package:fyp/features/waste_classification/models/waste_category_model.dart';
 import 'package:fyp/features/event/models/location_model.dart';
 import 'package:fyp/utils/popups/admin_loaders.dart';
 import 'package:fyp/utils/validators/validation.dart';
@@ -382,7 +382,7 @@ class AddCenterController extends GetxController {
         message: 'Recycling center created successfully',
       );
 
-      Get.back();
+      Navigator.of(Get.context!).pop();
     } catch (e) {
       isLoading.value = false;
       print('=== CENTER CREATION ERROR ===');

@@ -1,4 +1,4 @@
-import '../../../features/recycling_center/models/waste_category_model.dart';
+import '../models/waste_category_model.dart';
 
 class WasteDetectionMapper {
   // Map detected labels to category search criteria

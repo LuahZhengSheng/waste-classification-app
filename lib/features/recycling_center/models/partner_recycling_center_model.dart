@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
-import '../../../config/google_places_config.dart';
 import '../../event/models/location_model.dart';
 
 class PartnerRecyclingCenter {
@@ -14,11 +13,11 @@ class PartnerRecyclingCenter {
   final Map<String, dynamic>? openingHours;
   final List<String> acceptedMaterials;
   final int numberOfStaff;
-  final DateTime createdAt; // 存储 UTC 时间
+  final DateTime createdAt;
   final String status;
   final double? rating;
   final int? userRatingsTotal;
-  final String? placeId;
+  final double? drivingDistance; // 新增：实际驾驶距离（km）
 
   PartnerRecyclingCenter({
     required this.centerId,
@@ -35,7 +34,7 @@ class PartnerRecyclingCenter {
     required this.status,
     this.rating,
     this.userRatingsTotal,
-    this.placeId,
+    this.drivingDistance,
   });
 
   static PartnerRecyclingCenter empty() => PartnerRecyclingCenter(
@@ -49,7 +48,7 @@ class PartnerRecyclingCenter {
     openingHours: null,
     acceptedMaterials: [],
     numberOfStaff: 0,
-    createdAt: DateTime.now().toUtc(), // 使用 UTC 时间
+    createdAt: DateTime.now().toUtc(),
     status: 'inactive',
   );
 
@@ -60,14 +59,11 @@ class PartnerRecyclingCenter {
     required String phoneNo,
     required String website,
     required Location centerLocation,
-    String image = '',
-    Map<String, dynamic>? openingHours,
-    List<String> acceptedMaterials = const [],
+    required String image,
+    required Map<String, dynamic> openingHours,
+    required List<String> acceptedMaterials,
     required int numberOfStaff,
     String status = 'active',
-    double? rating,
-    int? userRatingsTotal,
-    String? placeId,
   }) {
     return PartnerRecyclingCenter(
       centerId: '', // 由 Firestore 自动生成
@@ -82,9 +78,6 @@ class PartnerRecyclingCenter {
       numberOfStaff: numberOfStaff,
       createdAt: DateTime.now().toUtc(), // 临时 UTC 时间，写入时会被 ServerTime 替换
       status: status,
-      rating: rating,
-      userRatingsTotal: userRatingsTotal,
-      placeId: placeId,
     );
   }
 
@@ -103,15 +96,11 @@ class PartnerRecyclingCenter {
       'status': status,
       'rating': rating,
       'userRatingsTotal': userRatingsTotal,
-      'placeId': placeId,
     };
 
-    // 使用 ServerTime 存储 UTC 时间
     if (centerId.isEmpty) {
-      // 新文档：使用 ServerTime
       json['createdAt'] = FieldValue.serverTimestamp();
     } else {
-      // 现有文档：保持原有的 UTC 时间
       json['createdAt'] = Timestamp.fromDate(createdAt);
     }
 
@@ -122,13 +111,22 @@ class PartnerRecyclingCenter {
     if (document.data() != null) {
       final data = document.data()!;
 
-      // 直接读取 ServerTime (UTC)
       DateTime createdAt;
       if (data['createdAt'] is Timestamp) {
         createdAt = (data['createdAt'] as Timestamp).toDate();
       } else {
-        // 降级方案：使用当前 UTC 时间
         createdAt = DateTime.now().toUtc();
+      }
+
+      // 安全地处理 openingHours
+      Map<String, dynamic>? openingHours;
+      if (data['openingHours'] != null) {
+        try {
+          openingHours = Map<String, dynamic>.from(data['openingHours']);
+        } catch (e) {
+          print('⚠️ Error parsing opening hours for ${data['name']}: $e');
+          openingHours = null;
+        }
       }
 
       return PartnerRecyclingCenter(
@@ -139,58 +137,23 @@ class PartnerRecyclingCenter {
         website: data['website'] ?? '',
         centerLocation: Location.fromJson(Map<String, dynamic>.from(data['centerLocation'] ?? {})),
         image: data['image'] ?? '',
-        openingHours: Map<String, dynamic>.from(data['openingHours'] ?? {}),
+        openingHours: openingHours,
         acceptedMaterials: List<String>.from(data['acceptedMaterials'] ?? []),
         numberOfStaff: (data['numberOfStaff'] as num?)?.toInt() ?? 0,
-        createdAt: createdAt, // 存储 UTC 时间
+        createdAt: createdAt,
         status: data['status'] ?? 'inactive',
         rating: data['rating']?.toDouble(),
         userRatingsTotal: data['userRatingsTotal'],
-        placeId: data['placeId'],
       );
     } else {
       return PartnerRecyclingCenter.empty();
     }
   }
 
-  /// 从 JSON 创建（用于 API 响应等）
-  factory PartnerRecyclingCenter.fromJson(Map<String, dynamic> json) {
-    DateTime createdAt;
-    if (json['createdAt'] is Timestamp) {
-      createdAt = (json['createdAt'] as Timestamp).toDate();
-    } else if (json['createdAt'] is String) {
-      createdAt = DateTime.parse(json['createdAt']);
-    } else if (json['createdAt'] is int) {
-      createdAt = DateTime.fromMillisecondsSinceEpoch(json['createdAt']);
-    } else {
-      createdAt = DateTime.now().toUtc();
-    }
-
-    return PartnerRecyclingCenter(
-      centerId: json['centerId'] ?? '',
-      name: json['name'] ?? '',
-      email: json['email'] ?? '',
-      phoneNo: json['phoneNo'] ?? '',
-      website: json['website'] ?? '',
-      centerLocation: Location.fromJson(Map<String, dynamic>.from(json['centerLocation'] ?? {})),
-      image: json['image'] ?? '',
-      openingHours: Map<String, dynamic>.from(json['openingHours'] ?? {}),
-      acceptedMaterials: List<String>.from(json['acceptedMaterials'] ?? []),
-      numberOfStaff: (json['numberOfStaff'] as num?)?.toInt() ?? 0,
-      createdAt: createdAt,
-      status: json['status'] ?? 'inactive',
-      rating: json['rating']?.toDouble(),
-      userRatingsTotal: json['userRatingsTotal'],
-      placeId: json['placeId'],
-    );
-  }
-
-  /// 显示为马来西亚时间 (UTC+8)
   DateTime get displayTime {
     return createdAt.add(const Duration(hours: 8));
   }
 
-  /// 获取当前马来西亚时间（用于营业判断）
   static DateTime _getCurrentMalaysiaTime() {
     return DateTime.now().toUtc().add(const Duration(hours: 8));
   }
@@ -218,7 +181,6 @@ class PartnerRecyclingCenter {
     return websiteRegex.hasMatch(website);
   }
 
-  /// 格式化显示时间（马来西亚时间）
   String get formattedCreatedAt {
     return FFormatter.formatDate(displayTime);
   }
@@ -238,27 +200,67 @@ class PartnerRecyclingCenter {
     return status == 'active';
   }
 
-  /// 营业时间判断使用当前马来西亚时间
   bool get isOpenNow {
-    if (openingHours == null) return false;
+    if (openingHours == null || openingHours!.isEmpty) {
+      print('⚠️ No opening hours data for $name');
+      return false;
+    }
     return _isOpenAtTime(_getCurrentMalaysiaTime());
   }
 
-  /// 私有方法：统一的营业时间判断逻辑
   bool _isOpenAtTime(DateTime time) {
-    final weekday = time.weekday;
+    if (openingHours == null) return false;
 
-    final periods = openingHours!['periods'] as List<dynamic>?;
-    if (periods == null) return false;
+    // Check Google Places API format first
+    if (openingHours!.containsKey('periods') || openingHours!.containsKey('open_now')) {
+      return _isOpenAtTimeGoogleFormat(time);
+    }
+
+    // Otherwise use Firestore format (day names as keys)
+    return _isOpenAtTimeFirestoreFormat(time);
+  }
+
+  /// Check opening hours using Google Places API format
+  bool _isOpenAtTimeGoogleFormat(DateTime time) {
+    // Check if it's open 24 hours
+    if (openingHours!['open_now'] != null) {
+      return openingHours!['open_now'] as bool;
+    }
+
+    final weekday = time.weekday; // 1 = Monday, 7 = Sunday
+
+    final periods = openingHours!['periods'];
+    if (periods == null || periods is! List) {
+      return false;
+    }
 
     for (var period in periods) {
-      final open = period['open'];
-      if (open != null && open['day'] == weekday - 1) {
-        final openTime = open['time'] as String?;
-        final closeTime = period['close']?['time'] as String?;
+      if (period == null || period is! Map) continue;
 
-        if (openTime != null && closeTime != null) {
+      final open = period['open'];
+      if (open == null || open is! Map) continue;
+
+      // Google Places API: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      // Dart weekday: 1 = Monday, ..., 7 = Sunday
+      final googleDay = weekday == 7 ? 0 : weekday;
+
+      if (open['day'] == googleDay) {
+        final openTime = open['time'] as String?;
+        final close = period['close'];
+        final closeTime = close != null ? close['time'] as String? : null;
+
+        if (openTime != null) {
           final currentTimeStr = '${time.hour.toString().padLeft(2, '0')}${time.minute.toString().padLeft(2, '0')}';
+
+          if (closeTime == null) {
+            return true; // Open 24 hours
+          }
+
+          // Handle overnight closing
+          if (closeTime.compareTo(openTime) < 0) {
+            return currentTimeStr.compareTo(openTime) >= 0 || currentTimeStr.compareTo(closeTime) < 0;
+          }
+
           return currentTimeStr.compareTo(openTime) >= 0 && currentTimeStr.compareTo(closeTime) < 0;
         }
       }
@@ -266,19 +268,157 @@ class PartnerRecyclingCenter {
     return false;
   }
 
+  /// Check opening hours using Firestore format (day names as keys)
+  bool _isOpenAtTimeFirestoreFormat(DateTime time) {
+    final dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    final weekday = time.weekday; // 1 = Monday, 7 = Sunday
+    final dayName = dayNames[weekday - 1];
+
+    if (!openingHours!.containsKey(dayName)) {
+      return false; // Closed on this day
+    }
+
+    final daySchedule = openingHours![dayName];
+    if (daySchedule == null || daySchedule is! Map) {
+      return false;
+    }
+
+    final openTime = daySchedule['open'] as String?;
+    final closeTime = daySchedule['close'] as String?;
+
+    if (openTime == null || closeTime == null) {
+      return false;
+    }
+
+    // Convert HH:MM to HHMM for comparison
+    final currentTimeStr = '${time.hour.toString().padLeft(2, '0')}${time.minute.toString().padLeft(2, '0')}';
+    final openTimeStr = openTime.replaceAll(':', '');
+    final closeTimeStr = closeTime.replaceAll(':', '');
+
+    // Handle overnight closing
+    if (closeTimeStr.compareTo(openTimeStr) < 0) {
+      return currentTimeStr.compareTo(openTimeStr) >= 0 || currentTimeStr.compareTo(closeTimeStr) < 0;
+    }
+
+    return currentTimeStr.compareTo(openTimeStr) >= 0 && currentTimeStr.compareTo(closeTimeStr) < 0;
+  }
+
   List<String> get weekdayText {
     if (openingHours != null && openingHours!['weekday_text'] is List) {
       return List<String>.from(openingHours!['weekday_text']);
     }
 
-    return ['Monday: Unknown', 'Tuesday: Unknown', 'Wednesday: Unknown',
-      'Thursday: Unknown', 'Friday: Unknown', 'Saturday: Unknown', 'Sunday: Unknown'];
+    // Try to generate from Google Places format
+    if (openingHours != null && openingHours!['periods'] is List) {
+      return _generateWeekdayTextFromGooglePeriods();
+    }
+
+    // Try to generate from Firestore format
+    if (openingHours != null && _isFirestoreFormat()) {
+      return _generateWeekdayTextFromFirestore();
+    }
+
+    return [
+      'Monday: Unknown',
+      'Tuesday: Unknown',
+      'Wednesday: Unknown',
+      'Thursday: Unknown',
+      'Friday: Unknown',
+      'Saturday: Unknown',
+      'Sunday: Unknown'
+    ];
+  }
+
+  /// Check if opening hours is in Firestore format
+  bool _isFirestoreFormat() {
+    final dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    return dayNames.any((day) => openingHours!.containsKey(day));
+  }
+
+  /// Generate weekday text from Firestore format
+  List<String> _generateWeekdayTextFromFirestore() {
+    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    final result = <String>[];
+
+    for (var i = 0; i < dayKeys.length; i++) {
+      final dayKey = dayKeys[i];
+      final dayName = dayNames[i];
+
+      if (openingHours!.containsKey(dayKey)) {
+        final schedule = openingHours![dayKey];
+        if (schedule is Map && schedule.containsKey('open') && schedule.containsKey('close')) {
+          final open = schedule['open'] as String;
+          final close = schedule['close'] as String;
+          result.add('$dayName: $open – $close');
+        } else {
+          result.add('$dayName: Closed');
+        }
+      } else {
+        result.add('$dayName: Closed');
+      }
+    }
+
+    return result;
+  }
+
+  /// Generate weekday text from Google Places periods
+  List<String> _generateWeekdayTextFromGooglePeriods() {
+    final periods = openingHours!['periods'] as List;
+    final Map<int, String> dayTexts = {};
+
+    final dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    for (var period in periods) {
+      if (period == null || period is! Map) continue;
+
+      final open = period['open'];
+      final close = period['close'];
+
+      if (open != null && open is Map) {
+        final day = open['day'] as int;
+        final openTime = open['time'] as String?;
+
+        if (openTime != null) {
+          final openFormatted = '${openTime.substring(0, 2)}:${openTime.substring(2)}';
+
+          if (close != null && close is Map) {
+            final closeTime = close['time'] as String?;
+            if (closeTime != null) {
+              final closeFormatted = '${closeTime.substring(0, 2)}:${closeTime.substring(2)}';
+              dayTexts[day] = '${dayNames[day]}: $openFormatted – $closeFormatted';
+            } else {
+              dayTexts[day] = '${dayNames[day]}: Open 24 hours';
+            }
+          } else {
+            dayTexts[day] = '${dayNames[day]}: Open 24 hours';
+          }
+        }
+      }
+    }
+
+    // Fill in missing days and reorder (Monday first)
+    final result = <String>[];
+    for (var i = 0; i < 7; i++) {
+      final displayDay = (i + 1) % 7; // Convert to Monday-first order
+      result.add(dayTexts[displayDay] ?? '${dayNames[displayDay]}: Closed');
+    }
+
+    return result;
   }
 
   bool get hasPhotos => image.isNotEmpty;
 
   bool acceptsMaterial(String material) {
     return acceptedMaterials.any((m) => m.toLowerCase().contains(material.toLowerCase()));
+  }
+
+  String get formattedDistance {
+    if (drivingDistance == null) return 'Unknown distance';
+    if (drivingDistance! < 1) {
+      return '${(drivingDistance! * 1000).toStringAsFixed(0)} m';
+    }
+    return '${drivingDistance!.toStringAsFixed(1)} km';
   }
 
   PartnerRecyclingCenter copyWith({
@@ -296,7 +436,7 @@ class PartnerRecyclingCenter {
     String? status,
     double? rating,
     int? userRatingsTotal,
-    String? placeId,
+    double? drivingDistance,
   }) {
     return PartnerRecyclingCenter(
       centerId: centerId ?? this.centerId,
@@ -313,13 +453,13 @@ class PartnerRecyclingCenter {
       status: status ?? this.status,
       rating: rating ?? this.rating,
       userRatingsTotal: userRatingsTotal ?? this.userRatingsTotal,
-      placeId: placeId ?? this.placeId,
+      drivingDistance: drivingDistance ?? this.drivingDistance,
     );
   }
 
   @override
   String toString() {
-    return 'PartnerRecyclingCenter(centerId: $centerId, name: $name, isActive: $isActive, rating: $rating, createdAt: $createdAt)';
+    return 'PartnerRecyclingCenter(centerId: $centerId, name: $name, isActive: $isActive, rating: $rating, distance: ${formattedDistance})';
   }
 
   @override

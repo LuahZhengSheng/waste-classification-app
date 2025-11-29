@@ -10,7 +10,7 @@ import '../../../data/repositories/recycling_center/recycling_center_repository.
 import '../../../data/repositories/reward_redemption/redemption_repository.dart';
 import '../../../data/repositories/reward_redemption/reward_repository.dart';
 import '../../../utils/constants/colors.dart';
-import '../../personalization/models/recycle_activity_model.dart';
+import '../../recycling_center/models/recycle_activity_model.dart';
 import '../../recycling_center/models/partner_recycling_center_model.dart';
 import '../models/reward_redemption_enums.dart';
 import '../../reward_redemption/models/redemption_model.dart';

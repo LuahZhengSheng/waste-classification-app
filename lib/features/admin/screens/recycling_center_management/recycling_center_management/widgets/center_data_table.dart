@@ -7,6 +7,7 @@ import 'package:fyp/features/admin/controllers/recycling_center_management/recyc
 
 import '../../../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../../../common/widgets/admin/badge.dart';
+import '../../../../../../utils/popups/admin_loaders.dart';
 import '../../../../../recycling_center/models/partner_recycling_center_model.dart';
 
 class CenterDataTable extends StatefulWidget {
@@ -669,61 +670,17 @@ class _AdminPartnerCenterDataTableState extends State<CenterDataTable> {
     );
   }
 
-  void _showDisableRecoverDialog(
-      PartnerRecyclingCenter center, BuildContext context) {
-    final isDisabled = center.status == 'disabled';
-
-    Get.dialog(
-      AlertDialog(
-        backgroundColor:
-            widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-        title: Text(
-          isDisabled ? 'Recover Center' : 'Disable Center',
-          style: TextStyle(
-              color:
-                  widget.dark ? FColors.adminDarkText : FColors.adminLightText),
-        ),
-        content: Text(
-          isDisabled
-              ? 'Are you sure you want to recover "${center.name}"? The center will be reactivated but staff accounts will remain banned.'
-              : 'Are you sure you want to disable "${center.name}"? This will ban all associated staff members.',
-          style: TextStyle(
-              color: widget.dark
-                  ? FColors.adminDarkTextSecondary
-                  : FColors.adminLightTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('Cancel',
-                style: TextStyle(
-                    color: widget.dark
-                        ? FColors.adminDarkTextSecondary
-                        : FColors.adminLightTextSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Get.back();
-              if (isDisabled) {
-                widget.controller.recoverCenter(center);
-              } else {
-                widget.controller.disableCenter(center);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDisabled
-                  ? (widget.dark
-                      ? FColors.adminDarkSuccess
-                      : FColors.adminLightSuccess)
-                  : (widget.dark
-                      ? FColors.adminDarkError
-                      : FColors.adminLightError),
-            ),
-            child: Text(isDisabled ? 'Recover' : 'Disable',
-                style: const TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+  void _showDisableRecoverDialog(PartnerRecyclingCenter center, BuildContext context) {
+    FAdminLoaders.showRecyclingCenterDisableRecoverDialog(
+      centerName: center.name,
+      isDisabled: center.status == 'disabled',
+      onConfirm: () {
+        if (center.status == 'disabled') {
+          widget.controller.recoverCenter(center);
+        } else {
+          widget.controller.disableCenter(center);
+        }
+      },
     );
   }
 

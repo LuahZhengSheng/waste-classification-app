@@ -1,29 +1,58 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:iconsax/iconsax.dart';
+
 import 'package:fyp/features/reward_redemption/models/reward_model.dart';
 import 'package:fyp/features/reward_redemption/models/redemption_model.dart';
+import 'package:fyp/utils/constants/colors.dart';
+import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/popups/loaders.dart';
-import 'package:iconsax/iconsax.dart';
 
 import '../../../data/repositories/reward_redemption/redemption_repository.dart';
 import '../../../data/repositories/reward_redemption/reward_repository.dart';
 import '../../../data/repositories/user/user_repository.dart';
-import '../../../utils/constants/colors.dart';
-import '../../../utils/constants/sizes.dart';
+
+enum RewardSortType {
+  highestToLowest,
+  lowestToHighest,
+}
 
 class RewardController extends GetxController {
-  static RewardController get instance => Get.find();
+  static RewardController get instance => Get.find<RewardController>();
 
-  final rewardRepository = Get.put(RewardRepository());
-  final redemptionRepository = Get.put(RedemptionRepository());
-  final userRepository = Get.put(UserRepository());
+  final RewardRepository rewardRepository = Get.put(RewardRepository());
+  final RedemptionRepository redemptionRepository =
+  Get.put(RedemptionRepository());
+  final UserRepository userRepository = Get.put(UserRepository());
 
   // Observable variables
   final RxList<RewardModel> rewards = <RewardModel>[].obs;
   final RxBool isLoading = false.obs;
   final RxInt userPoints = 0.obs;
   final RxString currentUserId = ''.obs;
+
+  // 排序类型
+  final Rx<RewardSortType> sortType =
+      RewardSortType.lowestToHighest.obs; // 默认从小到大
+
+  // 暴露一个排序后的列表给 UI 使用
+  List<RewardModel> get sortedRewards {
+    final list = List<RewardModel>.from(rewards);
+    list.sort((a, b) {
+      if (sortType.value == RewardSortType.highestToLowest) {
+        return b.pointsNeeded.compareTo(a.pointsNeeded);
+      } else {
+        return a.pointsNeeded.compareTo(b.pointsNeeded);
+      }
+    });
+    return list;
+  }
+
+  void changeSortType(RewardSortType type) {
+    sortType.value = type;
+  }
 
   @override
   void onInit() {
@@ -37,7 +66,6 @@ class RewardController extends GetxController {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       currentUserId.value = user.uid;
-      print('UserID: ${currentUserId.value}');
       _subscribeToUserPoints();
     }
   }
@@ -53,21 +81,14 @@ class RewardController extends GetxController {
     );
   }
 
-  /// Subscribe to rewards stream for real-time updates
+  /// Subscribe to rewards stream（只拿可用的 active reward）
   void _subscribeToRewardsStream() {
     isLoading.value = true;
     rewardRepository.getAvailableRewardsStream().listen(
-          (fetchedRewards) async {
+          (fetchedRewards) {
         try {
-          // Fetch image URLs for each reward
-          for (var reward in fetchedRewards) {
-            if (reward.rewardImage.isNotEmpty) {
-              reward.rewardImage = (await rewardRepository.getRewardImageUrl(reward.rewardImage))!;
-            }
-          }
           rewards.assignAll(fetchedRewards);
         } catch (e) {
-          print('❌ Error processing rewards stream: $e');
           FLoaders.errorSnackBar(
             title: 'Error',
             message: 'Failed to process rewards: $e',
@@ -78,7 +99,6 @@ class RewardController extends GetxController {
       },
       onError: (error) {
         isLoading.value = false;
-        print('❌ Error in rewards stream: $error');
         FLoaders.errorSnackBar(
           title: 'Error',
           message: 'Failed to load rewards: $error',
@@ -87,70 +107,92 @@ class RewardController extends GetxController {
     );
   }
 
-  /// Check if user can redeem a reward
-  bool canRedeemReward(RewardModel reward) {
-    return userPoints.value >= reward.pointsNeeded &&
-        reward.isAvailable;
+  /// 按 ID 获取 Reward 的 Stream（详情页用）
+  Stream<RewardModel> getRewardStream(String rewardId) {
+    return rewardRepository.getRewardStream(rewardId);
   }
 
-  /// Redeem a reward
+  /// 检查是否可以兑换（前端快速判断，实际兑换时还会再用事务校验一次）
+  bool canRedeemReward(RewardModel reward) {
+    final now = DateTime.now();
+    final stillValid = reward.validUntil.isAfter(now);
+    final hasQty = reward.remainingQuantity > 0;
+    final active = reward.status == 'active';
+    final enoughPoints = userPoints.value >= reward.pointsNeeded;
+    return stillValid && hasQty && active && enoughPoints;
+  }
+
+  /// 兑换 Reward：会做所有校验，并使用事务同时创建 redemption、扣积分、更新 reward 数量和状态
   Future<bool> redeemReward(RewardModel reward) async {
     try {
-      // Validation
+      final now = DateTime.now();
+
       if (!canRedeemReward(reward)) {
         if (userPoints.value < reward.pointsNeeded) {
           FLoaders.errorSnackBar(
-            title: 'Insufficient Points',
-            message: 'You need ${reward.pointsNeeded - userPoints.value} more points',
+            title: 'Insufficient points',
+            message:
+            'You need ${reward.pointsNeeded - userPoints.value} more points to redeem this reward.',
           );
-        } else {
+        } else if (reward.remainingQuantity <= 0) {
+          FLoaders.errorSnackBar(
+            title: 'Out of stock',
+            message: 'This reward is fully redeemed.',
+          );
+        } else if (!reward.validUntil.isAfter(now)) {
+          FLoaders.errorSnackBar(
+            title: 'Expired',
+            message: 'This reward has expired.',
+          );
+        } else if (reward.status != 'active') {
           FLoaders.errorSnackBar(
             title: 'Unavailable',
-            message: 'This reward is currently unavailable',
+            message: 'This reward is currently inactive.',
           );
         }
         return false;
       }
 
-      // Check if reward is still available
-      final isAvailable = await rewardRepository.isRewardAvailable(reward.rewardId);
+      // 再从后端校验一次可用性
+      final isAvailable =
+      await rewardRepository.isRewardAvailable(reward.rewardId);
       if (!isAvailable) {
         FLoaders.errorSnackBar(
           title: 'Unavailable',
-          message: 'This reward is no longer available',
+          message: 'This reward is no longer available.',
         );
         return false;
       }
 
+      isLoading.value = true;
       FLoaders.showLoading('Redeeming reward...');
 
-      // Create redemption
+      // Redemption 的 validUntil = 领取日期 + 30 天
+      final redemptionValidUntil = now.add(const Duration(days: 30));
+
       final redemption = RedemptionModel.createNew(
         userId: currentUserId.value,
         rewardId: reward.rewardId,
-        points: reward.pointsNeeded
+        points: reward.pointsNeeded,
+        validUntil: redemptionValidUntil,
       );
 
-      // Save redemption to Firebase
-      final createdRedemption = await redemptionRepository.createRedemption(redemption);
-
-      // Deduct points from user
-      await userRepository.deductPoints(currentUserId.value, reward.pointsNeeded);
-
-      // Update reward quantity
-      await rewardRepository.updateRewardQuantity(
-        reward.rewardId,
-        reward.quantity - 1,
+      final createdRedemption =
+      await redemptionRepository.createRedemptionWithSideEffects(
+        redemption: redemption,
+        rewardId: reward.rewardId,
+        userId: currentUserId.value,
+        points: reward.pointsNeeded,
       );
 
       FLoaders.stopLoading();
+      isLoading.value = false;
 
-      // Show success dialog with PIN
       _showRedemptionSuccessDialog(createdRedemption, reward);
-
       return true;
     } catch (e) {
       FLoaders.stopLoading();
+      isLoading.value = false;
       FLoaders.errorSnackBar(
         title: 'Error',
         message: 'Failed to redeem reward: $e',
@@ -159,13 +201,33 @@ class RewardController extends GetxController {
     }
   }
 
-  /// Show redemption success dialog
-  void _showRedemptionSuccessDialog(RedemptionModel redemption, RewardModel reward) {
+  /// 刷新（其实只做一个小 delay，因为真正数据由 stream 驱动）
+  Future<void> refreshRewards() async {
+    isLoading.value = true;
+    await Future.delayed(const Duration(milliseconds: 400));
+    isLoading.value = false;
+  }
+
+  /// 通过 ID 在内存中找 Reward（可空）
+  RewardModel? getRewardById(String rewardId) {
+    try {
+      return rewards.firstWhere((r) => r.rewardId == rewardId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 兑换成功弹窗（显示 PIN）
+  void _showRedemptionSuccessDialog(
+      RedemptionModel redemption, RewardModel reward) {
+    print('Redemtion pin: ${redemption.pinCode}');
+
     Get.dialog(
       WillPopScope(
         onWillPop: () async => false,
         child: AlertDialog(
-          backgroundColor: Get.isDarkMode ? FColors.dark : FColors.white,
+          backgroundColor:
+          Get.isDarkMode ? FColors.dark : FColors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -189,60 +251,85 @@ class RewardController extends GetxController {
               Text(
                 'Redemption Successful!',
                 style: Get.textTheme.titleLarge?.copyWith(
-                  color: Get.isDarkMode ? FColors.white : FColors.black,
+                  color: Get.isDarkMode
+                      ? FColors.white
+                      : FColors.black,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: FSizes.sm),
-              Text(
-                'Your reward has been redeemed successfully',
-                style: Get.textTheme.bodyMedium?.copyWith(
-                  color: Get.isDarkMode ? FColors.darkGrey : FColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
+
               const SizedBox(height: FSizes.spaceBtwItems),
+
+              // PIN Code 区域：与详情页样式一致
               Container(
-                padding: const EdgeInsets.all(FSizes.lg),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FSizes.md,
+                  vertical: FSizes.sm,
+                ),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      FColors.primary.withOpacity(0.1),
-                      FColors.accent.withOpacity(0.1),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                  color: Get.isDarkMode
+                      ? FColors.darkContainer
+                      : FColors.lightContainer,
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: FColors.primary.withOpacity(0.3),
-                    width: 2,
+                    color: Get.isDarkMode
+                        ? FColors.darkGrey
+                        : FColors.borderPrimary,
                   ),
                 ),
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Your PIN Code',
-                      style: Get.textTheme.titleSmall?.copyWith(
-                        color: Get.isDarkMode ? FColors.darkGrey : FColors.textSecondary,
+                    Expanded(
+                      child: Text(
+                        redemption.formattedPinCode,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Get.textTheme.titleMedium?.copyWith(
+                          color: Get.isDarkMode
+                              ? FColors.white
+                              : FColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: FSizes.sm),
-                    Text(
-                      redemption.formattedPinCode,
-                      style: Get.textTheme.headlineMedium?.copyWith(
-                        color: FColors.primary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 4,
+                    const SizedBox(width: FSizes.sm),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(
+                          ClipboardData(text: redemption.pinCode),
+                        );
+                        FLoaders.customToast(
+                          message: 'Promo code copied',
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: FColors.primary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Iconsax.copy,
+                          size: 18,
+                          color: FColors.primary,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
+
               const SizedBox(height: FSizes.md),
               Text(
-                'Present this PIN to redeem your reward.\nValid for 30 days.',
+                'Present this PIN to the merchant.\nValid for 30 days from redemption date.',
                 style: Get.textTheme.bodySmall?.copyWith(
-                  color: Get.isDarkMode ? FColors.darkGrey : FColors.textSecondary,
+                  color: Get.isDarkMode
+                      ? FColors.darkGrey
+                      : FColors.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -254,13 +341,15 @@ class RewardController extends GetxController {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: FColors.primary,
                     foregroundColor: FColors.white,
-                    padding: const EdgeInsets.symmetric(vertical: FSizes.md),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: FSizes.md,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: const Text(
-                    'Got It!',
+                    'Got it',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -271,22 +360,5 @@ class RewardController extends GetxController {
       ),
       barrierDismissible: false,
     );
-  }
-
-  /// Refresh rewards (now handled automatically by stream)
-  Future<void> refreshRewards() async {
-    // No need to manually refresh as stream handles real-time updates
-    isLoading.value = true;
-    await Future.delayed(const Duration(milliseconds: 500)); // Simulate brief loading
-    isLoading.value = false;
-  }
-
-  /// Get reward by ID
-  RewardModel? getRewardById(String rewardId) {
-    try {
-      return rewards.firstWhere((reward) => reward.rewardId == rewardId);
-    } catch (e) {
-      return null;
-    }
   }
 }

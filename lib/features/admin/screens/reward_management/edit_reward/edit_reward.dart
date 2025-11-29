@@ -4,7 +4,8 @@ import 'package:iconsax/iconsax.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
-import 'package:fyp/features/admin/controllers/reward_management/edit_reward_controller.dart';
+import '../../../../../common/widgets/admin/image_uploader.dart';
+import '../../../controllers/reward_management/edit_reward_controller.dart';
 import '../widgets/reward_form.dart';
 
 class EditRewardScreen extends StatelessWidget {
@@ -249,7 +250,7 @@ class EditRewardScreen extends StatelessWidget {
                   title: 'Reward Image',
                   icon: Iconsax.image,
                   children: [
-                    Obx(() => RewardImageUploader(
+                    ImageUploader(
                       imageBytes: controller.selectedImageBytes.value,
                       existingImageName: controller.existingImageName.value,
                       getImageUrl: controller.getImageUrl,
@@ -257,16 +258,9 @@ class EditRewardScreen extends StatelessWidget {
                       onRemoveImage: controller.removeImage,
                       isCompressing: controller.isCompressing.value,
                       dark: dark,
-                    )),
-                    const SizedBox(height: FSizes.sm),
-                    Text(
-                      'Upload a clear image of the reward (optional)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: dark
-                            ? FColors.adminDarkTextMuted
-                            : FColors.adminLightTextMuted,
-                      ),
+                      required: true, // 设置为必需
+                      label: 'Reward Image',
+                      description: 'Upload a clear image of the reward (Required - JPG, PNG, WebP, Max 5MB)',
                     ),
                   ],
                 ),

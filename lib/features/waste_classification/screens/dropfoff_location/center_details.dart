@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -36,24 +37,24 @@ class CenterDetailsScreen extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: FColors.white),
+                icon: const Icon(Icons.arrow_back_ios_rounded, color: FColors.white),
                 onPressed: () => Get.back(),
               ),
             ),
             actions: [
-              Container(
-                margin: const EdgeInsets.all(FSizes.sm),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Iconsax.share, color: FColors.white),
-                  onPressed: () {
-                    // Share functionality
-                  },
-                ),
-              ),
+              // Container(
+              //   margin: const EdgeInsets.all(FSizes.sm),
+              //   decoration: BoxDecoration(
+              //     color: Colors.black.withOpacity(0.5),
+              //     shape: BoxShape.circle,
+              //   ),
+              //   child: IconButton(
+              //     icon: const Icon(Iconsax.share, color: FColors.white),
+              //     onPressed: () {
+              //       // Share functionality
+              //     },
+              //   ),
+              // ),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
@@ -396,10 +397,31 @@ class CenterDetailsScreen extends StatelessWidget {
                                 label: center.formattedPhoneNo,
                                 dark: dark,
                                 onTap: () async {
-                                  final url = 'tel:${center.phoneNo}';
-                                  final uri = Uri.parse(url);
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri);
+                                  try {
+                                    final url = 'tel:${center.phoneNo}';
+                                    final uri = Uri.parse(url);
+
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    } else {
+                                      // Fallback: Copy to clipboard
+                                      await Clipboard.setData(ClipboardData(text: center.phoneNo));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Phone number copied to clipboard: ${center.phoneNo}'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    // Error handling: Copy to clipboard
+                                    await Clipboard.setData(ClipboardData(text: center.phoneNo));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Phone number copied: ${center.phoneNo}'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
                                   }
                                 },
                               ),
@@ -411,16 +433,36 @@ class CenterDetailsScreen extends StatelessWidget {
                                 label: 'Visit Website',
                                 dark: dark,
                                 onTap: () async {
-                                  String url = center.website;
-                                  // Ensure URL has a scheme
-                                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                                    url = 'https://$url';
-                                  }
-                                  final uri = Uri.parse(url);
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(
-                                      uri,
-                                      mode: LaunchMode.externalApplication,
+                                  try {
+                                    String url = center.website;
+                                    // Ensure URL has a scheme
+                                    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                                      url = 'https://$url';
+                                    }
+                                    final uri = Uri.parse(url);
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(
+                                        uri,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    } else {
+                                      // Fallback: Copy to clipboard
+                                      await Clipboard.setData(ClipboardData(text: url));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Website URL copied to clipboard: $url'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    // Error handling: Copy to clipboard
+                                    await Clipboard.setData(ClipboardData(text: center.website));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Website URL copied: ${center.website}'),
+                                        duration: Duration(seconds: 2),
+                                      ),
                                     );
                                   }
                                 },
@@ -435,10 +477,31 @@ class CenterDetailsScreen extends StatelessWidget {
                                 label: center.email,
                                 dark: dark,
                                 onTap: () async {
-                                  final url = 'mailto:${center.email}';
-                                  final uri = Uri.parse(url);
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri);
+                                  try {
+                                    final url = 'mailto:${center.email}';
+                                    final uri = Uri.parse(url);
+
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    } else {
+                                      // Fallback: Copy to clipboard
+                                      await Clipboard.setData(ClipboardData(text: center.email));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Email address copied to clipboard: ${center.email}'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    // Error handling: Copy to clipboard
+                                    await Clipboard.setData(ClipboardData(text: center.email));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Email address copied: ${center.email}'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
                                   }
                                 },
                               ),
@@ -483,28 +546,26 @@ class CenterDetailsScreen extends StatelessWidget {
                     // Action Buttons
                     Row(
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => controller.openGoogleMapsNavigation(center),
-                            icon: const Icon(Iconsax.routing, size: FSizes.iconMd),
-                            label: const Text('Get Directions'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: FColors.primary,
-                              side: BorderSide(color: FColors.primary.withOpacity(0.5)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: FSizes.md),
-                            ),
-                          ),
-                        ),
+                        // Expanded(
+                        //   child: OutlinedButton.icon(
+                        //     onPressed: () => controller.openGoogleMapsNavigation(center),
+                        //     icon: const Icon(Iconsax.routing, size: FSizes.iconMd),
+                        //     label: const Text('Get Directions'),
+                        //     style: OutlinedButton.styleFrom(
+                        //       foregroundColor: FColors.primary,
+                        //       side: BorderSide(color: FColors.primary.withOpacity(0.5)),
+                        //       shape: RoundedRectangleBorder(
+                        //         borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
+                        //       ),
+                        //       padding: const EdgeInsets.symmetric(vertical: FSizes.md),
+                        //     ),
+                        //   ),
+                        // ),
                         if (isPartner) ...[
                           const SizedBox(width: FSizes.sm),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                // Start recycling activity
-                              },
+                              onPressed: () => controller.openGoogleMapsNavigation(center),
                               icon: const Icon(Iconsax.repeate_one, size: FSizes.iconMd),
                               label: const Text('Recycle Here'),
                               style: ElevatedButton.styleFrom(

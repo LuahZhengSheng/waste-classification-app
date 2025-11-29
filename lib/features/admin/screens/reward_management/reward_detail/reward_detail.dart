@@ -6,6 +6,9 @@ import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
 
+import '../../../../../common/widgets/admin/admin_lightbox.dart';
+import '../../../../../common/widgets/admin/badge.dart';
+import '../../../../../common/widgets/admin/small_profile_image.dart';
 import '../../../../../data/repositories/user/user_repository.dart';
 import '../../../../reward_redemption/models/redemption_model.dart';
 import '../../../../reward_redemption/models/reward_model.dart';
@@ -26,25 +29,22 @@ class AdminRewardDetailScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor:
-      dark ? FColors.adminDarkBackground : FColors.adminLightBackground,
+          dark ? FColors.adminDarkBackground : FColors.adminLightBackground,
       appBar: AppBar(
-        backgroundColor: dark
-            ? FColors.adminDarkSurface
-            : FColors.adminLightSurface,
+        backgroundColor:
+            dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Get.back(),
           icon: Icon(
-            Iconsax.arrow_left,
-            color:
-            dark ? FColors.adminDarkText : FColors.adminLightText,
+            Iconsax.arrow_left_2,
+            color: dark ? FColors.adminDarkText : FColors.adminLightText,
           ),
         ),
         title: Text(
           'Reward Details',
           style: TextStyle(
-            color:
-            dark ? FColors.adminDarkText : FColors.adminLightText,
+            color: dark ? FColors.adminDarkText : FColors.adminLightText,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -60,11 +60,30 @@ class AdminRewardDetailScreen extends StatelessWidget {
             ),
             tooltip: 'Edit Reward',
           ),
-          // Status Toggle Button
-          Obx(() => Container(
-            margin: const EdgeInsets.only(right: FSizes.md),
-            child: _buildStatusToggleButton(controller, dark),
-          )),
+          // Activate/Deactivate Button
+          Obx(() {
+            final status = controller.getComputedStatus();
+            print('🔄 UI Status Update: $status'); // 添加调试信息
+
+            return IconButton(
+              onPressed: () {
+                print('🎯 Button Pressed - Current Status: $status'); // 添加调试信息
+                controller.toggleRewardStatus();
+              },
+              icon: Icon(
+                status == 'active' ? Iconsax.close_circle : Iconsax.tick_circle,
+                color: status == 'active'
+                    ? (dark ? FColors.adminDarkError : FColors.adminLightError)
+                    : (dark
+                        ? FColors.adminDarkSuccess
+                        : FColors.adminLightSuccess),
+              ),
+              tooltip:
+                  status == 'active' ? 'Deactivate Reward' : 'Activate Reward',
+            );
+          }),
+
+          const SizedBox(width: FSizes.sm),
         ],
       ),
       body: Column(
@@ -112,69 +131,18 @@ class AdminRewardDetailScreen extends StatelessWidget {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(FSizes.lg),
               child: Obx(() => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildOverviewCard(controller, dark),
-                  const SizedBox(height: FSizes.spaceBtwSections),
-                  _buildStatisticsRow(controller, dark),
-                  const SizedBox(height: FSizes.spaceBtwSections),
-                  _buildRedemptionsSection(controller, dark),
-                ],
-              )),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildOverviewCard(controller, dark),
+                      const SizedBox(height: FSizes.spaceBtwSections),
+                      _buildStatisticsRow(controller, dark),
+                      const SizedBox(height: FSizes.spaceBtwSections),
+                      _buildRedemptionsSection(controller, dark),
+                    ],
+                  )),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatusToggleButton(
-      RewardDetailsController controller, bool dark) {
-    final computedStatus = controller.getComputedStatus();
-    final isActive = controller.reward.value.status == 'active';
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-        gradient: LinearGradient(
-          colors: isActive
-              ? [
-            dark ? FColors.adminDarkError : FColors.adminLightError,
-            (dark ? FColors.adminDarkError : FColors.adminLightError)
-                .withOpacity(0.8),
-          ]
-              : [
-            dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess,
-            (dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess)
-                .withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isActive
-                ? (dark ? FColors.adminDarkError : FColors.adminLightError)
-                : (dark
-                ? FColors.adminDarkSuccess
-                : FColors.adminLightSuccess))
-                .withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: IconButton(
-          onPressed: () => _showStatusToggleDialog(controller, dark),
-          icon: Icon(
-            isActive ? Iconsax.minus_cirlce : Iconsax.tick_circle,
-            color: Colors.white,
-            size: 20,
-          ),
-          tooltip: isActive ? 'Deactivate' : 'Activate',
-        ),
       ),
     );
   }
@@ -197,9 +165,15 @@ class AdminRewardDetailScreen extends StatelessWidget {
         children: [
           // Header with image
           GestureDetector(
-            onTap: () => _showImageLightbox(
-                controller.reward.value.rewardImage,
-                controller.reward.value.title),
+            onTap: () {
+              Get.dialog(
+                ImageLightbox(
+                  imageUrl: controller.reward.value.rewardImage,
+                  title: controller.reward.value.title,
+                ),
+                barrierDismissible: true,
+              );
+            },
             child: Container(
               height: 200,
               decoration: BoxDecoration(
@@ -236,14 +210,15 @@ class AdminRewardDetailScreen extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(FSizes.cardRadiusSm),
+                        borderRadius:
+                            BorderRadius.circular(FSizes.cardRadiusSm),
                       ),
                       child: IconButton(
-                        onPressed: () => _showImageLightbox(
-                            controller.reward.value.rewardImage,
-                            controller.reward.value.title),
-                        icon: const Icon(Iconsax.maximize_4,
-                            color: Colors.white),
+                        onPressed: () => ImageLightbox(
+                            imageUrl: controller.reward.value.rewardImage,
+                            title: controller.reward.value.title),
+                        icon:
+                            const Icon(Iconsax.maximize_4, color: Colors.white),
                       ),
                     ),
                   ),
@@ -266,10 +241,8 @@ class AdminRewardDetailScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: FSizes.xs),
-                              _buildStatusBadge(
-                                  controller.getComputedStatus(),
-                                  controller.reward.value,
-                                  dark),
+                              _buildStatusBadge(controller.getComputedStatus(),
+                                  controller.reward.value, dark),
                             ],
                           ),
                         ),
@@ -289,7 +262,8 @@ class AdminRewardDetailScreen extends StatelessWidget {
   }
 
   // Continuation of _buildOverviewCard content section
-  Widget _buildOverviewCardContent(RewardDetailsController controller, bool dark) {
+  Widget _buildOverviewCardContent(
+      RewardDetailsController controller, bool dark) {
     return Padding(
       padding: const EdgeInsets.all(FSizes.lg),
       child: Column(
@@ -347,11 +321,11 @@ class AdminRewardDetailScreen extends StatelessWidget {
                   Iconsax.calendar,
                   controller.reward.value.isExpired
                       ? (dark
-                      ? FColors.adminDarkError
-                      : FColors.adminLightError)
+                          ? FColors.adminDarkError
+                          : FColors.adminLightError)
                       : (dark
-                      ? FColors.adminDarkSuccess
-                      : FColors.adminLightSuccess),
+                          ? FColors.adminDarkSuccess
+                          : FColors.adminLightSuccess),
                   dark,
                 ),
               ),
@@ -408,7 +382,8 @@ class AdminRewardDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRedemptionsSection(RewardDetailsController controller, bool dark) {
+  Widget _buildRedemptionsSection(
+      RewardDetailsController controller, bool dark) {
     return Container(
       decoration: BoxDecoration(
         color: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
@@ -449,7 +424,7 @@ class AdminRewardDetailScreen extends StatelessWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color:
-                    dark ? FColors.adminDarkText : FColors.adminLightText,
+                        dark ? FColors.adminDarkText : FColors.adminLightText,
                   ),
                 ),
               ],
@@ -501,8 +476,8 @@ class AdminRewardDetailScreen extends StatelessWidget {
               separatorBuilder: (context, index) => Divider(
                 height: 1,
                 color: (dark
-                    ? FColors.adminDarkDivider
-                    : FColors.adminLightDivider)
+                        ? FColors.adminDarkDivider
+                        : FColors.adminLightDivider)
                     .withOpacity(0.3),
               ),
               itemBuilder: (context, index) {
@@ -580,42 +555,26 @@ class AdminRewardDetailScreen extends StatelessWidget {
 
   Widget _buildRedemptionItem(
       RedemptionModel redemption, dynamic user, bool dark) {
+    final now = DateTime.now();
+    final isExpired = now.isAfter(redemption.validUntil);
+
+    // 过期用红色，未过期用青色
+    final expiryColor = isExpired
+        ? (dark ? FColors.adminDarkError : FColors.adminLightError)
+        : (dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess);
+
+    final expiryTextPrefix = isExpired ? 'Expired on ' : 'Valid until ';
+
     return Container(
       padding: const EdgeInsets.all(FSizes.lg),
       child: Row(
         children: [
-          // User Avatar
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: dark
-                  ? FColors.adminDarkPrimary.withOpacity(0.1)
-                  : FColors.adminLightPrimary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-            ),
-            child: user?.profileImg != null && user!.profileImg!.isNotEmpty
-                ? ClipRRect(
-              borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-              child: Image.network(
-                user.profileImg,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(
-                  Iconsax.user,
-                  color: dark
-                      ? FColors.adminDarkPrimary
-                      : FColors.adminLightPrimary,
-                  size: 20,
-                ),
-              ),
-            )
-                : Icon(
-              Iconsax.user,
-              color: dark
-                  ? FColors.adminDarkPrimary
-                  : FColors.adminLightPrimary,
-              size: 20,
-            ),
+          // User Avatar：SmallProfileImage
+          SmallProfileImage(
+            profileImg: user?.profileImg,
+            username: user?.username ?? 'Unknown User',
+            dark: dark,
+            radius: 20,
           ),
           const SizedBox(width: FSizes.md),
 
@@ -643,7 +602,6 @@ class AdminRewardDetailScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: FSizes.xs),
-                // 添加 Points 显示
                 Text(
                   'Points: ${redemption.points}',
                   style: TextStyle(
@@ -662,41 +620,55 @@ class AdminRewardDetailScreen extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                _formatDate(redemption.createdAt),
-                style: TextStyle(
-                  color: dark
-                      ? FColors.adminDarkTextSecondary
-                      : FColors.adminLightTextSecondary,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: FSizes.xs),
-              Text(
-                FFormatter.formatTimeAgo(redemption.createdAt),
-                style: TextStyle(
-                  color: dark
-                      ? FColors.adminDarkTextMuted
-                      : FColors.adminLightTextMuted,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(height: FSizes.xs),
-              // 添加状态显示
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(redemption.status, dark),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  redemption.status.toUpperCase(),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+              // Redeemed date
+              Row(
+                children: [
+                  Text(
+                    _formatDate(redemption.createdAt),
+                    style: TextStyle(
+                      color: dark
+                          ? FColors.adminDarkTextSecondary
+                          : FColors.adminLightTextSecondary,
+                      fontSize: 12,
+                    ),
                   ),
+                  const SizedBox(width: FSizes.xs),
+                  Text(
+                    FFormatter.formatTimeAgo(redemption.createdAt),
+                    style: TextStyle(
+                      color: dark
+                          ? FColors.adminDarkTextMuted
+                          : FColors.adminLightTextMuted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FSizes.xs),
+              // Valid / Expired 文本，按状态换颜色
+              Text(
+                '$expiryTextPrefix${_formatDate(redemption.validUntil)}',
+                style: TextStyle(
+                  color: expiryColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+              const SizedBox(height: FSizes.sm),
+              CommonBadge(
+                text: redemption.status.toUpperCase(),
+                color: _getStatusColor(redemption.status, dark),
+                icon: Iconsax.info_circle,
+                iconSize: 12,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                borderRadius: 4,
+                textStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                borderColor: Colors.transparent,
               ),
             ],
           ),
@@ -728,31 +700,31 @@ class AdminRewardDetailScreen extends StatelessWidget {
     switch (status) {
       case 'active':
         backgroundColor =
-        dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
+            dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
         displayText = 'Active';
         icon = Iconsax.tick_circle;
         break;
       case 'inactive':
         backgroundColor =
-        dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
+            dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
         displayText = 'Inactive';
         icon = Iconsax.pause_circle;
         break;
       case 'expired':
         backgroundColor =
-        dark ? FColors.adminDarkError : FColors.adminLightError;
+            dark ? FColors.adminDarkError : FColors.adminLightError;
         displayText = 'Expired';
         icon = Iconsax.clock;
         break;
       case 'out_of_stock':
         backgroundColor =
-        dark ? FColors.adminDarkWarning : FColors.adminLightWarning;
+            dark ? FColors.adminDarkWarning : FColors.adminLightWarning;
         displayText = 'Out of Stock';
         icon = Iconsax.box_remove;
         break;
       default:
         backgroundColor =
-        dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
+            dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
         displayText = status;
         icon = Iconsax.info_circle;
     }
@@ -857,7 +829,7 @@ class AdminRewardDetailScreen extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color:
-                    dark ? FColors.adminDarkText : FColors.adminLightText,
+                        dark ? FColors.adminDarkText : FColors.adminLightText,
                     fontSize: 16,
                   ),
                 ),
@@ -919,14 +891,13 @@ class AdminRewardDetailScreen extends StatelessWidget {
     );
   }
 
-  void _showStatusToggleDialog(
-      RewardDetailsController controller, bool dark) {
+  void _showStatusToggleDialog(RewardDetailsController controller, bool dark) {
     final isActivating = controller.reward.value.status != 'active';
 
     Get.dialog(
       AlertDialog(
         backgroundColor:
-        dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+            dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
         ),
@@ -966,11 +937,9 @@ class AdminRewardDetailScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: isActivating
                   ? (dark
-                  ? FColors.adminDarkSuccess
-                  : FColors.adminLightSuccess)
-                  : (dark
-                  ? FColors.adminDarkError
-                  : FColors.adminLightError),
+                      ? FColors.adminDarkSuccess
+                      : FColors.adminLightSuccess)
+                  : (dark ? FColors.adminDarkError : FColors.adminLightError),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
               ),
@@ -981,108 +950,6 @@ class AdminRewardDetailScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showImageLightbox(String imageUrl, String title) {
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.black.withOpacity(0.9),
-        insetPadding: EdgeInsets.zero,
-        child: Stack(
-          children: [
-            GestureDetector(
-              onTap: () => Get.back(),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: Get.width,
-                height: Get.height,
-                color: Colors.transparent,
-              ),
-            ),
-            Center(
-              child: Container(
-                width: Get.width * 0.7,
-                height: Get.height * 0.7,
-                child: InteractiveViewer(
-                  panEnabled: true,
-                  scaleEnabled: true,
-                  minScale: 0.5,
-                  maxScale: 4.0,
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: FColors.adminDarkSurfaceVariant,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Iconsax.image,
-                            size: 64,
-                            color: FColors.adminDarkTextMuted,
-                          ),
-                          const SizedBox(height: FSizes.md),
-                          Text(
-                            'Failed to load image',
-                            style: TextStyle(
-                              color: FColors.adminDarkTextMuted,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 40,
-              right: 20,
-              child: GestureDetector(
-                onTap: () => Get.back(),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 40,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '$title - Pinch to zoom',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

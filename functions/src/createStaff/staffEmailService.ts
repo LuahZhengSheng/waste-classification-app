@@ -1,3 +1,5 @@
+// src/createStaff/staffEmailService.ts
+
 import * as admin from 'firebase-admin';
 import { StaffEmailTemplates } from './staffEmailTemplates';
 

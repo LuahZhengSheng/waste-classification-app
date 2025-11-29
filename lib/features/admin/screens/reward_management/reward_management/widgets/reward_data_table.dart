@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 
+import '../../../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../../../common/widgets/admin/badge.dart';
 import '../../../../../reward_redemption/models/reward_model.dart';
 import '../../../../controllers/reward_management/reward_management_controller.dart';
@@ -309,9 +310,18 @@ class _AdminRewardDataTableState extends State<RewardDataTable> {
   }
 
   DataCell _buildImageCell(RewardModel reward) {
+    print('reward image: ${reward.rewardImage}');
     return DataCell(
       GestureDetector(
-        onTap: () => _showImageDialog(reward.rewardImage, reward.title),
+        onTap: () {
+          Get.dialog(
+            ImageLightbox(
+              imageUrl: reward.rewardImage,
+              title: reward.title,
+            ),
+            barrierDismissible: true,
+          );
+        },
         child: Container(
           width: 50,
           height: 50,
@@ -663,7 +673,7 @@ class _AdminRewardDataTableState extends State<RewardDataTable> {
     final computedStatus = widget.controller.getRewardComputedStatus(reward);
 
     return DataCell(
-      Container(
+      SizedBox(
         width: 180,
         child: Row(
           mainAxisSize: MainAxisSize.min,

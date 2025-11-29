@@ -5,7 +5,7 @@ import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import '../../../../common/widgets/appbar/appbar.dart';
-import '../../../recycling_center/models/waste_category_model.dart';
+import '../../models/waste_category_model.dart';
 import '../../controllers/waste_category_guide_controller.dart';
 import 'waste_category_guide_detail.dart';
 

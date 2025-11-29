@@ -21,10 +21,8 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _searchController = TextEditingController();
 
-  bool _obscurePassword = true;
   bool _hasChanges = false;
   bool _showDropdown = false;
   final FocusNode _searchFocusNode = FocusNode();
@@ -36,7 +34,6 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
     super.initState();
     _usernameController.addListener(() => setState(() => _hasChanges = true));
     _emailController.addListener(() => setState(() => _hasChanges = true));
-    _passwordController.addListener(() => setState(() => _hasChanges = true));
 
     _searchFocusNode.addListener(() {
       if (_searchFocusNode.hasFocus) {
@@ -80,12 +77,12 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
         Positioned(
           left: offset.dx - 45,
           top: offset.dy + size.height + 20,
-          width: size.width + 90, // 这里已经使用了输入框的宽度
+          width: size.width + 90,
           child: Material(
             elevation: 8,
             borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
             child: Container(
-              width: size.width, // 添加这行确保容器宽度匹配
+              width: size.width,
               constraints: const BoxConstraints(maxHeight: 250),
               decoration: BoxDecoration(
                 border: Border.all(
@@ -339,7 +336,7 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
       ),
       child: Container(
         width: 500,
-        constraints: const BoxConstraints(maxHeight: 700),
+        constraints: const BoxConstraints(maxHeight: 600),
         padding: const EdgeInsets.all(FSizes.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -586,57 +583,6 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
                       ),
                       const SizedBox(height: FSizes.spaceBtwItems),
 
-                      // Password Field
-                      Text(
-                        'Password *',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: widget.dark
-                              ? FColors.adminDarkText
-                              : FColors.adminLightText,
-                        ),
-                      ),
-                      const SizedBox(height: FSizes.xs),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          hintText: 'Enter password',
-                          hintStyle: TextStyle(
-                            color: widget.dark
-                                ? FColors.adminDarkTextSecondary
-                                : FColors.adminLightTextSecondary,
-                          ),
-                          prefixIcon: Icon(
-                            Iconsax.lock,
-                            color: widget.dark
-                                ? FColors.adminDarkTextSecondary
-                                : FColors.adminLightTextSecondary,
-                          ),
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Iconsax.eye_slash
-                                  : Iconsax.eye,
-                              color: widget.dark
-                                  ? FColors.adminDarkTextSecondary
-                                  : FColors.adminLightTextSecondary,
-                            ),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius:
-                            BorderRadius.circular(FSizes.cardRadiusMd),
-                          ),
-                        ),
-                        validator: FValidator.validatePassword,
-                      ),
-                      const SizedBox(height: FSizes.spaceBtwItems),
-
                       // Info Box
                       Container(
                         padding: const EdgeInsets.all(FSizes.md),
@@ -665,7 +611,7 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
                             const SizedBox(width: FSizes.sm),
                             Expanded(
                               child: Text(
-                                'A verification email will be sent to the staff\'s email address.',
+                                'A password reset email will be sent to the staff\'s email address. They will set their own password.',
                                 style: TextStyle(
                                   color: widget.dark
                                       ? FColors.adminDarkInfo
@@ -802,7 +748,7 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
           ),
         ),
         content: Text(
-          'Are you sure you want to create this staff account?',
+          'A password reset email will be sent to ${_emailController.text}. Are you sure you want to create this staff account?',
           style: TextStyle(
             color: widget.dark
                 ? FColors.adminDarkTextSecondary
@@ -839,7 +785,6 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
         await _controller.createStaff(
           username: _usernameController.text.trim(),
           email: _emailController.text.trim(),
-          password: _passwordController.text,
         );
         Get.back();
       } catch (e) {
@@ -853,7 +798,6 @@ class _CreateStaffDialogState extends State<CreateStaffDialog> {
     _hideDropdownOverlay();
     _usernameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();

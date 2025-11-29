@@ -4,9 +4,10 @@ import 'package:iconsax/iconsax.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
-import 'package:fyp/utils/formatters/formatter.dart';
+import '../../../../../common/widgets/admin/admin_lightbox.dart';
+import '../../../../../common/widgets/admin/badge.dart';
+import '../../../../event/models/event_model.dart';
 import '../../../controllers/event_management/event_detail_controller.dart';
-import '../../../../community/screens/create_post/widgets/media_lightbox.dart';
 
 class AdminEventDetailScreen extends StatelessWidget {
   final String eventId;
@@ -23,9 +24,11 @@ class AdminEventDetailScreen extends StatelessWidget {
     });
 
     return Scaffold(
-      backgroundColor: dark ? FColors.adminDarkBackground : FColors.adminLightBackground,
+      backgroundColor:
+          dark ? FColors.adminDarkBackground : FColors.adminLightBackground,
       appBar: AppBar(
-        backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+        backgroundColor:
+            dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Get.back(),
@@ -54,7 +57,9 @@ class AdminEventDetailScreen extends StatelessWidget {
                     onPressed: () => controller.editEvent(),
                     icon: Icon(
                       Iconsax.edit,
-                      color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                      color: dark
+                          ? FColors.adminDarkTextSecondary
+                          : FColors.adminLightTextSecondary,
                     ),
                     tooltip: 'Edit Event',
                   ),
@@ -64,17 +69,23 @@ class AdminEventDetailScreen extends StatelessWidget {
                     onPressed: () => controller.cancelEvent(),
                     icon: Icon(
                       Iconsax.close_circle,
-                      color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                      color: dark
+                          ? FColors.adminDarkError
+                          : FColors.adminLightError,
                     ),
                     tooltip: 'Cancel Event',
                   ),
                 // Delete button - only for completed/cancelled
-                if ((computedStatus == 'completed' || event.status == 'cancelled') && event.status != 'deleted')
+                if ((computedStatus == 'completed' ||
+                        event.status == 'cancelled') &&
+                    event.status != 'deleted')
                   IconButton(
                     onPressed: () => controller.deleteEvent(),
                     icon: Icon(
                       Iconsax.trash,
-                      color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                      color: dark
+                          ? FColors.adminDarkError
+                          : FColors.adminLightError,
                     ),
                     tooltip: 'Delete Event',
                   ),
@@ -88,7 +99,8 @@ class AdminEventDetailScreen extends StatelessWidget {
         if (controller.isLoading.value) {
           return Center(
             child: CircularProgressIndicator(
-              color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+              color:
+                  dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
             ),
           );
         }
@@ -117,19 +129,23 @@ class AdminEventDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEventPoster(event, bool dark) {
+  Widget _buildEventPoster(Event event, bool dark) {
+    print('event detail poster: ${event.poster}');
     if (event.poster.isEmpty) {
       return Container(
         height: 300,
         decoration: BoxDecoration(
-          color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+          color: dark
+              ? FColors.adminDarkSurfaceVariant
+              : FColors.adminLightSurfaceVariant,
           borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
         ),
         child: Center(
           child: Icon(
             Iconsax.image,
             size: 80,
-            color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+            color:
+                dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
           ),
         ),
       );
@@ -137,16 +153,12 @@ class AdminEventDetailScreen extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        Get.to(() => UnifiedMediaLightbox(
-          mediaItems: [
-            UnifiedMediaItem.network(
-              id: event.eventId,
-              networkUrl: event.poster,
-              isVideo: false,
-            ),
-          ],
-          initialIndex: 0,
-        ));
+        Get.dialog(
+          ImageLightbox(
+            imageUrl: event.poster,
+            title: event.title,
+          ),
+        );
       },
       child: Container(
         height: 300,
@@ -202,7 +214,8 @@ class AdminEventDetailScreen extends StatelessWidget {
             children: [
               Icon(
                 Iconsax.info_circle,
-                color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+                color:
+                    dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
               ),
               const SizedBox(width: FSizes.sm),
               Text(
@@ -219,7 +232,26 @@ class AdminEventDetailScreen extends StatelessWidget {
           _buildInfoRow('Event ID', event.eventId, dark, selectable: true),
           _buildInfoRow('Title', event.title, dark),
           _buildInfoRow('Description', event.description, dark),
-          _buildInfoRow('Status', event.computedStatus.toUpperCase(), dark),
+          Padding(
+            padding: const EdgeInsets.only(bottom: FSizes.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 150,
+                  child: Text(
+                    'Status',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color:
+                          dark ? FColors.adminDarkText : FColors.adminLightText,
+                    ),
+                  ),
+                ),
+                _buildStatusBadge(event.computedStatus, dark),
+              ],
+            ),
+          ),
           const SizedBox(height: FSizes.md),
           Row(
             children: [
@@ -249,8 +281,12 @@ class AdminEventDetailScreen extends StatelessWidget {
                   event.isPublish ? 'Yes' : 'No',
                   event.isPublish ? Iconsax.eye : Iconsax.eye_slash,
                   event.isPublish
-                      ? (dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess)
-                      : (dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted),
+                      ? (dark
+                          ? FColors.adminDarkSuccess
+                          : FColors.adminLightSuccess)
+                      : (dark
+                          ? FColors.adminDarkTextMuted
+                          : FColors.adminLightTextMuted),
                   dark,
                 ),
               ),
@@ -282,7 +318,9 @@ class AdminEventDetailScreen extends StatelessWidget {
             children: [
               Icon(
                 Iconsax.call,
-                color: dark ? FColors.adminDarkSecondary : FColors.adminLightSecondary,
+                color: dark
+                    ? FColors.adminDarkSecondary
+                    : FColors.adminLightSecondary,
               ),
               const SizedBox(width: FSizes.sm),
               Text(
@@ -301,12 +339,14 @@ class AdminEventDetailScreen extends StatelessWidget {
           _buildInfoRow('Address', event.location.fullAddress, dark),
           _buildInfoRow(
             'Start Date',
-            FHelperFunctions.getFormattedDate(event.startDateTime, format: 'dd MMM yyyy, HH:mm'),
+            FHelperFunctions.getFormattedDate(event.startDateTime,
+                format: 'dd MMM yyyy, HH:mm'),
             dark,
           ),
           _buildInfoRow(
             'End Date',
-            FHelperFunctions.getFormattedDate(event.endDateTime, format: 'dd MMM yyyy, HH:mm'),
+            FHelperFunctions.getFormattedDate(event.endDateTime,
+                format: 'dd MMM yyyy, HH:mm'),
             dark,
           ),
           Row(
@@ -314,20 +354,31 @@ class AdminEventDetailScreen extends StatelessWidget {
               Expanded(
                 child: _buildInfoRow(
                   'Registration Deadline',
-                  FHelperFunctions.getFormattedDate(event.registrationDeadline, format: 'dd MMM yyyy, HH:mm'),
+                  FHelperFunctions.getFormattedDate(event.registrationDeadline,
+                      format: 'dd MMM yyyy, HH:mm'),
                   dark,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: FSizes.sm, vertical: FSizes.xs),
                 decoration: BoxDecoration(
-                  color: (dark ? FColors.adminDarkWarning : FColors.adminLightWarning).withOpacity(0.1),
+                  color: (dark
+                          ? FColors.adminDarkError
+                          : FColors.adminLightError)
+                      .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(FSizes.cardRadiusXs),
                 ),
                 child: Text(
                   event.daysUntilDeadlineText,
                   style: TextStyle(
-                    color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+                    color: event.daysUntilDeadlineText == 'Closed'
+                        ? (dark
+                            ? FColors.adminDarkError
+                            : FColors.adminLightError)
+                        : (dark
+                            ? FColors.adminDarkTextMuted
+                            : FColors.adminLightTextMuted),
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
@@ -335,7 +386,8 @@ class AdminEventDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-          _buildInfoRow('Duration', '${event.durationInHours.toStringAsFixed(1)} hours', dark),
+          _buildInfoRow('Duration',
+              '${event.durationInHours.toStringAsFixed(1)} hours', dark),
           _buildInfoRow(
             'Created At',
             FHelperFunctions.getFormattedDate(event.createdAt),
@@ -346,7 +398,8 @@ class AdminEventDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRegistrationSection(AdminEventDetailController controller, bool dark) {
+  Widget _buildRegistrationSection(
+      AdminEventDetailController controller, bool dark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -410,7 +463,9 @@ class AdminEventDetailScreen extends StatelessWidget {
                     children: [
                       Icon(
                         Iconsax.user_octagon,
-                        color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+                        color: dark
+                            ? FColors.adminDarkPrimary
+                            : FColors.adminLightPrimary,
                       ),
                       const SizedBox(width: FSizes.sm),
                       Text(
@@ -418,7 +473,9 @@ class AdminEventDetailScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                          color: dark
+                              ? FColors.adminDarkText
+                              : FColors.adminLightText,
                         ),
                       ),
                     ],
@@ -427,52 +484,79 @@ class AdminEventDetailScreen extends StatelessWidget {
                     children: [
                       // Filter
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: FSizes.md, vertical: FSizes.sm),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: FSizes.md, vertical: FSizes.sm),
                         decoration: BoxDecoration(
-                          color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
-                          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                          color: dark
+                              ? FColors.adminDarkSurfaceVariant
+                              : FColors.adminLightSurfaceVariant,
+                          borderRadius:
+                              BorderRadius.circular(FSizes.cardRadiusMd),
                         ),
                         child: Obx(() => DropdownButton<String>(
-                          value: controller.filterBy.value,
-                          onChanged: (value) => controller.setFilterBy(value!),
-                          underline: const SizedBox(),
-                          isDense: true,
-                          items: const [
-                            DropdownMenuItem(value: 'all', child: Text('All')),
-                            DropdownMenuItem(value: 'active', child: Text('Active')),
-                            DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
-                          ],
-                          style: TextStyle(
-                            color: dark ? FColors.adminDarkText : FColors.adminLightText,
-                            fontSize: 14,
-                          ),
-                          dropdownColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-                        )),
+                              value: controller.filterBy.value,
+                              onChanged: (value) =>
+                                  controller.setFilterBy(value!),
+                              underline: const SizedBox(),
+                              isDense: true,
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'all', child: Text('All')),
+                                DropdownMenuItem(
+                                    value: 'active', child: Text('Active')),
+                                DropdownMenuItem(
+                                    value: 'cancelled',
+                                    child: Text('Cancelled')),
+                              ],
+                              style: TextStyle(
+                                color: dark
+                                    ? FColors.adminDarkText
+                                    : FColors.adminLightText,
+                                fontSize: 14,
+                              ),
+                              dropdownColor: dark
+                                  ? FColors.adminDarkSurface
+                                  : FColors.adminLightSurface,
+                            )),
                       ),
                       const SizedBox(width: FSizes.sm),
                       // Sort
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: FSizes.md, vertical: FSizes.sm),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: FSizes.md, vertical: FSizes.sm),
                         decoration: BoxDecoration(
-                          color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
-                          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                          color: dark
+                              ? FColors.adminDarkSurfaceVariant
+                              : FColors.adminLightSurfaceVariant,
+                          borderRadius:
+                              BorderRadius.circular(FSizes.cardRadiusMd),
                         ),
                         child: Obx(() => DropdownButton<String>(
-                          value: controller.sortBy.value,
-                          onChanged: (value) => controller.setSortBy(value!),
-                          underline: const SizedBox(),
-                          isDense: true,
-                          items: const [
-                            DropdownMenuItem(value: 'newest', child: Text('Newest First')),
-                            DropdownMenuItem(value: 'oldest', child: Text('Oldest First')),
-                            DropdownMenuItem(value: 'name', child: Text('By Name')),
-                          ],
-                          style: TextStyle(
-                            color: dark ? FColors.adminDarkText : FColors.adminLightText,
-                            fontSize: 14,
-                          ),
-                          dropdownColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-                        )),
+                              value: controller.sortBy.value,
+                              onChanged: (value) =>
+                                  controller.setSortBy(value!),
+                              underline: const SizedBox(),
+                              isDense: true,
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'newest',
+                                    child: Text('Newest First')),
+                                DropdownMenuItem(
+                                    value: 'oldest',
+                                    child: Text('Oldest First')),
+                                DropdownMenuItem(
+                                    value: 'name', child: Text('By Name')),
+                              ],
+                              style: TextStyle(
+                                color: dark
+                                    ? FColors.adminDarkText
+                                    : FColors.adminLightText,
+                                fontSize: 14,
+                              ),
+                              dropdownColor: dark
+                                  ? FColors.adminDarkSurface
+                                  : FColors.adminLightSurface,
+                            )),
                       ),
                     ],
                   ),
@@ -489,11 +573,14 @@ class AdminEventDetailScreen extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: controller.filteredRegistrations.length,
                   separatorBuilder: (context, index) => Divider(
-                    color: dark ? FColors.adminDarkDivider : FColors.adminLightDivider,
+                    color: dark
+                        ? FColors.adminDarkDivider
+                        : FColors.adminLightDivider,
                   ),
                   itemBuilder: (context, index) {
                     final regWithUser = controller.filteredRegistrations[index];
-                    return _buildRegistrationCard(regWithUser, controller, dark);
+                    return _buildRegistrationCard(
+                        regWithUser, controller, dark);
                   },
                 );
               }),
@@ -504,7 +591,8 @@ class AdminEventDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, bool dark, {bool selectable = false}) {
+  Widget _buildInfoRow(String label, String value, bool dark,
+      {bool selectable = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: FSizes.sm),
       child: Row(
@@ -523,25 +611,30 @@ class AdminEventDetailScreen extends StatelessWidget {
           Expanded(
             child: selectable
                 ? SelectableText(
-              value,
-              style: TextStyle(
-                color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-              ),
-              maxLines: 2,
-            )
+                    value,
+                    style: TextStyle(
+                      color: dark
+                          ? FColors.adminDarkTextSecondary
+                          : FColors.adminLightTextSecondary,
+                    ),
+                    maxLines: 2,
+                  )
                 : Text(
-              value,
-              style: TextStyle(
-                color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-              ),
-            ),
+                    value,
+                    style: TextStyle(
+                      color: dark
+                          ? FColors.adminDarkTextSecondary
+                          : FColors.adminLightTextSecondary,
+                    ),
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color, bool dark) {
+  Widget _buildMetricCard(
+      String label, String value, IconData icon, Color color, bool dark) {
     return Container(
       padding: const EdgeInsets.all(FSizes.md),
       decoration: BoxDecoration(
@@ -564,7 +657,9 @@ class AdminEventDetailScreen extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+              color: dark
+                  ? FColors.adminDarkTextMuted
+                  : FColors.adminLightTextMuted,
               fontSize: 12,
             ),
           ),
@@ -573,7 +668,8 @@ class AdminEventDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color, bool dark) {
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color, bool dark) {
     return Container(
       padding: const EdgeInsets.all(FSizes.lg),
       decoration: BoxDecoration(
@@ -610,7 +706,9 @@ class AdminEventDetailScreen extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+              color: dark
+                  ? FColors.adminDarkTextMuted
+                  : FColors.adminLightTextMuted,
             ),
           ),
         ],
@@ -619,30 +717,90 @@ class AdminEventDetailScreen extends StatelessWidget {
   }
 
   Widget _buildEmptyState(bool dark) {
-    return Container(
-      padding: const EdgeInsets.all(FSizes.xl),
-      child: Column(
-        children: [
-          Icon(
-            Iconsax.user_minus,
-            size: 64,
-            color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-          ),
-          const SizedBox(height: FSizes.md),
-          Text(
-            'No registrations found',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+    return SizedBox(
+      height: 200, // 或者 300，看你列表区域高度
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Iconsax.user_minus,
+              size: 64,
+              color: dark
+                  ? FColors.adminDarkTextMuted
+                  : FColors.adminLightTextMuted,
             ),
-          ),
-        ],
+            const SizedBox(height: FSizes.md),
+            Text(
+              'No registrations found',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildRegistrationCard(regWithUser, AdminEventDetailController controller, bool dark) {
+  Widget _buildStatusBadge(String status, bool dark) {
+    Color color;
+    IconData icon;
+    String label;
+
+    switch (status) {
+      case 'upcoming':
+        color = dark ? FColors.adminDarkInfo : FColors.adminLightInfo;
+        icon = Iconsax.calendar_1;
+        label = 'Upcoming';
+        break;
+      case 'ongoing':
+        color = dark ? FColors.adminDarkWarning : FColors.adminLightWarning;
+        icon = Iconsax.activity;
+        label = 'Ongoing';
+        break;
+      case 'completed':
+        color = dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
+        icon = Iconsax.tick_circle;
+        label = 'Completed';
+        break;
+      case 'cancelled':
+        color = dark ? FColors.adminDarkError : FColors.adminLightError;
+        icon = Iconsax.close_circle;
+        label = 'Cancelled';
+        break;
+      default:
+        color = dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
+        icon = Iconsax.slash;
+        label = status;
+        break;
+    }
+
+    return CommonBadge(
+      icon: icon,
+      color: color,
+      text: label,
+      iconSize: 14,
+      textStyle: TextStyle(
+        color: color,
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      ),
+      borderRadius: FSizes.cardRadiusMd,
+      padding: const EdgeInsets.symmetric(
+        horizontal: FSizes.sm,
+        vertical: FSizes.xs,
+      ),
+      borderColor: color.withOpacity(0.3),
+    );
+  }
+
+  Widget _buildRegistrationCard(
+      regWithUser, AdminEventDetailController controller, bool dark) {
     final registration = regWithUser.registration;
     final user = regWithUser.user;
 
@@ -652,19 +810,23 @@ class AdminEventDetailScreen extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-            backgroundImage: user.profileImg != null && user.profileImg!.isNotEmpty
-                ? NetworkImage(user.profileImg!)
-                : null,
+            backgroundColor:
+                dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+            backgroundImage:
+                user.profileImg != null && user.profileImg!.isNotEmpty
+                    ? NetworkImage(user.profileImg!)
+                    : null,
             child: user.profileImg == null || user.profileImg!.isEmpty
                 ? Text(
-              user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            )
+                    user.username.isNotEmpty
+                        ? user.username[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
                 : null,
           ),
           const SizedBox(width: FSizes.md),
@@ -680,7 +842,9 @@ class AdminEventDetailScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                          color: dark
+                              ? FColors.adminDarkText
+                              : FColors.adminLightText,
                         ),
                       ),
                     ),
@@ -691,7 +855,9 @@ class AdminEventDetailScreen extends StatelessWidget {
                 Text(
                   user.email,
                   style: TextStyle(
-                    color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                    color: dark
+                        ? FColors.adminDarkTextSecondary
+                        : FColors.adminLightTextSecondary,
                     fontSize: 14,
                   ),
                 ),
@@ -699,7 +865,9 @@ class AdminEventDetailScreen extends StatelessWidget {
                   Text(
                     user.phoneNo!,
                     style: TextStyle(
-                      color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                      color: dark
+                          ? FColors.adminDarkTextSecondary
+                          : FColors.adminLightTextSecondary,
                       fontSize: 14,
                     ),
                   ),
@@ -713,14 +881,18 @@ class AdminEventDetailScreen extends StatelessWidget {
               Text(
                 'Registered',
                 style: TextStyle(
-                  color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+                  color: dark
+                      ? FColors.adminDarkTextMuted
+                      : FColors.adminLightTextMuted,
                   fontSize: 12,
                 ),
               ),
               Text(
                 controller.getTimeAgo(registration.createdAt),
                 style: TextStyle(
-                  color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                  color: dark
+                      ? FColors.adminDarkTextSecondary
+                      : FColors.adminLightTextSecondary,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -732,12 +904,14 @@ class AdminEventDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip(registration, AdminEventDetailController controller, bool dark) {
+  Widget _buildStatusChip(
+      registration, AdminEventDetailController controller, bool dark) {
     final color = controller.getRegistrationStatusColor(registration, dark);
     final text = controller.getRegistrationStatusText(registration);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+      padding: const EdgeInsets.symmetric(
+          horizontal: FSizes.sm, vertical: FSizes.xs),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(FSizes.cardRadiusXs),

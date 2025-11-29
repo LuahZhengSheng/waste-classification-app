@@ -48,9 +48,15 @@ class RewardDetailsController extends GetxController {
   /// Listen to reward updates
   void _listenToReward() {
     _rewardSubscription =
-        _rewardRepo.getRewardByIdStream(initialReward.rewardId).listen(
+        _rewardRepo.getRewardStream(initialReward.rewardId).listen(
               (updatedReward) {
+            print('📡 listenToReward -> incoming status: ${updatedReward.status}, hash: ${updatedReward.hashCode}');
+            print('📡 listenToReward -> before assign, local status: ${reward.value.status}, hash: ${reward.value.hashCode}');
+            print('📡 listenToReward -> identical(reward.value, updatedReward): ${identical(reward.value, updatedReward)}');
+
             reward.value = updatedReward;
+
+            print('📡 listenToReward -> after assign, local status: ${reward.value.status}, hash: ${reward.value.hashCode}');
           },
           onError: (error) {
             print('Error listening to reward: $error');
@@ -113,7 +119,23 @@ class RewardDetailsController extends GetxController {
 
   /// Get computed status
   String getComputedStatus() {
-    if (reward.value.status == 'inactive') {
+    final currentStatus = reward.value.status;
+    final computedStatus = _computeStatus(currentStatus);
+
+    print('🔍 getComputedStatus():');
+    print('   📝 Raw Status: $currentStatus');
+    print('   🧮 Computed Status: $computedStatus');
+    print('   📦 Remaining Quantity: ${reward.value.remainingQuantity}');
+    print('   📅 Is Expired: ${reward.value.isExpired}');
+    print('   ⏰ Valid Until: ${reward.value.validUntil}');
+    print('   🕒 Now: ${DateTime.now()}');
+    print('   🔑 reward.hash: ${reward.value.hashCode}');
+
+    return computedStatus;
+  }
+
+  String _computeStatus(String rawStatus) {
+    if (rawStatus == 'inactive') {
       return 'inactive';
     }
 
@@ -130,36 +152,78 @@ class RewardDetailsController extends GetxController {
 
   /// Toggle reward status
   Future<void> toggleRewardStatus() async {
+    final currentStatus = reward.value.status;
+    final isActivating = currentStatus != 'active';
+
+    print('🎯 Toggle Reward Status:');
+    print('   📝 Current Status: $currentStatus');
+    print('   🔄 Is Activating: $isActivating');
+    print('   🏷️ Reward Title: ${reward.value.title}');
+
+    // 使用 FAdminLoaders 显示确认对话框
+    FAdminLoaders.showStatusToggleConfirmationDialog(
+      title: isActivating ? 'Activate Reward' : 'Deactivate Reward',
+      message: isActivating
+          ? 'Are you sure you want to activate "${reward.value.title}"? It will be available for users to redeem.'
+          : 'Are you sure you want to deactivate "${reward.value.title}"? Users will no longer be able to redeem this reward.',
+      confirmButtonText: isActivating ? 'Activate' : 'Deactivate',
+      onConfirm: () async {
+        print('✅ Dialog confirmed, proceeding with status toggle...');
+        await _performStatusToggle(isActivating);
+      },
+      isActivating: isActivating,
+      itemName: reward.value.title,
+    );
+  }
+
+  /// 执行状态切换的实际逻辑
+  Future<void> _performStatusToggle(bool isActivating) async {
     try {
-      print('Toggle status called - current status: ${reward.value.status}');
-      final newStatus = reward.value.status == 'active' ? 'inactive' : 'active';
-      print('Attempting to change to: $newStatus');
+      final newStatus = isActivating ? 'active' : 'inactive';
 
-      // If activating, check constraints
-      if (newStatus == 'active') {
-        print('Checking activation constraints...');
-        final canActivate = _canActivateReward();
-        print('Can activate: $canActivate');
+      print('🔄 Updating reward status to: $newStatus');
 
-        if (!canActivate) {
-          print('Activation blocked due to constraints');
-          return;
-        }
-      }
+      // 临时暂停流监听
+      _rewardSubscription?.pause();
 
-      print('Proceeding with status update...');
+      // 创建新的实例并更新本地状态
+      final updatedReward = reward.value.copyWith(status: newStatus);
+      reward.value = updatedReward;
+
+      print('✅ Local state updated to: ${reward.value.status}');
+
+      // 强制UI更新
+      update();
+
+      // 等待UI更新完成
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // 更新到 Firestore
+      print('🔥 Updating Firestore...');
       await _rewardRepo.updateRewardStatus(reward.value.rewardId, newStatus);
 
-      final message = newStatus == 'active'
+      print('✅ Firestore update completed');
+
+      // 恢复流监听
+      _rewardSubscription?.resume();
+
+      final message = isActivating
           ? 'Reward activated successfully'
           : 'Reward deactivated successfully';
+
       FAdminLoaders.successSnackBar(
         title: 'Success',
         message: message,
       );
-      print('Status update completed successfully');
+
+      print('🎉 Status toggle completed successfully');
+
     } catch (e) {
-      print('Error during status update: $e');
+      print('❌ Error during status update: $e');
+
+      // 恢复流监听
+      _rewardSubscription?.resume();
+
       FAdminLoaders.errorSnackBar(
         title: 'Error',
         message: 'Failed to update reward status: ${e.toString()}',
@@ -171,6 +235,12 @@ class RewardDetailsController extends GetxController {
   bool _canActivateReward() {
     final now = DateTime.now();
     final tomorrow = now.add(const Duration(days: 1));
+
+    print('🔍 _canActivateReward() Check:');
+    print('   📦 Remaining Quantity: ${reward.value.remainingQuantity}');
+    print('   📅 Valid Until: ${reward.value.validUntil}');
+    print('   🕒 Tomorrow: $tomorrow');
+    print('   ✅ Valid Until is after tomorrow: ${reward.value.validUntil.isAfter(tomorrow)}');
 
     if (reward.value.remainingQuantity <= 0) {
       print('❌ Activation failed: remaining quantity is 0');
@@ -191,8 +261,11 @@ class RewardDetailsController extends GetxController {
       return false;
     }
 
-    if (reward.value.validUntil.isBefore(tomorrow)) {
+    if (!reward.value.validUntil.isAfter(tomorrow)) {
       print('❌ Activation failed: valid until date is too soon');
+      print('   📅 Valid Until: ${reward.value.validUntil}');
+      print('   🕒 Tomorrow: $tomorrow');
+      print('   ⏰ Difference: ${reward.value.validUntil.difference(tomorrow)}');
 
       // 先关闭可能存在的 snackbar
       if (Get.isSnackbarOpen) {

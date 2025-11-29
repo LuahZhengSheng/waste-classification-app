@@ -1,12 +1,11 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fyp/data/repositories/authentication/authentication_repository.dart';
-import 'package:fyp/data/repositories/user/user_repository.dart';
-import 'package:fyp/utils/popups/loaders.dart';
 
+import '../../../../data/repositories/authentication/authentication_repository.dart';
 import '../../../../data/repositories/user/manager_repository.dart';
-import '../../../../data/services/email/email_service.dart';
+import '../../../../utils/popups/loaders.dart';
 import '../../models/admin_model.dart';
 
 enum ManagerFilter { active, inactive, banned }
@@ -15,11 +14,8 @@ class ManagerManagementController extends GetxController {
   static ManagerManagementController get instance => Get.find();
 
   final ManagerRepository _managerRepository = Get.put(ManagerRepository());
-  final UserRepository _userRepository = Get.put(UserRepository());
-  final AuthenticationRepository _authRepository =
-  Get.put(AuthenticationRepository());
-  final EmailService _emailService = EmailService();
   final TextEditingController searchController = TextEditingController();
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   // Observables
   final RxList<AdminModel> allManagers = <AdminModel>[].obs;
@@ -138,7 +134,6 @@ class ManagerManagementController extends GetxController {
     sortColumnIndex.value = columnIndex;
     sortAscending.value = ascending;
 
-    // 使用 List.from 创建新列表以避免直接修改原列表
     final sortedManagers = List<AdminModel>.from(filteredManagers);
 
     sortedManagers.sort((a, b) {
@@ -185,7 +180,6 @@ class ManagerManagementController extends GetxController {
       return ascending ? result : -result;
     });
 
-    // 更新 filteredManagers
     filteredManagers.value = sortedManagers;
   }
 
@@ -235,127 +229,162 @@ class ManagerManagementController extends GetxController {
   Future<void> createManager({
     required String username,
     required String email,
-    required String password,
     required String role,
   }) async {
     try {
       FLoaders.showLoading('Creating manager...');
-      print('🔄 Starting manager creation process...');
 
-      final currentUserId = _authRepository.authUser?.uid;
-
-      // Check username uniqueness
-      final isUsernameUnique =
-      await _managerRepository.isUsernameUnique(username, currentUserId!);
-      if (!isUsernameUnique) {
-        FLoaders.stopLoading();
-        print('❌ Username already taken: $username');
-        FLoaders.errorSnackBar(
-          title: 'Error',
-          message: 'Username is already taken',
-        );
-        return;
-      }
-
-      // Check email uniqueness
-      final isEmailUnique = await _managerRepository.isEmailUnique(email);
-      if (!isEmailUnique) {
-        FLoaders.stopLoading();
-        print('❌ Email already registered: $email');
-        FLoaders.errorSnackBar(
-          title: 'Error',
-          message: 'Email is already registered',
-        );
-        return;
-      }
-
-      print('✅ Username and email validation passed');
-
-      // Create auth account
-      final userCredential =
-      await _authRepository.registerWithEmailAndPassword(email, password);
-      print('✅ Firebase auth account created: ${userCredential.user?.uid}');
-
-      if (userCredential.user == null) {
-        throw 'Failed to create manager account - no user returned';
-      }
-
-      // Create manager record in Firestore
-      final manager = AdminModel(
-        userId: userCredential.user!.uid,
-        username: username,
-        email: email,
-        role: role,
-        isVerified: false,
-        isActive: true,
-        isBanned: false,
-        loginAttemptCount: 0,
+      final HttpsCallable callable = _functions.httpsCallable(
+        'createStaffManager',
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 60),
+        ),
       );
 
-      await _managerRepository.createManager(manager);
-      print('✅ Manager record created in Firestore');
+      final result = await callable.call(<String, dynamic>{
+        'username': username,
+        'email': email,
+        'role': role,
+      });
 
-      // Send verification email
-      await _authRepository.sendPasswordResetEmail(email);
-      print('✅ Verification email sent');
+      final responseData = result.data;
 
       FLoaders.stopLoading();
-      print('✅ Manager creation completed successfully');
 
-      // Show success message first
-      FLoaders.successSnackBar(
-        title: 'Success',
-        message: 'Manager created successfully. Verification email sent.',
-      );
+      if (responseData['success'] == true) {
+        if (responseData['emailSent'] == true) {
+          FLoaders.successSnackBar(
+            title: 'Success',
+            message: 'Manager created successfully. Password reset email sent.',
+          );
+        } else {
+          FLoaders.warningSnackBar(
+            title: 'Manager Created',
+            message: 'Manager account created but password reset email failed to send. ${responseData['emailError'] ?? ''}',
+          );
+        }
 
-      // Then close the dialog after a short delay to allow SnackBar to show
-      await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 500));
+      } else {
+        FLoaders.errorSnackBar(
+          title: 'Error',
+          message: responseData['message'] ?? 'Failed to create manager',
+        );
+      }
+
     } catch (e) {
       FLoaders.stopLoading();
-      print('❌ Manager creation failed: $e');
+
+      String errorMessage = 'Failed to create manager: $e';
+
+      if (e.toString().contains('already-exists')) {
+        if (e.toString().contains('Email')) {
+          errorMessage = 'Email is already registered';
+        } else if (e.toString().contains('Username')) {
+          errorMessage = 'Username is already taken';
+        }
+      } else if (e.toString().contains('invalid-argument')) {
+        errorMessage = 'Invalid input data. Please check all fields.';
+      } else if (e.toString().contains('unauthenticated')) {
+        errorMessage = 'Authentication required. Please log in again.';
+      } else if (e.toString().contains('permission-denied')) {
+        errorMessage = 'You do not have permission to create manager accounts';
+      }
+
       FLoaders.errorSnackBar(
         title: 'Error',
-        message: 'Failed to create manager: $e',
+        message: errorMessage,
       );
-      // Don't close the dialog on error so user can see the error message
     }
+  }
+
+  // 发送密码重置链接 (使用 Cloud Function)
+  Future<void> sendPasswordResetLink(AdminModel manager) async {
+    try {
+      // 检查是否可以发送
+      if (!canSendResetLink(manager)) {
+        FLoaders.warningSnackBar(
+          title: 'Wait Required',
+          message: 'Please wait 10 minutes before sending another reset link.',
+        );
+        return;
+      }
+
+      FLoaders.showLoading('Sending password reset link...');
+
+      final HttpsCallable callable = _functions.httpsCallable(
+        'resendPasswordReset',
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 30),
+        ),
+      );
+
+      final result = await callable.call(<String, dynamic>{
+        'userId': manager.userId,
+        'email': manager.email,
+      });
+
+      final responseData = result.data;
+
+      FLoaders.stopLoading();
+
+      if (responseData['success'] == true) {
+        FLoaders.successSnackBar(
+          title: 'Success',
+          message: 'Password reset link has been sent to ${manager.email}',
+        );
+      } else {
+        FLoaders.errorSnackBar(
+          title: 'Error',
+          message: responseData['message'] ?? 'Failed to send password reset link',
+        );
+      }
+
+    } catch (e) {
+      FLoaders.stopLoading();
+
+      String errorMessage = e.toString();
+      if (errorMessage.contains('wait')) {
+        // 提取等待分钟数
+        FLoaders.warningSnackBar(
+          title: 'Please Wait',
+          message: errorMessage,
+        );
+      } else if (errorMessage.contains('verified')) {
+        FLoaders.warningSnackBar(
+          title: 'Already Verified',
+          message: 'Cannot send password reset to verified users',
+        );
+      } else if (errorMessage.contains('inactive') || errorMessage.contains('banned')) {
+        FLoaders.errorSnackBar(
+          title: 'Account Inactive',
+          message: 'Cannot send password reset to inactive or banned users',
+        );
+      } else {
+        FLoaders.errorSnackBar(
+          title: 'Error',
+          message: 'Failed to send password reset link: $errorMessage',
+        );
+      }
+    }
+  }
+
+  // 检查是否可以发送重置链接（10分钟限制）
+  bool canSendResetLink(AdminModel manager) {
+    final lastResetTime = manager.lastPasswordResetTime;
+    if (lastResetTime == null) return true;
+
+    final now = DateTime.now();
+    final difference = now.difference(lastResetTime);
+    return difference.inMinutes >= 10;
   }
 
   // Manager Actions with Email Notifications
   Future<void> banManager(AdminModel manager) async {
     try {
       FLoaders.showLoading('Banning manager...');
-
       await _managerRepository.banManager(manager);
-
-      // Send email notification using the new EmailService
-      // final emailResult = await _emailService.sendManagerNotification(
-      //   toEmail: manager.email,
-      //   subject: 'Account Suspension Notice - SaveEarth',
-      //   message: ManagerEmailTemplates.getBanNotification(manager.username),
-      //   managerName: manager.username,
-      //   actionType: 'account_suspension',
-      // );
-
       FLoaders.stopLoading();
-
-      // if (emailResult.success) {
-      //   FLoaders.successSnackBar(
-      //     title: 'Success',
-      //     message: 'Manager has been banned successfully. Notification sent.',
-      //   );
-      // } else if (emailResult.shouldRetry) {
-      //   FLoaders.warningSnackBar(
-      //     title: 'Warning',
-      //     message: 'Manager banned but email notification failed. Will retry.',
-      //   );
-      // } else {
-      //   FLoaders.warningSnackBar(
-      //     title: 'Warning',
-      //     message: 'Manager banned but email notification failed: ${emailResult.error}',
-      //   );
-      // }
-
     } catch (e) {
       FLoaders.stopLoading();
       FLoaders.errorSnackBar(
@@ -368,37 +397,8 @@ class ManagerManagementController extends GetxController {
   Future<void> recoverManager(AdminModel manager) async {
     try {
       FLoaders.showLoading('Recovering manager...');
-
       await _managerRepository.recoverManager(manager);
-
-      // Send email notification using the new EmailService
-      // final emailResult = await _emailService.sendManagerNotification(
-      //   toEmail: manager.email,
-      //   subject: 'Account Recovery Notice - SaveEarth',
-      //   message: ManagerEmailTemplates.getRecoverNotification(manager.username),
-      //   managerName: manager.username,
-      //   actionType: 'account_recovery',
-      // );
-
       FLoaders.stopLoading();
-
-      // if (emailResult.success) {
-      //   FLoaders.successSnackBar(
-      //     title: 'Success',
-      //     message: 'Manager has been recovered successfully. Notification sent.',
-      //   );
-      // } else if (emailResult.shouldRetry) {
-      //   FLoaders.warningSnackBar(
-      //     title: 'Warning',
-      //     message: 'Manager recovered but email notification failed. Will retry.',
-      //   );
-      // } else {
-      //   FLoaders.warningSnackBar(
-      //     title: 'Warning',
-      //     message: 'Manager recovered but email notification failed: ${emailResult.error}',
-      //   );
-      // }
-
     } catch (e) {
       FLoaders.stopLoading();
       FLoaders.errorSnackBar(
@@ -408,76 +408,45 @@ class ManagerManagementController extends GetxController {
     }
   }
 
-  Future<void> updateManager(AdminModel manager, File? newProfileImage) async {
+  Future<void> updateManager(
+      AdminModel manager,
+      Uint8List? pendingImageBytes,
+      bool pendingDeleteImage
+      ) async {
     try {
       FLoaders.showLoading('Updating manager...');
 
-      // Get old manager data for comparison
-      final oldManager = await _managerRepository.getManagerById(manager.userId);
+      AdminModel updatedManager = manager;
 
-      if (newProfileImage != null) {
-        final imageUrl = await _userRepository.uploadProfileImage(
-          newProfileImage,
+      if (pendingDeleteImage && manager.profileImg != null && manager.profileImg!.isNotEmpty) {
+        await _managerRepository.deleteProfileImage(manager.profileImg!);
+        updatedManager = manager.copyWith(profileImg: '');
+      } else if (pendingImageBytes != null) {
+        final fileName = await _managerRepository.uploadProfileImageWeb(
+          pendingImageBytes,
           manager.userId,
           manager.profileImg,
         );
-        manager = manager.copyWith(profileImg: imageUrl);
+
+        if (fileName != null) {
+          updatedManager = manager.copyWith(profileImg: fileName);
+        }
       }
 
-      await _managerRepository.updateManagerDetails(manager);
-
-      // Send email notification if there were significant changes
-      // if (oldManager != null) {
-      //   final changes = _getChangedFields(oldManager, manager);
-      //   if (changes.isNotEmpty) {
-      //     final emailResult = await _emailService.sendManagerNotification(
-      //       toEmail: manager.email,
-      //       subject: 'Account Updated - SaveEarth',
-      //       message: ManagerEmailTemplates.getUpdateNotification(manager.username, changes),
-      //       managerName: manager.username,
-      //       actionType: 'account_updated',
-      //     );
-      //
-      //     if (!emailResult.success && !emailResult.shouldRetry) {
-      //       print('⚠️ Update notification failed: ${emailResult.error}');
-      //     }
-      //   }
-      // }
+      await _managerRepository.updateManagerDetails(updatedManager);
 
       FLoaders.stopLoading();
       FLoaders.successSnackBar(
-        title: 'Success',
-        message: 'Manager updated successfully.',
+          title: 'Success',
+          message: 'Manager updated successfully'
       );
     } catch (e) {
       FLoaders.stopLoading();
       FLoaders.errorSnackBar(
-        title: 'Error',
-        message: 'Failed to update manager: $e',
+          title: 'Error',
+          message: 'Failed to update manager: $e'
       );
     }
-  }
-
-  List<String> _getChangedFields(AdminModel oldManager, AdminModel newManager) {
-    final changes = <String>[];
-
-    if (oldManager.username != newManager.username) {
-      changes.add('- Username: ${oldManager.username} → ${newManager.username}');
-    }
-    if (oldManager.email != newManager.email) {
-      changes.add('- Email: ${oldManager.email} → ${newManager.email}');
-    }
-    if (oldManager.role != newManager.role) {
-      changes.add('- Role: ${oldManager.role} → ${newManager.role}');
-    }
-    if (oldManager.phoneNo != newManager.phoneNo) {
-      changes.add('- Phone: ${oldManager.phoneNo ?? 'Not set'} → ${newManager.phoneNo ?? 'Not set'}');
-    }
-    if (oldManager.isActive != newManager.isActive) {
-      changes.add('- Status: ${oldManager.isActive ? 'Active' : 'Inactive'} → ${newManager.isActive ? 'Active' : 'Inactive'}');
-    }
-
-    return changes;
   }
 
   @override

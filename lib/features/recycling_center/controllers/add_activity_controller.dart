@@ -2,11 +2,11 @@ import 'dart:io';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
+import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
 
 import '../../../utils/popups/loaders.dart';
 import '../../../utils/helpers/image_compressor.dart';
-import '../models/waste_category_model.dart';
+import '../../waste_classification/models/waste_category_model.dart';
 
 class AddActivityFormController extends GetxController {
   final bool isEditing;

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
-import 'dart:math';
 
 class RedemptionModel {
   String redemptionId;
@@ -8,195 +7,193 @@ class RedemptionModel {
   String rewardId;
   String pinCode;
   DateTime createdAt;
-  String status; // 'pending', 'used', 'expired'
-  int points; // 新增：记录兑换消耗的积分
+  DateTime validUntil;
+  String status; // 'active', 'expired'
+  int points;
 
-  /// Constructor
   RedemptionModel({
     required this.redemptionId,
     required this.userId,
     required this.rewardId,
     required this.pinCode,
     required this.createdAt,
-    required this.points, // 新增：必需的积分字段
-    this.status = 'pending',
+    required this.validUntil,
+    required this.points,
+    this.status = 'active',
   });
 
-  /// Static function to create empty redemption model
   static RedemptionModel empty() => RedemptionModel(
     redemptionId: '',
     userId: '',
     rewardId: '',
     pinCode: '',
     createdAt: DateTime.now(),
-    points: 0, // 新增：默认为0
-    status: 'pending',
+    validUntil: DateTime.now().add(const Duration(days: 30)),
+    points: 0,
   );
 
-  /// Convert model to JSON structure for storing data in Firebase
+  /// 写入 Firestore：时间字段用 Timestamp
   Map<String, dynamic> toJson() {
     return {
       'redemptionId': redemptionId,
       'userId': userId,
       'rewardId': rewardId,
       'pinCode': pinCode,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt),
+      'validUntil': Timestamp.fromDate(validUntil),
       'status': status,
-      'points': points, // 新增：保存到JSON
+      'points': points,
     };
   }
 
-  /// Factory method to create a RedemptionModel from a Firebase document snapshot
-  factory RedemptionModel.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> document) {
-    if (document.data() != null) {
-      final data = document.data()!;
-      return RedemptionModel(
-        redemptionId: document.id,
-        userId: data['userId'] ?? '',
-        rewardId: data['rewardId'] ?? '',
-        pinCode: data['pinCode'] ?? '',
-        createdAt: DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
-        points: data['points'] ?? 0, // 新增：从Firebase读取
-        status: data['status'] ?? 'pending',
-      );
-    } else {
-      return RedemptionModel.empty();
-    }
+  /// 从 Firestore DocumentSnapshot 读取（createdAt / validUntil 为 Timestamp）
+  factory RedemptionModel.fromSnapshot(
+      DocumentSnapshot<Map<String, dynamic>> document) {
+    final data = document.data();
+    if (data == null) return RedemptionModel.empty();
+
+    final createdTs = data['createdAt'] as Timestamp?;
+    final validTs = data['validUntil'] as Timestamp?;
+
+    return RedemptionModel(
+      redemptionId: document.id,
+      userId: data['userId'] ?? '',
+      rewardId: data['rewardId'] ?? '',
+      pinCode: data['pinCode'] ?? '',
+      createdAt: createdTs?.toDate() ?? DateTime.now(),
+      validUntil:
+      validTs?.toDate() ?? DateTime.now().add(const Duration(days: 30)),
+      points: (data['points'] ?? 0) as int,
+      status: data['status'] ?? 'active',
+    );
   }
 
-  /// Factory method to create a RedemptionModel from a JSON map
+  /// 从 JSON map（如果你本地反序列化时用）
   factory RedemptionModel.fromJson(Map<String, dynamic> json) {
+    final createdTs = json['createdAt'] as Timestamp?;
+    final validTs = json['validUntil'] as Timestamp?;
     return RedemptionModel(
       redemptionId: json['redemptionId'] ?? '',
       userId: json['userId'] ?? '',
       rewardId: json['rewardId'] ?? '',
       pinCode: json['pinCode'] ?? '',
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      points: json['points'] ?? 0, // 新增：从JSON读取
-      status: json['status'] ?? 'pending',
+      createdAt: createdTs?.toDate() ?? DateTime.now(),
+      validUntil:
+      validTs?.toDate() ?? DateTime.now().add(const Duration(days: 30)),
+      points: (json['points'] ?? 0) as int,
+      status: json['status'] ?? 'active',
     );
   }
 
-  /// Factory method to create a new redemption with auto-generated PIN
+  /// 创建新 redemption，自动生成 12 位 PIN
   factory RedemptionModel.createNew({
     required String userId,
     required String rewardId,
-    required int points, // 新增：必需的积分参数
+    required int points,
+    required DateTime validUntil,
     String? customPinCode,
+    Duration validityDuration = const Duration(days: 30),
   }) {
+    final now = DateTime.now();
     return RedemptionModel(
-      redemptionId: '', // Will be set by Firebase
+      redemptionId: '',
       userId: userId,
       rewardId: rewardId,
       pinCode: customPinCode ?? _generatePinCode(),
-      createdAt: DateTime.now(),
-      points: points, // 新增：设置积分
-      status: 'pending',
+      createdAt: now,
+      validUntil: validUntil,
+      points: points,
+      status: 'active',
     );
   }
 
-  /// Private method to generate a random 6-digit PIN code
+  /// 生成 12 位数字 PIN
   static String _generatePinCode() {
-    final random = Random();
-    final pinCode = random.nextInt(900000) + 100000; // Generates 6-digit number
-    return pinCode.toString();
+    final buffer = StringBuffer();
+    final now = DateTime.now().microsecondsSinceEpoch;
+    for (int i = 0; i < 12; i++) {
+      final digit = (now >> (i * 3)) % 10;
+      buffer.write(digit);
+    }
+    return buffer.toString();
   }
 
-  /// Helper method to check if redemption is still valid/pending
-  bool get isPending {
-    return status == 'pending';
-  }
+  bool get isActive => status == 'active';
 
-  /// Helper method to check if redemption has been used
-  bool get isUsed {
-    return status == 'used';
-  }
+  bool get isExpired =>
+      status == 'expired' || DateTime.now().isAfter(validUntil);
 
-  /// Helper method to check if redemption has expired
-  bool get isExpired {
-    return status == 'expired';
-  }
+  String get formattedCreatedAt => FFormatter.formatDate(createdAt);
 
-  /// Helper method to get formatted creation date
-  String get formattedCreatedAt {
-    return FFormatter.formatDate(createdAt);
-  }
+  String get formattedValidUntil => FFormatter.formatDate(validUntil);
 
-  /// Helper method to get status display text
   String get statusDisplayText {
+    if (DateTime.now().isAfter(validUntil) && status == 'active') {
+      return 'Expired';
+    }
     switch (status.toLowerCase()) {
-      case 'pending':
-        return 'Pending';
-      case 'used':
-        return 'Used';
+      case 'active':
+        return 'Active';
       case 'expired':
         return 'Expired';
-      case 'cancelled':
-        return 'Cancelled';
       default:
         return 'Unknown';
     }
   }
 
-  /// Helper method to get formatted PIN code (with spaces for better readability)
+  /// 4-4-4 显示 12 位 PIN
   String get formattedPinCode {
-    if (pinCode.length == 6) {
-      return '${pinCode.substring(0, 3)} ${pinCode.substring(3)}';
+    if (pinCode.length == 12) {
+      return '${pinCode.substring(0, 4)} '
+          '${pinCode.substring(4, 8)} '
+          '${pinCode.substring(8, 12)}';
     }
     return pinCode;
   }
 
-  /// Helper method to mark redemption as used
   void markAsUsed() {
-    status = 'used';
+    status = 'expired';
   }
 
-  /// Helper method to mark redemption as expired
   void markAsExpired() {
     status = 'expired';
   }
 
-  /// Helper method to cancel redemption
-  void cancel() {
-    status = 'cancelled';
-  }
-
-  /// Helper method to validate redemption data
   bool isValid() {
     return userId.isNotEmpty &&
         rewardId.isNotEmpty &&
         pinCode.isNotEmpty &&
-        pinCode.length == 6 &&
-        points > 0; // 新增：验证积分为正数
+        pinCode.length == 12 &&
+        points > 0 &&
+        validUntil.isAfter(createdAt);
   }
 
-  /// Helper method to check if PIN code matches
   bool isPinCodeValid(String inputPin) {
     return pinCode == inputPin.replaceAll(' ', '');
   }
 
-  /// Helper method to get days since redemption
-  int get daysSinceRedemption {
-    return DateTime.now().difference(createdAt).inDays;
+  int get daysSinceRedemption =>
+      DateTime.now().difference(createdAt).inDays;
+
+  int get hoursSinceRedemption =>
+      DateTime.now().difference(createdAt).inHours;
+
+  bool get isRecent => hoursSinceRedemption < 24;
+
+  int get remainingDays {
+    final now = DateTime.now();
+    if (now.isAfter(validUntil)) return 0;
+    return validUntil.difference(now).inDays;
   }
 
-  /// Helper method to get hours since redemption
-  int get hoursSinceRedemption {
-    return DateTime.now().difference(createdAt).inHours;
-  }
+  bool get isValidNow =>
+      status == 'active' && DateTime.now().isBefore(validUntil);
 
-  /// Helper method to check if redemption is recent (within last 24 hours)
-  bool get isRecent {
-    return hoursSinceRedemption < 24;
-  }
-
-  /// Override toString for debugging purposes
   @override
   String toString() {
-    return 'RedemptionModel(redemptionId: $redemptionId, userId: $userId, rewardId: $rewardId, pinCode: $pinCode, points: $points, status: $status)';
+    return 'RedemptionModel(redemptionId: $redemptionId, userId: $userId, rewardId: $rewardId, pinCode: $pinCode, points: $points, validUntil: $validUntil, status: $status)';
   }
 
-  /// Override equality operator
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -204,18 +201,17 @@ class RedemptionModel {
               runtimeType == other.runtimeType &&
               redemptionId == other.redemptionId;
 
-  /// Override hashCode
   @override
   int get hashCode => redemptionId.hashCode;
 
-  /// Create a copy of the redemption with updated fields
   RedemptionModel copyWith({
     String? redemptionId,
     String? userId,
     String? rewardId,
     String? pinCode,
     DateTime? createdAt,
-    int? points, // 新增：积分字段
+    DateTime? validUntil,
+    int? points,
     String? status,
   }) {
     return RedemptionModel(
@@ -224,26 +220,36 @@ class RedemptionModel {
       rewardId: rewardId ?? this.rewardId,
       pinCode: pinCode ?? this.pinCode,
       createdAt: createdAt ?? this.createdAt,
-      points: points ?? this.points, // 新增：复制积分
+      validUntil: validUntil ?? this.validUntil,
+      points: points ?? this.points,
       status: status ?? this.status,
     );
   }
 
-  /// Helper method to generate a new PIN code
   void generateNewPinCode() {
     pinCode = _generatePinCode();
   }
 
-  /// Helper method to check if redemption should be expired based on time
   bool shouldExpire({Duration? expiryDuration}) {
-    final expiry = expiryDuration ?? const Duration(days: 30); // Default 30 days
-    return DateTime.now().difference(createdAt) > expiry && status == 'pending';
+    final expiry = expiryDuration ?? const Duration(days: 30);
+    return DateTime.now().difference(createdAt) > expiry &&
+        status == 'active';
   }
 
-  /// Helper method to auto-expire if needed
   void autoExpireIfNeeded({Duration? expiryDuration}) {
-    if (shouldExpire(expiryDuration: expiryDuration)) {
+    if (shouldExpire(expiryDuration: expiryDuration) ||
+        DateTime.now().isAfter(validUntil)) {
       markAsExpired();
+    }
+  }
+
+  void extendValidity(Duration extension) {
+    validUntil = validUntil.add(extension);
+  }
+
+  void setValidUntil(DateTime newValidUntil) {
+    if (newValidUntil.isAfter(createdAt)) {
+      validUntil = newValidUntil;
     }
   }
 }

@@ -7,6 +7,8 @@ import 'package:fyp/features/recycling_center/models/recycling_center_staff_mode
 import 'package:fyp/utils/exceptions/firebase_exceptions.dart';
 import 'package:fyp/utils/exceptions/format_exceptions.dart';
 import 'package:fyp/utils/exceptions/platform_exceptions.dart';
+import 'package:fyp/data/repositories/user/user_repository.dart';
+import 'package:fyp/features/authentication/models/user_model.dart';
 
 class StaffRepository extends GetxController {
   static StaffRepository get instance => Get.find();
@@ -17,9 +19,6 @@ class StaffRepository extends GetxController {
 
   final String _usersCollection = 'users';
   final String _profileImagesFolder = "profile_images";
-
-  // 头像缓存
-  final Map<String, String> profileImageCache = {};
 
   /// Get staff stream (center_staff role) with profile images
   Stream<List<RecyclingCenterStaff>> getStaffStream() {
@@ -37,7 +36,24 @@ class StaffRepository extends GetxController {
           .map((doc) => RecyclingCenterStaff.fromSnapshot(doc))
           .toList();
 
-      await _loadProfileImagesForStaff(staffList);
+      // 使用 UserRepository 加载头像
+      final userRepo = Get.find<UserRepository>();
+      await userRepo.loadProfileImagesForUsers(staffList.map((staff) => UserModel(
+        userId: staff.userId,
+        username: staff.username,
+        email: staff.email,
+        profileImg: staff.profileImg,
+        role: 'center_staff',
+        isActive: staff.isActive,
+        isVerified: staff.isVerified,
+        isBanned: staff.isBanned,
+        joinDate: staff.joinDate,
+        phoneNo: staff.phoneNo,
+        gender: staff.gender,
+        rewardPoint: 0,
+        monthlyRewardPoint: 0,
+        totalRewardPoint: 0,
+      )).toList());
 
       return staffList;
     }).handleError((error) {
@@ -162,72 +178,6 @@ class StaffRepository extends GetxController {
     }
   }
 
-  // ========== 头像处理方法 ==========
-
-  /// 批量加载员工头像
-  Future<void> _loadProfileImagesForStaff(List<RecyclingCenterStaff> staffList) async {
-    for (final staff in staffList) {
-      if (staff.profileImg != null && staff.profileImg!.isNotEmpty) {
-        await _loadProfileImage(staff.profileImg!);
-      }
-    }
-  }
-
-  /// 加载单个头像到缓存
-  Future<void> _loadProfileImage(String fileName) async {
-    if (profileImageCache.containsKey(fileName)) {
-      return;
-    }
-
-    try {
-      final path = '$_profileImagesFolder/$fileName';
-      final ref = _storage.ref().child(path);
-      final downloadUrl = await ref.getDownloadURL();
-
-      profileImageCache[fileName] = downloadUrl;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Failed to load profile image $fileName: $e');
-      }
-    }
-  }
-
-  /// 获取头像URL - 公共方法，优先从缓存获取
-  Future<String?> getProfileImageUrl(String fileName) async {
-    try {
-      if (fileName.isEmpty) {
-        return null;
-      }
-
-      if (profileImageCache.containsKey(fileName)) {
-        return profileImageCache[fileName];
-      }
-
-      final path = '$_profileImagesFolder/$fileName';
-      final ref = _storage.ref().child(path);
-      final downloadUrl = await ref.getDownloadURL();
-
-      profileImageCache[fileName] = downloadUrl;
-
-      return downloadUrl;
-    } on FirebaseException catch (e) {
-      if (e.code == 'object-not-found') {
-        if (kDebugMode) {
-          print('Profile image not found: $fileName');
-        }
-      }
-      throw 'Failed to get profile image URL: ${e.message ?? e.code}';
-    } catch (e) {
-      throw 'Failed to get profile image URL: $e';
-    }
-  }
-
-  /// 从缓存获取头像URL（同步方法）
-  String? getCachedProfileImageUrl(String? fileName) {
-    if (fileName == null || fileName.isEmpty) return null;
-    return profileImageCache[fileName];
-  }
-
   /// 上传头像到 Firebase Storage
   Future<String> uploadProfileImageWeb(Uint8List imageBytes, String userId, String? oldFileName) async {
     try {
@@ -259,7 +209,9 @@ class StaffRepository extends GetxController {
         'profileImg': fileName,
       });
 
-      profileImageCache[fileName] = downloadUrl;
+      // 更新 UserRepository 的缓存
+      final userRepo = Get.find<UserRepository>();
+      userRepo.profileImageCache[fileName] = downloadUrl;
 
       return fileName;
     } on FirebaseException catch (e) {
@@ -279,7 +231,9 @@ class StaffRepository extends GetxController {
 
       await ref.delete();
 
-      profileImageCache.remove(fileName);
+      // 从 UserRepository 缓存中移除
+      final userRepo = Get.find<UserRepository>();
+      userRepo.profileImageCache.remove(fileName);
     } on FirebaseException catch (e) {
       if (e.code == 'object-not-found') {
         if (kDebugMode) {

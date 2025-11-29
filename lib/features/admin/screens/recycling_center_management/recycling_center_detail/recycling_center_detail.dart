@@ -7,7 +7,7 @@ import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/features/admin/controllers/recycling_center_management/recycling_center_detail_controller.dart';
 import 'package:fyp/features/recycling_center/models/recycling_center_staff_model.dart';
-import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
+import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
 import 'package:fyp/features/authentication/models/user_model.dart';
 
 class RecyclingCenterDetailsScreen extends StatelessWidget {

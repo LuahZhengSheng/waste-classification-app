@@ -23,14 +23,16 @@ class LocationInputDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 使用固定的 tag 避免每次都创建新的
-    final controllerTag = 'location_input_${initialLocation?.hashCode ?? 'new'}';
+    final controllerTag =
+        'location_input_${initialLocation?.hashCode ?? 'new'}';
 
     return GetBuilder<LocationInputController>(
       init: LocationInputController(initialLocation: initialLocation),
       tag: controllerTag,
       builder: (controller) {
         return Dialog(
-          backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+          backgroundColor:
+              dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
           ),
@@ -103,7 +105,9 @@ class LocationInputDialog extends StatelessWidget {
             onPressed: () => Get.back(),
             icon: Icon(
               Iconsax.close_circle,
-              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+              color: dark
+                  ? FColors.adminDarkTextSecondary
+                  : FColors.adminLightTextSecondary,
             ),
           ),
         ],
@@ -150,20 +154,22 @@ class LocationInputDialog extends StatelessWidget {
     try {
       return GoogleMap(
         initialCameraPosition: CameraPosition(
-          target: controller.currentMarkerPosition.value ?? const LatLng(3.1390, 101.6869),
+          target: controller.currentMarkerPosition.value ??
+              const LatLng(3.1390, 101.6869),
           zoom: 15,
         ),
         onMapCreated: controller.onMapCreated,
         markers: controller.currentMarkerPosition.value != null
             ? {
-          Marker(
-            markerId: const MarkerId('event_location'),
-            position: controller.currentMarkerPosition.value!,
-            draggable: true,
-            onDragEnd: controller.onMarkerDragEnd,
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          ),
-        }
+                Marker(
+                  markerId: const MarkerId('event_location'),
+                  position: controller.currentMarkerPosition.value!,
+                  draggable: true,
+                  onDragEnd: controller.onMarkerDragEnd,
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                      BitmapDescriptor.hueRed),
+                ),
+              }
             : {},
         myLocationButtonEnabled: false,
         zoomControlsEnabled: true,
@@ -182,7 +188,9 @@ class LocationInputDialog extends StatelessWidget {
       height: 300,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+        color: dark
+            ? FColors.adminDarkSurfaceVariant
+            : FColors.adminLightSurfaceVariant,
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
         border: Border.all(
           color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
@@ -194,7 +202,8 @@ class LocationInputDialog extends StatelessWidget {
           Icon(
             Iconsax.map,
             size: 64,
-            color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+            color:
+                dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
           ),
           const SizedBox(height: FSizes.md),
           Text(
@@ -202,7 +211,9 @@ class LocationInputDialog extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+              color: dark
+                  ? FColors.adminDarkTextSecondary
+                  : FColors.adminLightTextSecondary,
             ),
           ),
           const SizedBox(height: FSizes.xs),
@@ -213,7 +224,9 @@ class LocationInputDialog extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+                color: dark
+                    ? FColors.adminDarkTextMuted
+                    : FColors.adminLightTextMuted,
               ),
             ),
           ),
@@ -227,7 +240,9 @@ class LocationInputDialog extends StatelessWidget {
       height: 300,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+        color: dark
+            ? FColors.adminDarkSurfaceVariant
+            : FColors.adminLightSurfaceVariant,
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
         border: Border.all(
           color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
@@ -243,7 +258,9 @@ class LocationInputDialog extends StatelessWidget {
           Text(
             'Searching location...',
             style: TextStyle(
-              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+              color: dark
+                  ? FColors.adminDarkTextSecondary
+                  : FColors.adminLightTextSecondary,
             ),
           ),
         ],
@@ -256,7 +273,9 @@ class LocationInputDialog extends StatelessWidget {
       height: 300,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+        color: dark
+            ? FColors.adminDarkSurfaceVariant
+            : FColors.adminLightSurfaceVariant,
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
         border: Border.all(
           color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
@@ -276,7 +295,9 @@ class LocationInputDialog extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+              color: dark
+                  ? FColors.adminDarkTextSecondary
+                  : FColors.adminLightTextSecondary,
             ),
           ),
           const SizedBox(height: FSizes.xs),
@@ -284,7 +305,9 @@ class LocationInputDialog extends StatelessWidget {
             'Please try again',
             style: TextStyle(
               fontSize: 12,
-              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+              color: dark
+                  ? FColors.adminDarkTextMuted
+                  : FColors.adminLightTextMuted,
             ),
           ),
         ],
@@ -301,10 +324,12 @@ class LocationInputDialog extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(FSizes.sm),
                 decoration: BoxDecoration(
-                  color: (dark ? FColors.adminDarkInfo : FColors.adminLightInfo).withOpacity(0.1),
+                  color: (dark ? FColors.adminDarkInfo : FColors.adminLightInfo)
+                      .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(FSizes.cardRadiusSm),
                   border: Border.all(
-                    color: dark ? FColors.adminDarkInfo : FColors.adminLightInfo,
+                    color:
+                        dark ? FColors.adminDarkInfo : FColors.adminLightInfo,
                   ),
                 ),
                 child: Row(
@@ -312,7 +337,8 @@ class LocationInputDialog extends StatelessWidget {
                     Icon(
                       Iconsax.info_circle,
                       size: 16,
-                      color: dark ? FColors.adminDarkInfo : FColors.adminLightInfo,
+                      color:
+                          dark ? FColors.adminDarkInfo : FColors.adminLightInfo,
                     ),
                     const SizedBox(width: FSizes.xs),
                     Expanded(
@@ -320,7 +346,9 @@ class LocationInputDialog extends StatelessWidget {
                         'You can drag the red marker to adjust the exact location (within 500m)',
                         style: TextStyle(
                           fontSize: 11,
-                          color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                          color: dark
+                              ? FColors.adminDarkText
+                              : FColors.adminLightText,
                         ),
                       ),
                     ),
@@ -333,7 +361,8 @@ class LocationInputDialog extends StatelessWidget {
               onPressed: controller.resetMarkerToOriginal,
               icon: Icon(
                 Iconsax.refresh,
-                color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+                color:
+                    dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
               ),
               tooltip: 'Reset to original position',
             ),
@@ -425,9 +454,11 @@ class LocationInputDialog extends StatelessWidget {
           // Unit Number
           TextFormField(
             controller: controller.unitNoController,
-            decoration: _inputDecoration('Unit/Building Number *', Iconsax.home_2),
+            decoration:
+                _inputDecoration('Unit/Building Number *', Iconsax.home_2),
             style: _inputTextStyle(),
-            validator: (value) => FValidator.validateEmptyText('Unit number', value),
+            validator: (value) =>
+                FValidator.validateEmptyText('Unit number', value),
           ),
           const SizedBox(height: FSizes.spaceBtwInputFields),
 
@@ -436,7 +467,8 @@ class LocationInputDialog extends StatelessWidget {
             controller: controller.areaController,
             decoration: _inputDecoration('Area/Street *', Iconsax.map),
             style: _inputTextStyle(),
-            validator: (value) => FValidator.validateEmptyText('Area/Street', value),
+            validator: (value) =>
+                FValidator.validateEmptyText('Area/Street', value),
           ),
           const SizedBox(height: FSizes.spaceBtwInputFields),
 
@@ -468,7 +500,8 @@ class LocationInputDialog extends StatelessWidget {
                   controller: controller.cityController,
                   decoration: _inputDecoration('City *', Iconsax.building),
                   style: _inputTextStyle(),
-                  validator: (value) => FValidator.validateEmptyText('City', value),
+                  validator: (value) =>
+                      FValidator.validateEmptyText('City', value),
                 ),
               ),
             ],
@@ -477,10 +510,13 @@ class LocationInputDialog extends StatelessWidget {
 
           // State
           DropdownButtonFormField<String>(
-            value: controller.stateController.text.isEmpty ? null : controller.stateController.text,
+            value: controller.stateController.text.isEmpty
+                ? null
+                : controller.stateController.text,
             decoration: _inputDecoration('State *', Iconsax.global),
             style: _inputTextStyle(),
-            dropdownColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+            dropdownColor:
+                dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
             items: _malaysianStates.map((String state) {
               return DropdownMenuItem<String>(
                 value: state,
@@ -496,17 +532,19 @@ class LocationInputDialog extends StatelessWidget {
           ),
           const SizedBox(height: FSizes.xs),
           Obx(() => Text(
-            controller.isEditingMode.value
-                ? controller.hasChanges.value
-                ? 'Address changed. Fill all fields and wait 5 seconds to update map'
-                : 'Edit the address fields to update map location'
-                : 'Fill in all address fields and wait 5 seconds for automatic map validation',
-            style: TextStyle(
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
-              color: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
-            ),
-          )),
+                controller.isEditingMode.value
+                    ? controller.hasChanges.value
+                        ? 'Address changed. Fill all fields and wait 5 seconds to update map'
+                        : 'Edit the address fields to update map location'
+                    : 'Fill in all address fields and wait 5 seconds for automatic map validation',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  color: dark
+                      ? FColors.adminDarkTextMuted
+                      : FColors.adminLightTextMuted,
+                ),
+              )),
         ],
       ),
     );
@@ -530,7 +568,8 @@ class LocationInputDialog extends StatelessWidget {
               onPressed: () => Get.back(),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(
-                  color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
+                  color:
+                      dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
                 ),
                 padding: const EdgeInsets.symmetric(vertical: FSizes.md),
                 shape: RoundedRectangleBorder(
@@ -540,7 +579,9 @@ class LocationInputDialog extends StatelessWidget {
               child: Text(
                 'Cancel',
                 style: TextStyle(
-                  color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                  color: dark
+                      ? FColors.adminDarkTextSecondary
+                      : FColors.adminLightTextSecondary,
                 ),
               ),
             ),
@@ -552,16 +593,26 @@ class LocationInputDialog extends StatelessWidget {
                   ? () {
                 final location = controller.getLocation();
                 if (location != null) {
-                  // 重置变化检测状态
-                  controller.resetChangeDetection();
-                  onLocationSelected(location);
-                  Get.back();
+                  // 立即关闭对话框
+                  if (Get.isDialogOpen == true) {
+                    Get.back();
+                  }
+
+                  // 然后在下一帧执行回调
+                  Future.delayed(Duration.zero, () {
+                    controller.resetChangeDetection();
+                    onLocationSelected(location);
+                  });
                 }
               }
                   : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                disabledBackgroundColor: dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+                backgroundColor: dark
+                    ? FColors.adminDarkPrimary
+                    : FColors.adminLightPrimary,
+                disabledBackgroundColor: dark
+                    ? FColors.adminDarkTextMuted
+                    : FColors.adminLightTextMuted,
                 padding: const EdgeInsets.symmetric(vertical: FSizes.md),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
@@ -569,7 +620,8 @@ class LocationInputDialog extends StatelessWidget {
               ),
               child: const Text(
                 'Save Location',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600),
               ),
             )),
           ),
@@ -582,11 +634,15 @@ class LocationInputDialog extends StatelessWidget {
     return InputDecoration(
       labelText: label,
       labelStyle: TextStyle(
-        color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+        color: dark
+            ? FColors.adminDarkTextSecondary
+            : FColors.adminLightTextSecondary,
       ),
       prefixIcon: Icon(
         icon,
-        color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+        color: dark
+            ? FColors.adminDarkTextSecondary
+            : FColors.adminLightTextSecondary,
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
@@ -621,7 +677,9 @@ class LocationInputDialog extends StatelessWidget {
         ),
       ),
       filled: true,
-      fillColor: dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+      fillColor: dark
+          ? FColors.adminDarkSurfaceVariant
+          : FColors.adminLightSurfaceVariant,
     );
   }
 

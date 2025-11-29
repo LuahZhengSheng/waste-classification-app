@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:fyp/features/reward_redemption/screens/my_reward/my_reward.dart';
-import 'package:fyp/features/reward_redemption/screens/reward_detail/reward_detail.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fyp/features/reward_redemption/controllers/reward_controller.dart';
-import 'package:fyp/features/reward_redemption/models/reward_model.dart';
-import 'package:fyp/utils/constants/colors.dart';
-import 'package:fyp/utils/constants/sizes.dart';
-import 'package:fyp/utils/helpers/helper_functions.dart';
 
 import '../../../../common/widgets/appbar/appbar.dart';
+import '../../../../utils/constants/colors.dart';
+import '../../../../utils/constants/sizes.dart';
+import '../../../../utils/helpers/helper_functions.dart';
+
+import '../../controllers/reward_controller.dart';
+import '../../models/reward_model.dart';
+import '../my_reward/my_reward.dart';
+import '../reward_detail/reward_detail.dart';
+import 'widgets/reward_card.dart';
 
 class RewardRedemptionScreen extends StatelessWidget {
   const RewardRedemptionScreen({super.key});
@@ -23,67 +24,81 @@ class RewardRedemptionScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: dark ? FColors.dark : FColors.light,
       appBar: FAppBar(
-        title: Text('Rewards'),
+        title: const Text('Rewards'),
         centerTitle: false,
+        showBackArrow: true,
         actionButtonText: 'My Rewards',
         actionButtonIcon: Iconsax.ticket,
-        onActionButtonPressed: () => Get.to(() => const MyRewardsScreen()),
-        showBackArrow: true,
+        onActionButtonPressed: () =>
+            Get.to(() => const MyRewardsScreen()),
       ),
       body: RefreshIndicator(
         color: FColors.primary,
         onRefresh: controller.refreshRewards,
         child: CustomScrollView(
           slivers: [
-            // Points Card
+            // 顶部积分卡
             SliverToBoxAdapter(
               child: Container(
                 color: dark ? FColors.dark : FColors.white,
                 padding: const EdgeInsets.all(FSizes.defaultSpace),
-                child: _buildPointsCard(controller, dark),
+                child: _buildPointsCard(controller),
               ),
             ),
 
-            // Divider
+            // 分隔
             SliverToBoxAdapter(
               child: Container(
                 height: 8,
-                color: dark ? FColors.black : FColors.grey.withOpacity(0.05),
+                color: dark
+                    ? FColors.black
+                    : FColors.grey.withOpacity(0.05),
               ),
             ),
 
-            // Section Header
+            // 标题 + 排序
             SliverToBoxAdapter(
               child: Container(
                 color: dark ? FColors.dark : FColors.white,
-                padding: const EdgeInsets.fromLTRB(
-                  FSizes.defaultSpace,
-                  FSizes.md,
-                  FSizes.defaultSpace,
-                  FSizes.md,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FSizes.defaultSpace,
+                  vertical: FSizes.md,
                 ),
-                child: Text(
-                  'Redeem Your Rewards',
-                  style: TextStyle(
-                    color: dark ? FColors.white : FColors.black,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Redeem Your Rewards',
+                      style: TextStyle(
+                        color: dark ? FColors.white : FColors.black,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    _buildSortButton(controller, dark),
+                  ],
                 ),
               ),
             ),
 
-            // Rewards Grid
+            // Reward Grid
             Obx(() {
-              if (controller.isLoading.value && controller.rewards.isEmpty) {
+              if (controller.isLoading.value &&
+                  controller.rewards.isEmpty) {
                 return const SliverFillRemaining(
                   child: Center(
-                    child: CircularProgressIndicator(color: FColors.primary),
+                    child: CircularProgressIndicator(
+                      color: FColors.primary,
+                    ),
                   ),
                 );
               }
 
-              if (controller.rewards.isEmpty) {
+              final items = controller.sortedRewards
+                  .where((r) => r.status == 'active')
+                  .toList();
+
+              if (items.isEmpty) {
                 return SliverFillRemaining(
                   child: _buildEmptyState(context, dark),
                 );
@@ -97,18 +112,29 @@ class RewardRedemptionScreen extends StatelessWidget {
                   FSizes.defaultSpace,
                 ),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: FSizes.gridViewSpacing,
                     mainAxisSpacing: FSizes.gridViewSpacing,
-                    childAspectRatio: 0.75,
+                    childAspectRatio: 0.5,
                   ),
                   delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                      final reward = controller.rewards[index];
-                      return _buildRewardCard(reward, controller, dark);
+                      final reward = items[index];
+                      return RewardCard(
+                        reward: reward,
+                        mode: RewardCardMode.redemption,
+                        subtitleText:
+                        'Valid until ${reward.formattedValidUntil}',
+                        onTap: () => Get.to(
+                              () => RewardDetailScreen(
+                            rewardId: reward.rewardId,
+                          ),
+                        ),
+                      );
                     },
-                    childCount: controller.rewards.length,
+                    childCount: items.length,
                   ),
                 ),
               );
@@ -119,226 +145,73 @@ class RewardRedemptionScreen extends StatelessWidget {
     );
   }
 
-  /// Build points card widget
-  Widget _buildPointsCard(RewardController controller, bool dark) {
-    return Obx(() => Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(FSizes.lg),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            FColors.primary,
-            FColors.accent,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: FColors.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: FColors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Iconsax.star1,
-                  color: FColors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: FSizes.md),
-              Text(
-                'My Reward Points',
-                style: TextStyle(
-                  color: FColors.white.withOpacity(0.9),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: FSizes.md),
-          Text(
-            controller.userPoints.value.toString().replaceAllMapped(
-              RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                  (Match m) => '${m[1]},',
-            ),
-            style: const TextStyle(
-              color: FColors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: FSizes.xs),
-          Text(
-            'Points Available',
-            style: TextStyle(
-              color: FColors.white.withOpacity(0.8),
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    ));
-  }
-
-  /// Build individual reward card
-  Widget _buildRewardCard(RewardModel reward, RewardController controller, bool dark) {
-    final canRedeem = controller.canRedeemReward(reward);
-    final daysUntilExpiry = reward.validUntil.difference(DateTime.now()).inDays;
-
-    return GestureDetector(
-      onTap: () => Get.to(() => RewardDetailScreen(reward: reward)),
-      child: Container(
+  Widget _buildPointsCard(RewardController controller) {
+    return Obx(
+          () => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(FSizes.lg),
         decoration: BoxDecoration(
-          color: dark ? FColors.darkerGrey : FColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: dark
-                ? FColors.darkGrey.withOpacity(0.3)
-                : FColors.grey.withOpacity(0.2),
-            width: 1,
+          gradient: const LinearGradient(
+            colors: [
+              FColors.primary,
+              FColors.accent,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: FColors.primary.withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Reward Image
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              child: Container(
-                height: 120,
-                width: double.infinity,
-                color: FColors.primary.withOpacity(0.1),
-                child: reward.rewardImage.isNotEmpty
-                    ? CachedNetworkImage(
-                  imageUrl: reward.rewardImage,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Center(
-                    child: CircularProgressIndicator(
-                      color: FColors.primary,
-                      strokeWidth: 2,
-                    ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: FColors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  errorWidget: (context, url, error) => Center(
-                    child: Icon(
-                      Iconsax.gift,
-                      size: 40,
-                      color: FColors.primary.withOpacity(0.5),
-                    ),
-                  ),
-                )
-                    : Center(
-                  child: Icon(
-                    Iconsax.gift,
-                    size: 40,
-                    color: FColors.primary.withOpacity(0.5),
+                  child: const Icon(
+                    Iconsax.medal,
+                    color: FColors.white,
+                    size: 24,
                   ),
                 ),
+                const SizedBox(width: FSizes.md),
+                Text(
+                  'My Reward Points',
+                  style: TextStyle(
+                    color: FColors.white.withOpacity(0.9),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: FSizes.md),
+            Text(
+              controller.userPoints.value.toString(),
+              style: const TextStyle(
+                color: FColors.white,
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
               ),
             ),
-
-            /// Reward Details - Fixed layout
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(FSizes.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    /// Title - Flexible to take available space
-                    Expanded(
-                      child: Text(
-                        reward.title,
-                        style: TextStyle(
-                          color: dark ? FColors.white : FColors.black,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-
-                    const SizedBox(height: FSizes.xs),
-
-                    /// Points Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FSizes.sm,
-                        vertical: FSizes.xs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: canRedeem
-                            ? FColors.primary.withOpacity(0.1)
-                            : FColors.darkGrey.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Iconsax.star1,
-                            size: 14,
-                            color: canRedeem ? FColors.primary : FColors.darkGrey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${reward.pointsNeeded}',
-                            style: TextStyle(
-                              color: canRedeem ? FColors.primary : FColors.darkGrey,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: FSizes.xs),
-
-                    /// Expiry Info
-                    Row(
-                      children: [
-                        Icon(
-                          Iconsax.clock,
-                          size: 12,
-                          color: dark ? FColors.darkGrey : FColors.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            daysUntilExpiry > 0
-                                ? '$daysUntilExpiry days left'
-                                : 'Expires soon',
-                            style: TextStyle(
-                              color: dark ? FColors.darkGrey : FColors.textSecondary,
-                              fontSize: 11,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            const SizedBox(height: FSizes.xs),
+            Text(
+              'Points Available',
+              style: TextStyle(
+                color: FColors.white.withOpacity(0.85),
+                fontSize: 14,
               ),
             ),
           ],
@@ -347,7 +220,185 @@ class RewardRedemptionScreen extends StatelessWidget {
     );
   }
 
-  /// Build empty state
+  Widget _buildSortButton(
+      RewardController controller, bool dark) {
+    return Obx(
+          () {
+        final type = controller.sortType.value;
+        final label = type == RewardSortType.highestToLowest
+            ? 'High → Low'
+            : 'Low → High';
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: () => _showSortBottomSheet(controller, dark),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: FSizes.md,
+              vertical: FSizes.xs,
+            ),
+            decoration: BoxDecoration(
+              color: dark
+                  ? FColors.darkerGrey
+                  : FColors.grey.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Iconsax.filter,
+                  size: 18,
+                  color: dark
+                      ? FColors.white
+                      : FColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: dark
+                        ? FColors.white
+                        : FColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSortBottomSheet(
+      RewardController controller, bool dark) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.fromLTRB(
+          FSizes.defaultSpace,
+          FSizes.defaultSpace,
+          FSizes.defaultSpace,
+          FSizes.defaultSpace + 16,
+        ),
+        decoration: BoxDecoration(
+          color: dark ? FColors.dark : FColors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: FColors.darkGrey.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Sort by points',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color:
+                    dark ? FColors.white : FColors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(height: FSizes.md),
+              Obx(
+                    () => Column(
+                  children: [
+                    _buildSortOptionTile(
+                      title: 'Highest to lowest',
+                      value: RewardSortType.highestToLowest,
+                      groupValue: controller.sortType.value,
+                      onChanged: (v) {
+                        controller.changeSortType(v);
+                        Get.back();
+                      },
+                      dark: dark,
+                    ),
+                    const SizedBox(height: 4),
+                    _buildSortOptionTile(
+                      title: 'Lowest to highest',
+                      value: RewardSortType.lowestToHighest,
+                      groupValue: controller.sortType.value,
+                      onChanged: (v) {
+                        controller.changeSortType(v);
+                        Get.back();
+                      },
+                      dark: dark,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortOptionTile({
+    required String title,
+    required RewardSortType value,
+    required RewardSortType groupValue,
+    required ValueChanged<RewardSortType> onChanged,
+    required bool dark,
+  }) {
+    final selected = value == groupValue;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => onChanged(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: FSizes.md,
+          vertical: FSizes.sm,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? FColors.primary.withOpacity(0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected ? Iconsax.tick_circle : Iconsax.sort,
+              size: 18,
+              color: selected
+                  ? FColors.primary
+                  : FColors.darkGrey,
+            ),
+            const SizedBox(width: FSizes.sm),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight:
+                selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected
+                    ? FColors.primary
+                    : (dark
+                    ? FColors.white
+                    : FColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState(BuildContext context, bool dark) {
     return Center(
       child: Padding(
@@ -364,7 +415,7 @@ class RewardRedemptionScreen extends StatelessWidget {
               child: Icon(
                 Iconsax.gift,
                 size: 64,
-                color: FColors.primary.withOpacity(0.5),
+                color: FColors.primary.withOpacity(0.6),
               ),
             ),
             const SizedBox(height: FSizes.spaceBtwItems),
@@ -377,10 +428,12 @@ class RewardRedemptionScreen extends StatelessWidget {
             ),
             const SizedBox(height: FSizes.sm),
             Text(
-              'Check back later for amazing rewards!',
+              'Check back later for more exciting rewards.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: dark ? FColors.darkGrey : FColors.textSecondary,
+                color: dark
+                    ? FColors.darkGrey
+                    : FColors.textSecondary,
               ),
             ),
           ],

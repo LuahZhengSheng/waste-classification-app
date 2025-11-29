@@ -78,11 +78,10 @@ class CreateStaffController extends GetxController {
     _filteredCenters.value = _allCenters;
   }
 
-  // Create staff
+  // Create staff (no password parameter)
   Future<void> createStaff({
     required String username,
     required String email,
-    required String password,
   }) async {
     if (selectedCenterId == null) {
       FLoaders.errorSnackBar(title: 'Error', message: 'Please select a recycling center');
@@ -95,7 +94,6 @@ class CreateStaffController extends GetxController {
         centerId: selectedCenterId!,
         username: username,
         email: email,
-        password: password,
       );
     } catch (e) {
       rethrow;

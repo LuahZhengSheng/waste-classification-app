@@ -208,18 +208,6 @@ class RewardModel {
     return 'RewardModel(rewardId: $rewardId, title: $title, pointsNeeded: $pointsNeeded, quantity: $quantity, status: $status)';
   }
 
-  /// Override equality operator
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is RewardModel &&
-              runtimeType == other.runtimeType &&
-              rewardId == other.rewardId;
-
-  /// Override hashCode
-  @override
-  int get hashCode => rewardId.hashCode;
-
   /// Create a copy of the reward with updated fields
   RewardModel copyWith({
     String? rewardId,

@@ -1,5 +1,6 @@
-import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { sendEmail, SystemEmailTemplates } from './accountEmailService';
 
 // 定义数据类型
@@ -42,14 +43,23 @@ async function handleUserBanned(userData: UserData) {
   console.log(`🔨 User banned: ${userData.username}`);
 
   try {
-    // 设置自定义声明，标记用户被封禁
+    // 1. 设置封禁声明
     await getAuth().setCustomUserClaims(userData.uid, {
       banned: true,
       bannedAt: Date.now()
     });
 
-    // 撤销所有刷新令牌，强制登出
+    // 2. 撤销刷新令牌
     await getAuth().revokeRefreshTokens(userData.uid);
+
+    // 3. ✨ 新增：写入元数据通知前端
+    const firestore = getFirestore();
+    const metadataRef = firestore.collection('metadata').doc(userData.uid);
+    await metadataRef.set({
+      refreshTime: Date.now(),
+      banned: true,
+      updatedAt: new Date()
+    });
 
     console.log(`✅ User ${userData.uid} tokens revoked`);
 
@@ -76,10 +86,19 @@ async function handleUserRecovered(userData: UserData) {
   console.log(`🔓 User recovered: ${userData.username} (UID: ${userData.uid})`);
 
   try {
-    // 移除封禁的自定义声明
+    // 1. 移除封禁的自定义声明
     await getAuth().setCustomUserClaims(userData.uid, {
       banned: false,
       recoveredAt: Date.now()
+    });
+
+    // 2. 更新 Firestore metadata
+    const firestore = getFirestore();
+    const metadataRef = firestore.collection('metadata').doc(userData.uid);
+    await metadataRef.set({
+      refreshTime: Date.now(),
+      banned: false,  // 重要：设置为 false
+      updatedAt: new Date()
     });
 
     console.log(`✅ User ${userData.uid} ban claims removed`);

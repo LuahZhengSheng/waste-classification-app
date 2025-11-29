@@ -1,21 +1,40 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class ImageLightbox extends StatelessWidget {
-  final String imageUrl;
+  final String? imageUrl;
+  final Uint8List? imageBytes;
   final String title;
 
   const ImageLightbox({
     super.key,
-    required this.imageUrl,
+    this.imageUrl,
+    this.imageBytes,
     required this.title,
   });
 
   @override
   Widget build(BuildContext context) {
+    Widget imageWidget;
+    if (imageBytes != null) {
+      imageWidget = Image.memory(
+        imageBytes!,
+        fit: BoxFit.contain,
+        // 可加 errorBuilder / loadingBuilder
+      );
+    } else {
+      imageWidget = Image.network(
+        imageUrl!,
+        fit: BoxFit.contain,
+        // 保留你原来的 errorBuilder / loadingBuilder
+      );
+    }
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(0), // 移除内边距，全屏显示
+      insetPadding: const EdgeInsets.all(0),
       child: GestureDetector(
         onTap: () => Get.back(),
         child: Container(
@@ -23,12 +42,7 @@ class ImageLightbox extends StatelessWidget {
           height: double.infinity,
           child: Stack(
             children: [
-              // 背景遮罩
-              Container(
-                color: Colors.black.withOpacity(0.9),
-              ),
-
-              // 图片内容
+              Container(color: Colors.black.withOpacity(0.9)),
               Center(
                 child: Container(
                   constraints: BoxConstraints(
@@ -38,7 +52,6 @@ class ImageLightbox extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // 图片容器
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(
@@ -53,75 +66,17 @@ class ImageLightbox extends StatelessWidget {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            child: Image.network(
-                              imageUrl,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey[800],
-                                  child: const Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.image_not_supported,
-                                          color: Colors.white,
-                                          size: 64,
-                                        ),
-                                        SizedBox(height: 16),
-                                        Text(
-                                          'Failed to load image',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  color: Colors.grey[800],
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 60,
-                                          height: 60,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 3,
-                                            color: Colors.white,
-                                            value: loadingProgress.expectedTotalBytes != null
-                                                ? loadingProgress.cumulativeBytesLoaded /
-                                                loadingProgress.expectedTotalBytes!
-                                                : null,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        const Text(
-                                          'Loading image...',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
+                            child: InteractiveViewer(
+                              panEnabled: true,
+                              scaleEnabled: true,
+                              minScale: 0.5,
+                              maxScale: 4.0,
+                              child: imageWidget,
                             ),
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
-                      // 标题
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
@@ -147,8 +102,6 @@ class ImageLightbox extends StatelessWidget {
                   ),
                 ),
               ),
-
-              // 关闭按钮
               Positioned(
                 top: 40,
                 right: 20,

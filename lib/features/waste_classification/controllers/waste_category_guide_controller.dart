@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
 import '../../../data/repositories/recycling_center/waste_category_repository.dart';
-import '../../recycling_center/models/waste_category_model.dart';
+import '../models/waste_category_model.dart';
 
 class WasteCategoryController extends GetxController {
   static WasteCategoryController get instance => Get.find();

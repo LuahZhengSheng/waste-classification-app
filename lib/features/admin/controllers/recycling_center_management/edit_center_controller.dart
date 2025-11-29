@@ -8,11 +8,12 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fyp/data/repositories/recycling_center/recycling_center_repository.dart';
 import 'package:fyp/features/recycling_center/models/partner_recycling_center_model.dart';
-import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
+import 'package:fyp/features/waste_classification/models/waste_category_model.dart';
 import 'package:fyp/features/event/models/location_model.dart';
 import 'package:fyp/utils/popups/admin_loaders.dart';
 import 'package:fyp/utils/validators/validation.dart';
 import '../../../../data/repositories/recycling_center/waste_category_repository.dart';
+import 'recycling_center_management_controller.dart';
 
 class EditCenterController extends GetxController {
   static EditCenterController get instance => Get.find();
@@ -632,6 +633,10 @@ class EditCenterController extends GetxController {
       await _centerRepo.updateCenter(updatedCenter);
       print('Center updated successfully');
 
+      // 通知管理控制器刷新数据
+      final managementController = Get.find<PartnerCenterManagementController>();
+      await managementController.fetchCenters();
+
       isLoading.value = false;
 
       FAdminLoaders.successSnackBar(
@@ -640,7 +645,7 @@ class EditCenterController extends GetxController {
       );
 
       // Return to management screen
-      Get.back();
+      Navigator.of(Get.context!).pop();
     } catch (e) {
       isLoading.value = false;
       print('=== CENTER UPDATE ERROR ===');

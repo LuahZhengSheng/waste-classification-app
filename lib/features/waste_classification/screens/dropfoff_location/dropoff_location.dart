@@ -21,9 +21,10 @@ class DropoffLocationsScreen extends StatelessWidget {
     final dark = FHelperFunctions.isDarkMode(context);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false, // Prevent keyboard from resizing
       body: Stack(
         children: [
-          // Google Map
+          // Google Map (Full screen)
           Obx(() {
             if (controller.currentLocation.value == null) {
               return Center(
@@ -50,13 +51,12 @@ class DropoffLocationsScreen extends StatelessWidget {
                 if (!controller.mapController.isCompleted) {
                   controller.mapController.complete(mapController);
                   controller.isMapReady.value = true;
-                  // Trigger marker update after map is ready
                   Future.delayed(const Duration(milliseconds: 500), () {
                     controller.updateMarkers();
                   });
                 }
               },
-              markers: controller.markers,
+              markers: controller.markers.value,
               myLocationEnabled: true,
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
@@ -65,7 +65,7 @@ class DropoffLocationsScreen extends StatelessWidget {
             );
           }),
 
-          // Modern Top Bar
+          // Top Bar with Search
           Positioned(
             top: 0,
             left: 0,
@@ -96,7 +96,7 @@ class DropoffLocationsScreen extends StatelessWidget {
                         children: [
                           IconButton(
                             icon: Icon(
-                              Icons.arrow_back_rounded,
+                              Icons.arrow_back_ios_rounded,
                               color: dark ? FColors.white : FColors.black,
                             ),
                             onPressed: () => Get.back(),
@@ -189,7 +189,7 @@ class DropoffLocationsScreen extends StatelessWidget {
             ),
           ),
 
-          // Results Count Badge (Bottom Left)
+          // Results Count Badge
           Positioned(
             bottom: MediaQuery.of(context).padding.bottom + 20,
             left: FSizes.md,
@@ -230,7 +230,7 @@ class DropoffLocationsScreen extends StatelessWidget {
             )),
           ),
 
-          // Floating Info Button
+          // Info Button
           Positioned(
             top: MediaQuery.of(context).padding.top + 200,
             right: FSizes.md,
@@ -255,7 +255,7 @@ class DropoffLocationsScreen extends StatelessWidget {
 
           // My Location Button
           Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 180,
+            bottom: MediaQuery.of(context).padding.top + 450,
             right: FSizes.md,
             child: Container(
               decoration: BoxDecoration(

@@ -72,3 +72,90 @@ enum DateFilterType {
     }
   }
 }
+
+/// Reward sorting options
+enum RewardSortOption {
+  highestToLowest,
+  lowestToHighest;
+
+  String get displayName {
+    switch (this) {
+      case RewardSortOption.highestToLowest:
+        return 'Highest Points to Lowest';
+      case RewardSortOption.lowestToHighest:
+        return 'Lowest Points to Highest';
+    }
+  }
+
+  String get shortName {
+    switch (this) {
+      case RewardSortOption.highestToLowest:
+        return 'Highest First';
+      case RewardSortOption.lowestToHighest:
+        return 'Lowest First';
+    }
+  }
+}
+
+/// Reward status enum
+enum RewardStatus {
+  active,
+  inactive,
+  expired,
+  outOfStock;
+
+  String get displayName {
+    switch (this) {
+      case RewardStatus.active:
+        return 'Active';
+      case RewardStatus.inactive:
+        return 'Inactive';
+      case RewardStatus.expired:
+        return 'Expired';
+      case RewardStatus.outOfStock:
+        return 'Out of Stock';
+    }
+  }
+
+  static RewardStatus fromString(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return RewardStatus.active;
+      case 'inactive':
+        return RewardStatus.inactive;
+      case 'expired':
+        return RewardStatus.expired;
+      case 'out_of_stock':
+      case 'outofstock':
+        return RewardStatus.outOfStock;
+      default:
+        return RewardStatus.inactive;
+    }
+  }
+}
+
+/// Redemption status enum
+enum RedemptionStatus {
+  active,
+  expired;
+
+  String get displayName {
+    switch (this) {
+      case RedemptionStatus.active:
+        return 'Active';
+      case RedemptionStatus.expired:
+        return 'Expired';
+    }
+  }
+
+  static RedemptionStatus fromString(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return RedemptionStatus.active;
+      case 'expired':
+        return RedemptionStatus.expired;
+      default:
+        return RedemptionStatus.expired;
+    }
+  }
+}

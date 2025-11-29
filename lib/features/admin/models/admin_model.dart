@@ -4,6 +4,7 @@ import 'package:fyp/common/models/role_model.dart';
 class AdminModel extends RoleModel {
   final int loginAttemptCount;
   final DateTime? lastFailedLogin;
+  final DateTime? lastPasswordResetTime;
 
   AdminModel({
     required super.userId,
@@ -17,6 +18,7 @@ class AdminModel extends RoleModel {
     super.profileImg,
     required this.loginAttemptCount,
     this.lastFailedLogin,
+    this.lastPasswordResetTime,
   });
 
   factory AdminModel.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -34,6 +36,9 @@ class AdminModel extends RoleModel {
       loginAttemptCount: data['loginAttemptCount'] ?? 0,
       lastFailedLogin: data['lastFailedLogin'] != null
           ? (data['lastFailedLogin'] as Timestamp).toDate()
+          : null,
+      lastPasswordResetTime: data['lastPasswordResetTime'] != null
+          ? (data['lastPasswordResetTime'] as Timestamp).toDate()
           : null,
     );
   }
@@ -53,6 +58,9 @@ class AdminModel extends RoleModel {
       lastFailedLogin: map['lastFailedLogin'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['lastFailedLogin'])
           : null,
+      lastPasswordResetTime: map['lastPasswordResetTime'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['lastPasswordResetTime'])
+          : null,
     );
   }
 
@@ -66,6 +74,7 @@ class AdminModel extends RoleModel {
       'profileImg': profileImg,
       'loginAttemptCount': loginAttemptCount,
       'lastFailedLogin': lastFailedLogin != null ? Timestamp.fromDate(lastFailedLogin!) : null,
+      'lastPasswordResetTime': lastPasswordResetTime != null ? Timestamp.fromDate(lastPasswordResetTime!) : null,
       'role': role,
       'isVerified': isVerified,
       'isActive': isActive,
@@ -77,6 +86,7 @@ class AdminModel extends RoleModel {
   AdminModel copyWith({
     int? loginAttemptCount,
     DateTime? lastFailedLogin,
+    DateTime? lastPasswordResetTime,
     String? email,
     bool? isActive,
     bool? isVerified,
@@ -99,6 +109,7 @@ class AdminModel extends RoleModel {
       isBanned: isBanned ?? this.isBanned,
       loginAttemptCount: loginAttemptCount ?? this.loginAttemptCount,
       lastFailedLogin: lastFailedLogin ?? this.lastFailedLogin,
+      lastPasswordResetTime: lastPasswordResetTime ?? this.lastPasswordResetTime,
     );
   }
 
@@ -141,5 +152,38 @@ class AdminModel extends RoleModel {
     final timeSinceLastFail = now.difference(lastFailedLogin!);
 
     return timeSinceLastFail.inMinutes >= 5;
+  }
+
+  /// Check if password reset link can be sent (10 minutes cooldown)
+  bool canSendPasswordResetLink() {
+    if (lastPasswordResetTime == null) return true;
+
+    final now = DateTime.now();
+    final difference = now.difference(lastPasswordResetTime!);
+    return difference.inMinutes >= 10;
+  }
+
+  /// Get remaining time until next password reset link can be sent
+  Duration? getRemainingResetCooldown() {
+    if (lastPasswordResetTime == null) return null;
+
+    final now = DateTime.now();
+    final nextAvailableTime = lastPasswordResetTime!.add(const Duration(minutes: 10));
+
+    if (now.isAfter(nextAvailableTime)) return null;
+
+    return nextAvailableTime.difference(now);
+  }
+
+  /// Get formatted remaining time string
+  String getFormattedRemainingResetTime() {
+    final remaining = getRemainingResetCooldown();
+    if (remaining == null) return '0m';
+
+    if (remaining.inMinutes > 0) {
+      return '${remaining.inMinutes}m';
+    } else {
+      return '${remaining.inSeconds}s';
+    }
   }
 }

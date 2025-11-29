@@ -1,134 +1,100 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import 'package:fyp/features/reward_redemption/models/redemption_model.dart';
 import 'package:fyp/features/reward_redemption/models/reward_model.dart';
-import 'package:fyp/utils/popups/loaders.dart';
+import 'package:fyp/data/repositories/reward_redemption/redemption_repository.dart';
+import 'package:fyp/data/repositories/reward_redemption/reward_repository.dart';
 
-import '../../../data/repositories/reward_redemption/redemption_repository.dart';
-import '../../../data/repositories/reward_redemption/reward_repository.dart';
+class MyRewardsController extends GetxController {
+  final RedemptionRepository _redemptionRepo =
+      RedemptionRepository.instance;
+  final RewardRepository _rewardRepo = RewardRepository.instance;
 
-class MyRewardsController extends GetxController with GetSingleTickerProviderStateMixin {
-  static MyRewardsController get instance => Get.find();
-
-  final rewardRepo = Get.put(RewardRepository());
-  final redemptionRepo = Get.put(RedemptionRepository());
-
-  // Tab Controller
-  late TabController tabController;
-
-  // Observable variables
-  final RxList<RedemptionModel> userRedemptions = <RedemptionModel>[].obs;
-  final RxMap<String, RewardModel> rewardsMap = <String, RewardModel>{}.obs;
   final RxBool isLoading = false.obs;
-  final RxString currentUserId = ''.obs;
+  final RxList<RedemptionModel> allRedemptions =
+      <RedemptionModel>[].obs;
+  final RxMap<String, RewardModel> rewardMap =
+      <String, RewardModel>{}.obs;
+
+  List<RedemptionModel> get activeRedemptions =>
+      allRedemptions.where((r) => r.status == 'active').toList();
+
+  List<RedemptionModel> get expiredRedemptions =>
+      allRedemptions.where((r) => r.status == 'expired').toList();
 
   @override
   void onInit() {
     super.onInit();
-    tabController = TabController(length: 2, vsync: this);
-    _initializeUser();
-    fetchUserRedemptions();
+    _loadData();
   }
 
-  @override
-  void onClose() {
-    tabController.dispose();
-    super.onClose();
-  }
-
-  /// Initialize user data
-  void _initializeUser() {
+  Future<void> _loadData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      currentUserId.value = user.uid;
+    if (user == null) return;
+    isLoading.value = true;
+
+    // 一次性获取该用户所有 redemption（所有状态）
+    final stream =
+    _redemptionRepo.getUserRedemptionsStream(user.uid);
+    stream.listen((list) async {
+      allRedemptions.assignAll(list);
+
+      // 进入前先检查 active 的 validUntil，过期则更新为 expired
+      await _updateExpiredRedemptions();
+
+      // 获取对应 reward 数据
+      await _loadRewardsForRedemptions();
+      isLoading.value = false;
+    });
+  }
+
+  Future<void> refreshData() async {
+    await _loadData();
+  }
+
+  Future<void> _updateExpiredRedemptions() async {
+    final now = DateTime.now();
+    for (final r in allRedemptions) {
+      if (r.status == 'active' &&
+          !r.validUntil.isAfter(now)) {
+        await _redemptionRepo.updateRedemptionStatus(
+          r.redemptionId,
+          'expired',
+        );
+        r.status = 'expired';
+      }
     }
   }
 
-  /// Fetch user's redemptions from Firebase
-  Future<void> fetchUserRedemptions() async {
-    try {
-      isLoading.value = true;
-
-      // Fetch redemptions
-      final redemptions = await redemptionRepo.getUserRedemptions(currentUserId.value);
-      userRedemptions.assignAll(redemptions);
-
-      // Fetch reward details for each redemption
-      final rewardIds = redemptions.map((r) => r.rewardId).toSet();
-      for (var rewardId in rewardIds) {
+  Future<void> _loadRewardsForRedemptions() async {
+    final ids = allRedemptions.map((e) => e.rewardId).toSet();
+    for (final id in ids) {
+      if (!rewardMap.containsKey(id)) {
         try {
-          final reward = await rewardRepo.getRewardById(rewardId);
-          if (reward.rewardImage.isNotEmpty) {
-            reward.rewardImage = (await rewardRepo.getRewardImageUrl(reward.rewardImage))!;
-          }
-          rewardsMap[rewardId] = reward;
-        } catch (e) {
-          // If reward not found, continue with other rewards
-          continue;
+          final reward = await _rewardRepo.getRewardById(id);
+          rewardMap[id] = reward;
+        } catch (_) {
+          // ignore missing reward
         }
       }
-    } catch (e) {
-      FLoaders.errorSnackBar(
-        title: 'Error',
-        message: 'Failed to load redemptions: $e',
-      );
-    } finally {
-      isLoading.value = false;
     }
   }
 
-  /// Get reward details by ID
-  RewardModel? getRewardById(String rewardId) {
-    return rewardsMap[rewardId];
-  }
+  RewardModel? getRewardById(String id) => rewardMap[id];
 
-  /// Get active redemptions (not expired, within 30 days)
-  List<RedemptionModel> get activeRedemptions {
+  bool isRedemptionNearExpiry(RedemptionModel r) {
     final now = DateTime.now();
-    return userRedemptions.where((redemption) {
-      final daysSinceRedemption = now.difference(redemption.createdAt).inDays;
-      return daysSinceRedemption < 30;
-    }).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final diff = r.validUntil.difference(now).inDays;
+    return diff <= 3 && diff >= 0;
   }
 
-  /// Get expired redemptions (30 days or older)
-  List<RedemptionModel> get expiredRedemptions {
+  int getDaysUntilExpiry(RedemptionModel r) {
     final now = DateTime.now();
-    return userRedemptions.where((redemption) {
-      final daysSinceRedemption = now.difference(redemption.createdAt).inDays;
-      return daysSinceRedemption >= 30;
-    }).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return r.validUntil.difference(now).inDays;
   }
 
-  /// Refresh data
-  Future<void> refreshData() async {
-    await fetchUserRedemptions();
-  }
-
-  /// Check if redemption is near expiry (within 7 days of 30-day validity)
-  bool isRedemptionNearExpiry(RedemptionModel redemption) {
-    final now = DateTime.now();
-    final daysSinceRedemption = now.difference(redemption.createdAt).inDays;
-    final daysUntilExpiry = 30 - daysSinceRedemption;
-    return daysUntilExpiry <= 7 && daysUntilExpiry > 0;
-  }
-
-  /// Get days until redemption expires
-  int getDaysUntilExpiry(RedemptionModel redemption) {
-    final now = DateTime.now();
-    final daysSinceRedemption = now.difference(redemption.createdAt).inDays;
-    return 30 - daysSinceRedemption;
-  }
-
-  /// Get redemption summary
-  Map<String, int> get redemptionSummary {
-    return {
-      'active': activeRedemptions.length,
-      'expired': expiredRedemptions.length,
-      'total': userRedemptions.length,
-    };
-  }
+  late final tabController =
+  TabController(length: 2, vsync: NavigatorState());
 }

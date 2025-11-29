@@ -604,7 +604,7 @@ class EditAchievementDialog extends StatelessWidget {
           const SizedBox(width: FSizes.md),
           Obx(() => ElevatedButton(
             onPressed: controller.canSave.value
-                ? controller.saveChanges
+                ? controller.saveChanges  // 直接调用保存方法，里面会显示确认对话框
                 : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: controller.canSave.value

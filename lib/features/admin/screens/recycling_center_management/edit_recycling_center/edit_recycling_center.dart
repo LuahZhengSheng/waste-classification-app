@@ -6,6 +6,7 @@ import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/features/admin/controllers/recycling_center_management/edit_center_controller.dart';
 
+import '../../../../../utils/popups/admin_loaders.dart';
 import '../widgets/center_form.dart';
 
 class EditPartnerCenterScreen extends StatelessWidget {
@@ -317,161 +318,9 @@ class EditPartnerCenterScreen extends StatelessWidget {
   }
 
   void _showUpdateConfirmationDialog(EditCenterController controller, bool dark) {
-    Get.dialog(
-      Dialog(
-        backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(FSizes.defaultSpace),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: (dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                      .withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Iconsax.edit,
-                  size: 40,
-                  color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-                ),
-              ),
-              const SizedBox(height: FSizes.spaceBtwItems),
-
-              // Title
-              Text(
-                'Update Recycling Center?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: dark ? FColors.adminDarkText : FColors.adminLightText,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: FSizes.sm),
-
-              // Message
-              Text(
-                'Are you sure you want to save the changes to this recycling center? This action will update all center information.',
-                style: TextStyle(
-                  color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: FSizes.spaceBtwItems),
-
-              // Changed fields summary
-              Container(
-                padding: const EdgeInsets.all(FSizes.md),
-                decoration: BoxDecoration(
-                  color: dark
-                      ? FColors.adminDarkSurfaceVariant
-                      : FColors.adminLightSurfaceVariant,
-                  borderRadius: BorderRadius.circular(FSizes.cardRadiusSm),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Changes detected:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: dark ? FColors.adminDarkText : FColors.adminLightText,
-                      ),
-                    ),
-                    const SizedBox(height: FSizes.sm),
-                    ...controller.getChangedFields().map((field) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Iconsax.tick_circle,
-                            size: 16,
-                            color: dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              field,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: dark
-                                    ? FColors.adminDarkTextSecondary
-                                    : FColors.adminLightTextSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-                  ],
-                ),
-              ),
-              const SizedBox(height: FSizes.spaceBtwItems),
-
-              // Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.back(),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: dark ? FColors.adminDarkBorder : FColors.adminLightBorder,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: FSizes.md),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: dark
-                              ? FColors.adminDarkTextSecondary
-                              : FColors.adminLightTextSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: FSizes.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.back();
-                        controller.updateCenter();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: dark
-                            ? FColors.adminDarkPrimary
-                            : FColors.adminLightPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: FSizes.md),
-                      ),
-                      child: const Text(
-                        'Update',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    FAdminLoaders.showRecyclingCenterUpdateDialog(
+      changedFields: controller.getChangedFields(),
+      onConfirm: controller.updateCenter,
     );
   }
 }

@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
+import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
 
 /// Helper class to pair activity with its image file
 class ActivityWithImage {

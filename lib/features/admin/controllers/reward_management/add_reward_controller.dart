@@ -308,6 +308,16 @@ class AddRewardController extends GetxController {
   Future<void> createReward() async {
     if (!_validateForm()) return;
 
+    if (selectedImageBytes.value == null) {
+      FAdminLoaders.errorSnackBar(
+        title: 'Image required',
+        message: 'Please upload a reward image before creating.',
+      );
+      return;
+    }
+
+    isLoading.value = true;
+
     // Show confirmation dialog
     await Get.dialog(
       _buildConfirmationDialog(),
@@ -461,13 +471,50 @@ class AddRewardController extends GetxController {
         message: 'Reward "${reward.title}" created successfully',
       );
 
-      Get.back(result: true);
+      Navigator.of(Get.context!).pop();
     } catch (e) {
       isLoading.value = false;
       FAdminLoaders.errorSnackBar(
         title: 'Error',
         message: 'Failed to create reward: ${e.toString()}',
       );
+    }
+  }
+
+  Future<String?> getImageUrl(String fileNameOrUrl) async {
+    try {
+      if (fileNameOrUrl.isEmpty) return null;
+
+      String fileName = fileNameOrUrl;
+
+      if (fileNameOrUrl.startsWith('http')) {
+        try {
+          final uri = Uri.parse(fileNameOrUrl);
+          final pathSegments = uri.pathSegments;
+          for (final segment in pathSegments) {
+            if (segment.contains('.webp') ||
+                segment.contains('.jpg') ||
+                segment.contains('.png') ||
+                segment.contains('.jpeg')) {
+              fileName = segment;
+              break;
+            }
+          }
+          if (fileName == fileNameOrUrl && pathSegments.isNotEmpty) {
+            fileName = pathSegments.last;
+          }
+        } catch (e) {
+          return fileNameOrUrl;
+        }
+      }
+
+      final url = await _rewardRepo.getRewardImageUrl(fileName);
+      return url;
+    } catch (e) {
+      if (fileNameOrUrl.startsWith('http')) {
+        return fileNameOrUrl;
+      }
+      return null;
     }
   }
 

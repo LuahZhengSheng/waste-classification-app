@@ -27,7 +27,6 @@ class PostsScreen extends StatelessWidget {
         title: const Text('Community'),
         centerTitle: false,
         showBackArrow: false,
-        backgroundColor: dark ? FColors.communityDarkBackground : FColors.white,
         titleIcon: Iconsax.messages_2,
         actionButtonText: 'My Posts',
         actionButtonIcon: Iconsax.user,

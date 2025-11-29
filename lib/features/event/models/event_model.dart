@@ -319,17 +319,27 @@ class Event {
   /// Get days remaining until registration deadline
   int get daysUntilDeadline {
     final now = DateTime.now();
-    if (now.isAfter(registrationDeadline)) return 0;
-    return registrationDeadline.difference(now).inDays;
+    if (now.isAfter(registrationDeadline)) {
+      // 已经过期，统一返回 0
+      return 0;
+    }
+
+    final diff = registrationDeadline.difference(now);
+    // 向上取整，比如 0.3 天算 1 天
+    final days = (diff.inHours / 24).ceil();
+    return days < 0 ? 0 : days;
   }
 
   /// Get formatted days remaining text
   String get daysUntilDeadlineText {
+    if (isRegistrationClosed) return 'Closed';
+
     final days = daysUntilDeadline;
     if (days == 0) return 'Today';
     if (days == 1) return '1 day';
     return '$days days';
   }
+
 
   /// Get computed status based on dates (upcoming/ongoing/completed)
   String get computedStatus {

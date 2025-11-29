@@ -14,48 +14,32 @@ class AdminRepository extends GetxController {
   final _db = FirebaseFirestore.instance;
   final String _usersCollection = "users";
 
-  Future<bool?> getAuthEmailVerifiedStatus(String email) async {
+  /// ✅ 更新邮箱验证状态到 Firestore
+  Future<void> updateEmailVerificationStatus(String userId, bool isVerified) async {
     try {
-      final docRef = await _db.collection('adminAuthQueries').add({
-        'email': email.toLowerCase(),
-        'type': 'getEmailVerifiedStatus',
-        'timestamp': FieldValue.serverTimestamp(),
+      await _db.collection(_usersCollection).doc(userId).update({
+        'isVerified': isVerified,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // 等待 Cloud Function 处理完成
-      bool isProcessed = false;
-      int attempts = 0;
-      const maxAttempts = 30; // 最多等待30次
-      const delay = Duration(milliseconds: 500);
-
-      while (!isProcessed && attempts < maxAttempts) {
-        await Future.delayed(delay);
-        final snapshot = await docRef.get();
-        final data = snapshot.data();
-
-        isProcessed = data?['processed'] == true;
-        attempts++;
-
-        if (isProcessed) {
-          return data?['emailVerified'] as bool?;
-        }
-      }
-
-      // 超时未处理完成
       if (kDebugMode) {
-        print('Cloud Function processing timeout');
+        print('Updated email verification status for user $userId: $isVerified');
       }
-      return null;
-
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } on FormatException catch (_) {
+      throw const FFormatException();
+    } on PlatformException catch (e) {
+      throw FPlatformException(e.code).message;
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting auth email verified status: $e');
+        print('Error updating email verification status: $e');
       }
-      return null;
+      throw 'Failed to update email verification status: $e';
     }
   }
 
-  /// Get admin user by email with auth verification status
+  /// Get admin user by email
   Future<AdminModel?> getAdminByEmail(String email) async {
     try {
       final querySnapshot = await _db
@@ -69,19 +53,7 @@ class AdminRepository extends GetxController {
       }
 
       final doc = querySnapshot.docs.first;
-      final admin = AdminModel.fromSnapshot(doc);
-
-      // 获取 Auth 中的 emailVerified 状态
-      final authEmailVerified = await getAuthEmailVerifiedStatus(email);
-
-      print('auth: $authEmailVerified');
-
-      // 如果获取到 Auth 状态，更新 admin 对象
-      if (authEmailVerified != null) {
-        return admin.copyWith(isVerified: authEmailVerified);
-      }
-
-      return admin;
+      return AdminModel.fromSnapshot(doc);
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
@@ -96,7 +68,7 @@ class AdminRepository extends GetxController {
     }
   }
 
-  /// Get admin user by ID with auth verification status
+  /// Get admin user by ID
   Future<AdminModel?> getAdminById(String userId) async {
     try {
       final documentSnapshot = await _db
@@ -108,17 +80,7 @@ class AdminRepository extends GetxController {
         return null;
       }
 
-      final admin = AdminModel.fromSnapshot(documentSnapshot);
-
-      // 获取 Auth 中的 emailVerified 状态
-      final authEmailVerified = await getAuthEmailVerifiedStatus(admin.email);
-
-      // 如果获取到 Auth 状态，更新 admin 对象
-      if (authEmailVerified != null) {
-        return admin.copyWith(isVerified: authEmailVerified);
-      }
-
-      return admin;
+      return AdminModel.fromSnapshot(documentSnapshot);
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
@@ -196,7 +158,6 @@ class AdminRepository extends GetxController {
       const validRoles = ['admin', 'community_manager', 'reward_manager', 'event_manager'];
       return validRoles.contains(admin.role) &&
           admin.isActive &&
-          admin.isVerified &&
           !admin.isBanned;
     } catch (e) {
       if (kDebugMode) {

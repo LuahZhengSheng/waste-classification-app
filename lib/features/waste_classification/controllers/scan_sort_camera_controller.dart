@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../screens/detection_history/detection_history.dart';
 import '../screens/dropfoff_location/dropoff_location.dart';
 import '../screens/waste_category_guideline/waste_category_guide.dart';
 import 'detection_controller.dart';
@@ -22,6 +23,9 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
   final _flashMode = FlashMode.off.obs;
   final _errorMessage = ''.obs;
 
+  // 上传状态
+  final _isUploading = false.obs;
+
   // Zoom state
   final _currentZoom = 1.0.obs;
   final _minZoom = 1.0.obs;
@@ -31,7 +35,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
   // Image picker
   final ImagePicker _picker = ImagePicker();
 
-  // 新增：跟踪是否正在选择图片
+  // Track image picking state
   final _isPickingImage = false.obs;
 
   // Getters
@@ -47,6 +51,8 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
   double get minZoom => _minZoom.value;
   double get maxZoom => _maxZoom.value;
   bool get isPickingImage => _isPickingImage.value;
+  bool get isUploading => _isUploading.value;
+  bool get canTakePhoto => !_isUploading.value && !_isCapturing.value;
 
   @override
   void onInit() {
@@ -64,25 +70,21 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 当正在选择图片时，完全忽略生命周期变化
     if (_isPickingImage.value) {
       return;
     }
 
-    // 只在应用完全暂停时才释放相机
     if (state == AppLifecycleState.paused) {
       _disposeController();
     }
   }
 
-  // 页面进入时初始化相机
   void initializeCameraForPage() {
     if (!_isInitialized.value && !_isLoading.value) {
       _initializeCamera();
     }
   }
 
-  // 页面离开时释放相机
   void disposeCameraForPage() {
     _disposeController();
   }
@@ -160,10 +162,14 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
 
       await _cameraController.value!.initialize();
 
-      // Get zoom limits
       _minZoom.value = await _cameraController.value!.getMinZoomLevel();
       _maxZoom.value = await _cameraController.value!.getMaxZoomLevel();
-      _currentZoom.value = _minZoom.value;
+
+      if (_minZoom.value < 1.0) {
+        _minZoom.value = 1.0;
+      }
+
+      _currentZoom.value = 1.0;
 
       await _setFlashMode(_flashMode.value);
 
@@ -210,13 +216,16 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     _isLoading.value = false;
   }
 
-  // Capture photo
   Future<File?> capturePhoto() async {
+    // 🎯 检查是否可以拍照
+    if (!canTakePhoto) {
+      print('❌ Cannot capture: isUploading=$_isUploading.value, isCapturing=$_isCapturing.value');
+      return null;
+    }
+
     final currentController = _cameraController.value;
-    if (currentController == null ||
-        !currentController.value.isInitialized ||
-        _isCapturing.value) {
-      print('❌ Cannot capture: controller=$currentController, initialized=${currentController?.value.isInitialized}, capturing=${_isCapturing.value}');
+    if (currentController == null || !currentController.value.isInitialized) {
+      print('❌ Cannot capture: camera not initialized');
       return null;
     }
 
@@ -258,7 +267,6 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     }
   }
 
-  // Pick image from gallery
   Future<File?> pickFromGallery() async {
     try {
       print('🖼️ Opening gallery picker...');
@@ -295,14 +303,15 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     }
   }
 
-  // Process captured image for detection
   Future<void> processCapturedImage(File imageFile) async {
     try {
       print('🔍 Starting image processing: ${imageFile.path}');
       print('📂 File exists: ${await imageFile.exists()}');
       print('📏 File size: ${await imageFile.length()} bytes');
 
-      // Get or initialize detection controller
+      // 🎯 设置上传状态为true
+      _isUploading.value = true;
+
       DetectionController detectionController;
       if (Get.isRegistered<DetectionController>()) {
         print('✅ Using existing DetectionController');
@@ -311,7 +320,6 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
         print('⚠️ Creating new DetectionController');
         detectionController = Get.put(DetectionController());
 
-        // Wait for initialization
         if (detectionController.isInitializing.value) {
           print('⏳ Waiting for model initialization...');
           Get.snackbar(
@@ -321,7 +329,6 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
             duration: const Duration(seconds: 2),
           );
 
-          // Wait for initialization to complete
           int attempts = 0;
           while (detectionController.isInitializing.value && attempts < 30) {
             await Future.delayed(const Duration(milliseconds: 500));
@@ -330,6 +337,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
 
           if (detectionController.isInitializing.value) {
             print('❌ Model initialization timeout');
+            _isUploading.value = false; // 🎯 重置上传状态
             Get.snackbar(
               'Error',
               'Model initialization timeout. Please try again.',
@@ -341,7 +349,6 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
       }
 
       print('🚀 Running detection...');
-      // Run detection and show results
       await detectionController.detectAndShowResults(imageFile);
       print('✅ Detection complete');
 
@@ -354,10 +361,12 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 3),
       );
+    } finally {
+      // 🎯 无论成功或失败，都重置上传状态
+      _isUploading.value = false;
     }
   }
 
-  // Toggle flash
   Future<void> toggleFlash() async {
     final currentController = _cameraController.value;
     if (currentController == null || !currentController.value.isInitialized) return;
@@ -369,7 +378,6 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     await _setFlashMode(newMode);
   }
 
-  // Zoom controls
   void onScaleStart(ScaleStartDetails details) {
     _baseScale.value = _currentZoom.value;
   }
@@ -378,7 +386,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     final currentController = _cameraController.value;
     if (currentController == null || !currentController.value.isInitialized) return;
 
-    double scale = (_baseScale.value * details.scale).clamp(_minZoom.value, _maxZoom.value);
+    double scale = (_baseScale.value * details.scale).clamp(1.0, _maxZoom.value);
     _setZoomLevel(scale);
   }
 
@@ -395,12 +403,12 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
   }
 
   Future<void> zoomIn() async {
-    double newZoom = (_currentZoom.value + 0.5).clamp(_minZoom.value, _maxZoom.value);
+    double newZoom = (_currentZoom.value + 0.5).clamp(1.0, _maxZoom.value);
     await _setZoomLevel(newZoom);
   }
 
   Future<void> zoomOut() async {
-    double newZoom = (_currentZoom.value - 0.5).clamp(_minZoom.value, _maxZoom.value);
+    double newZoom = (_currentZoom.value - 0.5).clamp(1.0, _maxZoom.value);
     await _setZoomLevel(newZoom);
   }
 
@@ -439,6 +447,18 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
   void navigateToCategories() {
     disposeCameraForPage();
     Get.to(() => WasteCategoryGuideScreen())?.then((_) {
+      if (!_isInitialized.value && !_isLoading.value) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _initializeCamera();
+        });
+      }
+    });
+  }
+
+  // NEW: Navigate to history
+  void navigateToHistory() {
+    disposeCameraForPage();
+    Get.to(() => const DetectionHistoryScreen())?.then((_) {
       if (!_isInitialized.value && !_isLoading.value) {
         Future.delayed(const Duration(milliseconds: 300), () {
           _initializeCamera();

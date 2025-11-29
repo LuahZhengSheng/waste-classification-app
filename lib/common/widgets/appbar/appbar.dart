@@ -54,7 +54,7 @@ class FAppBar extends StatelessWidget implements PreferredSizeWidget {
       padding: const EdgeInsets.symmetric(horizontal: FSizes.md),
       child: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: backgroundColor ?? (dark ? FColors.communityDarkBackground : Colors.white),
+        backgroundColor: backgroundColor ?? (dark ? FColors.communityDarkBackground : FColors.light),
         centerTitle: centerTitle,
         elevation: elevation,
         leading: showBackArrow

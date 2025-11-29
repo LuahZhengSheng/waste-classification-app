@@ -409,6 +409,7 @@ class _StaffDataTableState extends State<StaffDataTable> {
   }
 
   Widget _buildProfileImage(RecyclingCenterStaff staff) {
+    print('build image: ${staff.profileImg}');
     return SmallProfileImage(
       profileImg: staff.profileImg,
       username: staff.username,

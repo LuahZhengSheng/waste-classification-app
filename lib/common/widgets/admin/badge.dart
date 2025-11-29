@@ -11,7 +11,7 @@ class CommonBadge extends StatelessWidget {
   final Color? borderColor;
 
   const CommonBadge({
-    Key? key,
+    super.key,
     this.icon,
     this.color,
     required this.text,
@@ -20,7 +20,7 @@ class CommonBadge extends StatelessWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     this.borderRadius = 6,
     this.borderColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

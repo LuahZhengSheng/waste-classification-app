@@ -1,15 +1,15 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../data/repositories/event/event_repository.dart';
 import '../../../../utils/constants/colors.dart';
 import '../../../../utils/helpers/helper_functions.dart';
+import '../../../../utils/helpers/image_compressor.dart';
 import '../../../../utils/popups/admin_loaders.dart';
 import '../../../event/models/event_model.dart';
 import '../../../event/models/location_model.dart';
@@ -20,7 +20,6 @@ class EditEventController extends GetxController {
 
   final EventRepository _eventRepository = Get.find();
   final _uuid = const Uuid();
-  final _picker = ImagePicker();
 
   // Original event
   late Event originalEvent;
@@ -46,7 +45,6 @@ class EditEventController extends GetxController {
   final Rx<TimeOfDay?> selectedRegistrationDeadlineTime = Rx<TimeOfDay?>(null);
   final Rx<Location?> selectedLocation = Rx<Location?>(null);
   final Rxn<Uint8List> selectedPosterBytes = Rxn<Uint8List>();
-  final RxnString selectedPosterPath = RxnString();
   final RxnString selectedPosterName = RxnString();
   final RxBool posterChanged = false.obs;
 
@@ -144,9 +142,45 @@ class EditEventController extends GetxController {
     // Load location
     selectedLocation.value = originalEvent.location;
 
-    // Load poster
+    // Load poster - 修复这部分
     if (originalEvent.poster.isNotEmpty) {
-      selectedPosterName.value = originalEvent.poster;
+      String posterName = originalEvent.poster;
+
+      // 如果海报字段是完整的URL，需要提取文件名
+      if (originalEvent.poster.startsWith('http')) {
+        try {
+          final uri = Uri.parse(originalEvent.poster);
+          final pathSegments = uri.pathSegments;
+          // 查找包含文件名的segment
+          for (final segment in pathSegments) {
+            if (segment.contains('.webp') ||
+                segment.contains('.jpg') ||
+                segment.contains('.png') ||
+                segment.contains('.jpeg')) {
+              posterName = segment;
+              break;
+            }
+          }
+          // 如果没找到合适的文件名，使用最后一个segment
+          if (posterName == originalEvent.poster && pathSegments.isNotEmpty) {
+            posterName = pathSegments.last;
+          }
+        } catch (e) {
+          print('Error parsing poster URL: $e');
+          // 如果解析失败，使用原始值
+          posterName = originalEvent.poster;
+        }
+      }
+
+      // 确保不包含重复的路径前缀
+      if (posterName.startsWith('events/')) {
+        posterName = posterName.substring(7); // 移除'events/'前缀
+      }
+
+      print('📁 Setting existing poster name: $posterName');
+      selectedPosterName.value = posterName;
+    } else {
+      selectedPosterName.value = null;
     }
 
     // Reset modification flags
@@ -216,7 +250,7 @@ class EditEventController extends GetxController {
     return changes;
   }
 
-  // Date and Time Selection Methods
+  // Date and Time Selection Methods (保持不变)
   Future<void> selectStartDate() async {
     final DateTime? picked = await showDatePicker(
       context: Get.context!,
@@ -725,7 +759,7 @@ class EditEventController extends GetxController {
     }
   }
 
-  // Poster Selection and Upload
+  // Poster Selection and Upload - 简化的版本
   Future<void> selectPoster() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -761,13 +795,10 @@ class EditEventController extends GetxController {
 
       // 存储字节数据
       selectedPosterBytes.value = compressedBytes;
-      selectedPosterPath.value = null; // 清除文件路径，使用字节数据
       selectedPosterName.value = '${_uuid.v4()}.webp';
 
-      // 只有当真的有变化时才设置posterChanged
-      if (originalEvent.poster.isNotEmpty || selectedPosterBytes.value != null) {
-        posterChanged.value = true;
-      }
+      // 设置posterChanged标志
+      posterChanged.value = true;
 
       FAdminLoaders.successSnackBar(
         title: 'Poster Selected',
@@ -785,39 +816,35 @@ class EditEventController extends GetxController {
     try {
       isCompressing.value = true;
 
-      // 处理文件数据
-      Uint8List imageBytes;
-      if (file.bytes != null) {
-        // Web 环境或已有字节数据
-        imageBytes = file.bytes!;
-      } else if (file.path != null) {
-        // 移动端环境，从文件路径读取
-        final originalFile = File(file.path!);
-        imageBytes = await originalFile.readAsBytes();
+      // 先拿到 File
+      late File imageFile;
+      if (file.path != null && file.path!.isNotEmpty) {
+        imageFile = File(file.path!);
+      } else if (file.bytes != null) {
+        // 只有 bytes 的情况：写入临时文件再压缩
+        final tempDir = await getTemporaryDirectory();
+        final tempPath = '${tempDir.path}/${file.name}';
+        imageFile = await File(tempPath).writeAsBytes(file.bytes!);
       } else {
         throw 'No file data available';
       }
 
-      // 压缩图片
-      final result = await FlutterImageCompress.compressWithList(
-        imageBytes,
-        format: CompressFormat.webp,
-        quality: imageQuality,
-        minWidth: 1080,
-        minHeight: 1080,
-        autoCorrectionAngle: true,
-      );
+      // 用 ImageCompressor 压缩并转 WebP，带 UUID 文件名
+      final compressedFile = await ImageCompressor.compressAndConvertToWebP(imageFile);
+
+      // 读回 Uint8List 给 UI / 上传用
+      final compressedBytes = await compressedFile.readAsBytes();
 
       isCompressing.value = false;
-      return result;
+      return compressedBytes;
     } catch (e) {
       isCompressing.value = false;
       print('Image compression failed: $e');
 
-      // 如果压缩失败，返回原始字节
+      // 失败就回退用原始 bytes，保证功能不断
       if (file.bytes != null) {
         return file.bytes!;
-      } else if (file.path != null) {
+      } else if (file.path != null && file.path!.isNotEmpty) {
         final originalFile = File(file.path!);
         return await originalFile.readAsBytes();
       } else {
@@ -827,12 +854,9 @@ class EditEventController extends GetxController {
   }
 
   void removePoster() {
-    // 如果有现有海报，设置posterChanged为true
-    if (originalEvent.poster.isNotEmpty || selectedPosterBytes.value != null) {
-      posterChanged.value = true;
-    }
+    // 设置posterChanged为true
+    posterChanged.value = true;
 
-    selectedPosterPath.value = null;
     selectedPosterName.value = null;
     selectedPosterBytes.value = null;
 
@@ -862,7 +886,7 @@ class EditEventController extends GetxController {
     return months[month - 1];
   }
 
-  // Validation methods
+  // Validation methods (保持不变)
   bool _validateDates() {
     if (selectedStartDate.value == null) {
       FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please select start date');
@@ -976,6 +1000,17 @@ class EditEventController extends GetxController {
         title: 'Error',
         message: 'Maximum participants cannot exceed 1000',
       );
+      return false;
+    }
+    return true;
+  }
+
+  // 验证海报
+  bool _validatePoster() {
+    // 如果没有原始图片且没有选择新图片，显示错误
+    if ((selectedPosterName.value == null || selectedPosterName.value!.isEmpty) &&
+        selectedPosterBytes.value == null) {
+      FAdminLoaders.errorSnackBar(title: 'Error', message: 'Please add event poster');
       return false;
     }
     return true;
@@ -1107,8 +1142,35 @@ class EditEventController extends GetxController {
         // 删除旧的poster（如果存在）
         if (originalEvent.poster.isNotEmpty) {
           try {
-            await _eventRepository.deleteEventPoster(originalEvent.poster);
-            print('🗑️ Deleted old poster: ${originalEvent.poster}');
+            // 清理要删除的文件名
+            String deleteFileName = originalEvent.poster;
+            if (deleteFileName.startsWith('http')) {
+              // 如果是URL，提取文件名
+              try {
+                final uri = Uri.parse(deleteFileName);
+                final pathSegments = uri.pathSegments;
+                for (final segment in pathSegments) {
+                  if (segment.contains('.webp') || segment.contains('.jpg') ||
+                      segment.contains('.png') || segment.contains('.jpeg')) {
+                    deleteFileName = segment;
+                    break;
+                  }
+                }
+                if (deleteFileName == originalEvent.poster && pathSegments.isNotEmpty) {
+                  deleteFileName = pathSegments.last;
+                }
+              } catch (e) {
+                print('Error parsing poster URL for deletion: $e');
+              }
+            }
+
+            // 确保路径格式正确
+            if (!deleteFileName.startsWith('events/')) {
+              deleteFileName = 'events/$deleteFileName';
+            }
+
+            await _eventRepository.deleteEventPoster(deleteFileName);
+            print('🗑️ Deleted old poster: $deleteFileName');
           } catch (e) {
             print('⚠️ Failed to delete old poster: $e');
             // 继续上传新poster，不抛出异常
@@ -1118,9 +1180,15 @@ class EditEventController extends GetxController {
         // 上传新poster
         try {
           print('📤 Uploading new poster: ${selectedPosterName.value}');
+          // 确保上传路径正确
+          String uploadFileName = selectedPosterName.value!;
+          if (!uploadFileName.startsWith('events/')) {
+            uploadFileName = 'events/$uploadFileName';
+          }
+
           posterFileName = await _eventRepository.uploadEventPoster(
             selectedPosterBytes.value!,
-            selectedPosterName.value!,
+            uploadFileName,
           );
           print('✅ New poster uploaded: $posterFileName');
         } catch (e) {
@@ -1133,8 +1201,34 @@ class EditEventController extends GetxController {
         // 删除旧的poster（如果存在）
         if (originalEvent.poster.isNotEmpty) {
           try {
-            await _eventRepository.deleteEventPoster(originalEvent.poster);
-            print('🗑️ Deleted poster as requested: ${originalEvent.poster}');
+            String deleteFileName = originalEvent.poster;
+            if (deleteFileName.startsWith('http')) {
+              // 如果是URL，提取文件名
+              try {
+                final uri = Uri.parse(deleteFileName);
+                final pathSegments = uri.pathSegments;
+                for (final segment in pathSegments) {
+                  if (segment.contains('.webp') || segment.contains('.jpg') ||
+                      segment.contains('.png') || segment.contains('.jpeg')) {
+                    deleteFileName = segment;
+                    break;
+                  }
+                }
+                if (deleteFileName == originalEvent.poster && pathSegments.isNotEmpty) {
+                  deleteFileName = pathSegments.last;
+                }
+              } catch (e) {
+                print('Error parsing poster URL for deletion: $e');
+              }
+            }
+
+            // 确保路径格式正确
+            if (!deleteFileName.startsWith('events/')) {
+              deleteFileName = 'events/$deleteFileName';
+            }
+
+            await _eventRepository.deleteEventPoster(deleteFileName);
+            print('🗑️ Deleted poster as requested: $deleteFileName');
           } catch (e) {
             print('⚠️ Failed to delete poster: $e');
             // 继续更新事件，不抛出异常
@@ -1212,6 +1306,10 @@ class EditEventController extends GetxController {
       }
 
       if (!_validateMaxParticipants()) {
+        return;
+      }
+
+      if (!_validatePoster()) {
         return;
       }
 

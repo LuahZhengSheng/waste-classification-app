@@ -1,14 +1,10 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:image_picker/image_picker.dart';
 
-import '../../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../../common/widgets/admin/profile_image_handler.dart';
 import '../../../../../data/repositories/user/user_repository.dart';
-import '../../../../../data/services/profile_image/profile_image_service.dart';
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/formatters/formatter.dart';
@@ -303,6 +299,12 @@ class _UserDetailDialogState extends State<UserDetailDialog> {
   }
 
   Widget _buildProfileImage(bool dark) {
+    print('🔍 Building ProfileImageHandler with:');
+    print('   - Current profileImg: ${widget.user.profileImg}');
+    print('   - Pending image bytes: ${_pendingImageBytes != null}');
+    print('   - Pending delete: $_pendingDeleteImage');
+    print('   - Has changes: $_hasChanges');
+
     return ProfileImageHandler(
       profileImg: widget.user.profileImg,
       username: widget.user.username,
@@ -311,16 +313,22 @@ class _UserDetailDialogState extends State<UserDetailDialog> {
       radius: 60,
       isEditMode: _isEditMode,
       onImageChanged: (Uint8List? newImageBytes) {
+        print('🖼️ onImageChanged called with new image: ${newImageBytes != null}');
         setState(() {
-          _pendingImageBytes = newImageBytes;
-          _pendingDeleteImage = false; // 选择新图片时取消删除标记
+          _pendingImageBytes = newImageBytes; // 这里可以接受 null
+          if (newImageBytes != null) {
+            _pendingDeleteImage = false; // 只有选择新图片时才取消删除标记
+          }
           _updateHasChanges();
         });
       },
       onDeleteRequested: (bool isDeleteRequested) {
+        print('🗑️ onDeleteRequested called: $isDeleteRequested');
         setState(() {
           _pendingDeleteImage = isDeleteRequested;
-          _pendingImageBytes = null; // 请求删除时清除新图片
+          if (isDeleteRequested) {
+            _pendingImageBytes = null; // 请求删除时清除新图片
+          }
           _updateHasChanges();
         });
       },
@@ -329,7 +337,7 @@ class _UserDetailDialogState extends State<UserDetailDialog> {
 
   void _updateHasChanges() {
     setState(() {
-      _hasChanges = _usernameController.text != widget.user.username ||
+      _hasChanges = _usernameController.text.trim() != widget.user.username ||
           _pendingImageBytes != null ||
           _pendingDeleteImage;
     });
@@ -446,47 +454,11 @@ class _UserDetailDialogState extends State<UserDetailDialog> {
   }
 
   void _showUpdateDialog(BuildContext context, bool dark) async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
-        title: Text(
-          'Update User Profile',
-          style: TextStyle(
-            color: dark ? FColors.adminDarkText : FColors.adminLightText,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to update this user profile?',
-          style: TextStyle(
-            color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
-            ),
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      if (_formKey.currentState!.validate()) {
-        // Check username uniqueness
+    if (_formKey.currentState!.validate()) {
+      // Check username uniqueness (only if username changed)
+      if (_usernameController.text.trim() != widget.user.username) {
         final isUsernameUnique = await _userRepo.isUsernameUnique(
-          _usernameController.text,
+          _usernameController.text.trim(),
           widget.user.userId,
         );
 
@@ -497,10 +469,48 @@ class _UserDetailDialogState extends State<UserDetailDialog> {
           );
           return;
         }
+      }
 
+      final confirmed = await Get.dialog<bool>(
+        AlertDialog(
+          backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+          title: Text(
+            'Update User Profile',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkText : FColors.adminLightText,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to update this user profile?',
+            style: TextStyle(
+              color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+              ),
+              child: const Text('Update', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
         // 准备更新用户数据
         UserModel updatedUser = widget.user.copyWith(
-          username: _usernameController.text,
+          username: _usernameController.text.trim(),
         );
 
         final controller = UserManagementController.instance;

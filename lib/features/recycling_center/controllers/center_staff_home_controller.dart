@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
-import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
+import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
 
 import '../../../data/repositories/authentication/authentication_repository.dart';
 import '../../../data/repositories/personalization/recycling_activity_repository.dart';
@@ -13,7 +13,7 @@ import '../../../utils/constants/enums.dart';
 import '../../../utils/helpers/activity_image.dart';
 import '../../../utils/popups/full_screen_loader.dart';
 import '../../../utils/popups/loaders.dart';
-import '../models/waste_category_model.dart';
+import '../../waste_classification/models/waste_category_model.dart';
 import '../screens/add_recyling_activity/widgets/submission_success.dart';
 
 class StaffHomeController extends GetxController {

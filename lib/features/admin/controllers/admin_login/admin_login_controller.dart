@@ -46,7 +46,7 @@ class AdminLoginController extends GetxController {
       // Show loading
       FLoaders.showLoading('Signing you in...');
 
-      // Check if user exists and get admin data (现在包含 Auth 验证状态)
+      // Check if user exists and get admin data
       final adminData = await _adminRepository.getAdminByEmail(email.text.trim());
 
       if (adminData == null) {
@@ -66,7 +66,7 @@ class AdminLoginController extends GetxController {
         return;
       }
 
-      // Check account status before login (现在使用 Auth 的 emailVerified)
+      // Check account status before login (移除邮箱验证检查)
       final statusCheck = _checkAccountStatus(adminData);
       if (statusCheck != null) {
         FLoaders.stopLoading();
@@ -84,8 +84,11 @@ class AdminLoginController extends GetxController {
           password.text.trim(),
         );
 
-        // Login successful - reset attempts
+        // Login successful - reset attempts and update verification status
         await _adminRepository.resetLoginAttempts(adminData.userId);
+
+        // ✅ 自动更新 Firestore 中的邮箱验证状态为 true
+        await _adminRepository.updateEmailVerificationStatus(adminData.userId, true);
 
         FLoaders.stopLoading();
 
@@ -147,8 +150,8 @@ class AdminLoginController extends GetxController {
     return null;
   }
 
-  /// Check account status (banned, inactive, not verified, invalid role)
-  /// 现在使用 Auth 的 emailVerified 而不是 Firestore 的 isVerified
+  /// Check account status (banned, inactive, invalid role)
+  /// 移除了邮箱验证检查
   String? _checkAccountStatus(AdminModel admin) {
     if (admin.isBanned) {
       return 'Your account has been banned. Please contact support.';
@@ -156,11 +159,6 @@ class AdminLoginController extends GetxController {
 
     if (!admin.isActive) {
       return 'Your account is inactive. Please contact support.';
-    }
-
-    // 现在使用从 Auth 获取的 emailVerified 状态
-    if (!admin.isVerified) {
-      return 'Your account is not verified. Please verify your email.';
     }
 
     // Check if role is valid admin role
@@ -205,6 +203,11 @@ class AdminLoginController extends GetxController {
       );
     } else {
       final remainingAttempts = MAX_ATTEMPTS - newAttemptCount;
+      // Optional: Show remaining attempts message
+      // FLoaders.warningSnackBar(
+      //   title: 'Login Failed',
+      //   message: '$remainingAttempts attempts remaining.',
+      // );
     }
   }
 

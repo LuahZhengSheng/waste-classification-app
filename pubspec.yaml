@@ -51,6 +51,7 @@ dependencies:
   flutter_facebook_auth: ^7.1.1
   firebase_storage: ^13.0.3
   firebase_messaging: ^16.0.3
+  firebase_database: ^12.1.0
 
   # Notification
   flutter_local_notifications: ^19.5.0
@@ -119,6 +120,7 @@ flutter:
     - assets/logos/
     - assets/videos/
     - assets/models/
+    - .env
 
   #------------------ LOCAL FONTS ------------------#
   fonts:

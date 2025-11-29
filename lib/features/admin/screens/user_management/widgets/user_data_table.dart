@@ -5,9 +5,7 @@ import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
 import 'package:fyp/features/authentication/models/user_model.dart';
-import 'package:fyp/data/repositories/user/user_repository.dart';
 
-import '../../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../../common/widgets/admin/badge.dart';
 import '../../../../../common/widgets/admin/small_profile_image.dart';
 import 'user_actions_dialog.dart';
@@ -326,6 +324,7 @@ class _UserDataTableState extends State<UserDataTable> {
   }
 
   Widget _buildProfileImage(UserModel user) {
+    print('build image: ${user.profileImg}');
     return SmallProfileImage(
       profileImg: user.profileImg,
       username: user.username,

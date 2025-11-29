@@ -39,7 +39,7 @@ class UserManagementController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _checkRoleAndRedirect();
+    // _checkRoleAndRedirect();
     loadUsers();
 
     // Listen to search changes
@@ -84,7 +84,6 @@ class UserManagementController extends GetxController {
   void loadUsers() {
     isLoading.value = true;
 
-    // Stream all users with role = 'user'
     _userRepository.getUsersSortedByField(
       field: 'joinDate',
       descending: true,
@@ -101,6 +100,7 @@ class UserManagementController extends GetxController {
       }
 
       allUsers.value = users;
+      filteredUsers.value = users; // 直接设置 filteredUsers，不执行筛选
 
       isLoading.value = false;
       print('📱 UI状态: isLoading = false (隐藏加载动画)');
@@ -386,6 +386,7 @@ class UserManagementController extends GetxController {
         }
       }
 
+      // 更新用户资料（无论是否有图片变更）
       await _userRepository.updateUserDetails(updatedUser);
 
       FLoaders.stopLoading();

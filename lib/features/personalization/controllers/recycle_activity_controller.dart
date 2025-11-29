@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
-import 'package:fyp/features/personalization/models/recycle_activity_model.dart';
-import 'package:fyp/features/recycling_center/models/waste_category_model.dart';
+import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
+import 'package:fyp/features/waste_classification/models/waste_category_model.dart';
 import 'package:fyp/features/community/models/post_enums.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 import 'package:fyp/data/repositories/authentication/authentication_repository.dart';

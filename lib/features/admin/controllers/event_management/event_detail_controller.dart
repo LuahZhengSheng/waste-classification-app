@@ -9,7 +9,6 @@ import '../../../../data/repositories/event/reminder_repository.dart';
 import '../../../../data/repositories/user/user_repository.dart';
 import '../../../../features/authentication/models/user_model.dart';
 import '../../../../features/event/models/event_model.dart';
-import '../../../../features/event/models/event_registration_model.dart';
 import '../../screens/event_management/edit_event/edit_event.dart';
 
 class AdminEventDetailController extends GetxController {
