@@ -219,34 +219,40 @@ class MyPostsController extends GetxController with GetSingleTickerProviderState
   }
 
   /// Edit post
-  Future<void> editPost(PostModel updatedPost) async {
-    try {
-      FLoaders.showLoading('Updating post...');
-
-      // Update in Firestore using repository
-      await postRepository.savePost(updatedPost);
-
-      // Update local state
-      final postIndex = _myPosts.indexWhere((p) => p.postId == updatedPost.postId);
-      if (postIndex != -1) {
-        _myPosts[postIndex] = updatedPost;
-        _myPosts.refresh();
-        _applyFilters();
-      }
-
-      FLoaders.stopLoading();
-      FLoaders.successSnackBar(
-        title: 'Success',
-        message: 'Post updated successfully',
-      );
-    } catch (e) {
-      FLoaders.stopLoading();
-      FLoaders.errorSnackBar(
-        title: 'Error',
-        message: 'Failed to update post: $e',
-      );
-    }
-  }
+  // Future<void> editPost(PostModel updatedPost) async {
+  //   try {
+  //     FLoaders.showLoading('Updating post...');
+  //
+  //     updatedPost = updatedPost.copyWith(
+  //       isDisabled: false,
+  //     );
+  //
+  //     print('UpdatedPost: ${updatedPost.isDisabled}');
+  //
+  //     // Update in Firestore using repository
+  //     await postRepository.savePost(updatedPost);
+  //
+  //     // Update local state
+  //     final postIndex = _myPosts.indexWhere((p) => p.postId == updatedPost.postId);
+  //     if (postIndex != -1) {
+  //       _myPosts[postIndex] = updatedPost;
+  //       _myPosts.refresh();
+  //       _applyFilters();
+  //     }
+  //
+  //     FLoaders.stopLoading();
+  //     FLoaders.successSnackBar(
+  //       title: 'Success',
+  //       message: 'Post updated successfully',
+  //     );
+  //   } catch (e) {
+  //     FLoaders.stopLoading();
+  //     FLoaders.errorSnackBar(
+  //       title: 'Error',
+  //       message: 'Failed to update post: $e',
+  //     );
+  //   }
+  // }
 
   /// Refresh posts
   Future<void> refreshPosts() async {

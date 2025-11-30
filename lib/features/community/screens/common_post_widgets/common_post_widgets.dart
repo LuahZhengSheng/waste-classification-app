@@ -15,7 +15,8 @@ class FUserInfo extends StatelessWidget {
   final String timeAgo;
   final PostType postType;
   final bool showMenuButton;
-  final VoidCallback? onMenuPressed; // 保持可空
+  final VoidCallback? onMenuPressed;
+  final bool wasEdited; // 【新增】编辑状态
 
   const FUserInfo({
     super.key,
@@ -23,7 +24,8 @@ class FUserInfo extends StatelessWidget {
     required this.timeAgo,
     required this.postType,
     this.showMenuButton = false,
-    this.onMenuPressed, // 保持可选
+    this.onMenuPressed,
+    this.wasEdited = false, // 【新增】默认为 false
   });
 
   @override
@@ -98,24 +100,40 @@ class FUserInfo extends StatelessWidget {
 
                   const SizedBox(width: FSizes.sm),
 
-                  // Menu button - 现在与用户名在同一行
+                  // Menu button
                   if (showMenuButton && onMenuPressed != null)
                     FMenuButton(
-                      onPressed: onMenuPressed!, // 使用 ! 断言非空，或者提供默认值
+                      onPressed: onMenuPressed!,
                     ),
                 ],
               ),
 
-              const SizedBox(height: FSizes.xs),
-
-              // Time ago
-              Text(
-                timeAgo,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: dark ? FColors.darkGrey : FColors.textSecondary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              // Time ago + edited 标签
+              Row(
+                children: [
+                  Text(
+                    timeAgo,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: dark ? FColors.darkGrey : FColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  // 【新增】显示 (edited) 标签
+                  if (wasEdited) ...[
+                    const SizedBox(width: FSizes.xs),
+                    Text(
+                      '(edited)',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: dark
+                            ? FColors.darkGrey.withOpacity(0.7)
+                            : FColors.textSecondary.withOpacity(0.7),
+                        fontStyle: FontStyle.italic,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

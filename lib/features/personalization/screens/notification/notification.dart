@@ -17,7 +17,7 @@ class NotificationScreen extends StatefulWidget {
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen> {
+class _NotificationScreenState extends State<NotificationScreen> with SingleTickerProviderStateMixin {
   final NotificationController controller = Get.put(NotificationController());
   late bool dark;
 
@@ -25,27 +25,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
   void initState() {
     super.initState();
 
-    // 监听 TabController 的变化
-    controller.tabController.addListener(_handleTabChange);
-
-    // Reset to All tab when entering the screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.tabController.animateTo(0);
+      if (mounted) {
+        controller.tabController.animateTo(0);
+      }
     });
   }
 
   @override
   void dispose() {
-    // 移除监听器
-    controller.tabController.removeListener(_handleTabChange);
     super.dispose();
-  }
-
-  void _handleTabChange() {
-    // 当 Tab 变化时触发 UI 更新
-    if (mounted) {
-      setState(() {});
-    }
   }
 
   @override
@@ -59,10 +48,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
         final controller = Get.find<NotificationController>();
         if (controller.isSelectionMode.value) {
-          // If in selection mode, exit selection mode instead of closing the screen
           controller.toggleSelectionMode();
         } else {
-          // If not in selection mode, allow normal back navigation
           Get.back();
         }
       },
@@ -75,46 +62,39 @@ class _NotificationScreenState extends State<NotificationScreen> {
           leadingOnPressed: () {
             final controller = Get.find<NotificationController>();
             if (controller.isSelectionMode.value) {
-              controller.toggleSelectionMode(); // 退出选择模式
+              controller.toggleSelectionMode();
             } else {
-              Get.back(); // 正常返回
+              Get.back();
             }
           },
         ),
         body: Column(
           children: [
-            // Tab Bar
             _buildTabBar(controller, dark),
-
-            // Notifications List
             Expanded(
               child: TabBarView(
                 controller: controller.tabController,
                 children: [
                   _NotificationsList(
-                    notifications: controller.allNotifications.toList(),
                     controller: controller,
                     dark: dark,
-                    onLoadMore: controller.loadMoreNotifications,
+                    filterType: NotificationFilterType.all,
                   ),
                   _NotificationsList(
-                    notifications: controller.unreadNotifications,
                     controller: controller,
                     dark: dark,
-                    onLoadMore: controller.loadMoreNotifications,
+                    filterType: NotificationFilterType.unread,
                   ),
                   _NotificationsList(
-                    notifications: controller.readNotifications,
                     controller: controller,
                     dark: dark,
-                    onLoadMore: controller.loadMoreNotifications,
+                    filterType: NotificationFilterType.read,
                   ),
                 ],
               ),
             ),
           ],
         ),
-        // Batch delete FAB
         floatingActionButton: Obx(() {
           if (!controller.isSelectionMode.value) return const SizedBox();
 
@@ -178,32 +158,36 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget _buildNormalModeActions(NotificationController controller, bool dark) {
     return Row(
       children: [
-        if (controller.unreadCount > 0)
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: FColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
+        Obx(() {
+          if (controller.unreadCount.value > 0) {
+            return Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: FColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                onTap: controller.markAllAsRead,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Text(
-                    'Mark all read',
-                    style: TextStyle(
-                      color: FColors.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: controller.markAllAsRead,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text(
+                      'Mark all read',
+                      style: TextStyle(
+                        color: FColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          }
+          return const SizedBox.shrink();
+        }),
         IconButton(
           onPressed: controller.toggleSelectionMode,
           icon: Icon(
@@ -222,88 +206,86 @@ class _NotificationScreenState extends State<NotificationScreen> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: dark
-              ? FColors.darkerGrey
-              : FColors.grey.withOpacity(0.1),
+          color: dark ? FColors.darkerGrey : FColors.grey.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: TabBar(
-          controller: controller.tabController,
-          labelColor: FColors.white, // Selected tab text color
-          unselectedLabelColor: dark ? FColors.darkGrey : FColors.grey, // Unselected tab text color
-          indicator: BoxDecoration(
-            color: FColors.primary, // Selected tab background color
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: FColors.primary.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          dividerColor: Colors.transparent,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 14,
-          ),
-          onTap: (index) {
-            // This ensures the UI updates when tabs are switched by clicking
-            setState(() {});
-          },
-          tabs: [
-            Tab(
-              child: _buildTabLabel(
-                'All',
-                controller.allNotifications.length,
-                controller.tabController.index == 0,
-                dark,
-              ),
-            ),
-            Tab(
-              child: _buildTabLabel(
-                'Unread',
-                controller.unreadNotifications.length,
-                controller.tabController.index == 1,
-                dark,
-              ),
-            ),
-            Tab(
-              child: _buildTabLabel(
-                'Read',
-                controller.readNotifications.length,
-                controller.tabController.index == 2,
-                dark,
-              ),
-            ),
-          ],
-        ),
+        // 【关键】使用 Obx 监听 allNotifications 变化
+        child: Obx(() {
+          // 强制重新计算 count
+          final allCount = controller.allNotifications.length;
+          final unreadCount = controller.unreadNotifications.length;
+          final readCount = controller.readNotifications.length;
+
+          return AnimatedBuilder(
+            animation: controller.tabController.animation!,
+            builder: (context, child) {
+              final currentIndex = controller.tabController.animation!.value.round();
+
+              return TabBar(
+                controller: controller.tabController,
+                labelColor: FColors.white,
+                unselectedLabelColor: dark ? FColors.darkGrey : FColors.grey,
+                indicator: BoxDecoration(
+                  color: FColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: FColors.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+                tabs: [
+                  Tab(
+                    child: _buildTabLabel('All', allCount, currentIndex == 0, dark),
+                  ),
+                  Tab(
+                    child: _buildTabLabel('Unread', unreadCount, currentIndex == 1, dark),
+                  ),
+                  Tab(
+                    child: _buildTabLabel('Read', readCount, currentIndex == 2, dark),
+                  ),
+                ],
+              );
+            },
+          );
+        }),
       ),
     );
   }
 
   Widget _buildTabLabel(String text, int count, bool isSelected, bool dark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
             text,
             style: TextStyle(
               color: isSelected ? FColors.white : (dark ? FColors.darkGrey : FColors.grey),
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               fontSize: 14,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
-          if (count > 0) ...[
-            const SizedBox(width: 4),
-            Container(
+        ),
+        if (count > 0) ...[
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 40),
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: isSelected
@@ -318,26 +300,28 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   fontWeight: FontWeight.w600,
                   color: isSelected ? FColors.white : FColors.primary,
                 ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ],
+          ),
         ],
-      ),
+      ],
     );
   }
 }
 
+enum NotificationFilterType { all, unread, read }
+
 class _NotificationsList extends StatefulWidget {
-  final List<NotificationModel> notifications;
   final NotificationController controller;
   final bool dark;
-  final VoidCallback onLoadMore;
+  final NotificationFilterType filterType;
 
   const _NotificationsList({
-    required this.notifications,
     required this.controller,
     required this.dark,
-    required this.onLoadMore,
+    required this.filterType,
   });
 
   @override
@@ -362,22 +346,33 @@ class _NotificationsListState extends State<_NotificationsList> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.8) {
-      widget.onLoadMore();
+      widget.controller.loadMoreNotifications();
+    }
+  }
+
+  List<NotificationModel> _getFilteredNotifications() {
+    switch (widget.filterType) {
+      case NotificationFilterType.all:
+        return widget.controller.allNotifications;
+      case NotificationFilterType.unread:
+        return widget.controller.unreadNotifications;
+      case NotificationFilterType.read:
+        return widget.controller.readNotifications;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (widget.controller.isLoading.value && widget.notifications.isEmpty) {
+      final notifications = _getFilteredNotifications();
+
+      if (widget.controller.isLoading.value && notifications.isEmpty) {
         return const Center(
-          child: CircularProgressIndicator(
-            color: FColors.primary,
-          ),
+          child: CircularProgressIndicator(color: FColors.primary),
         );
       }
 
-      if (widget.notifications.isEmpty) {
+      if (notifications.isEmpty) {
         return _buildEmptyState();
       }
 
@@ -387,25 +382,35 @@ class _NotificationsListState extends State<_NotificationsList> {
         child: ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: widget.notifications.length +
+          itemCount: notifications.length +
               (widget.controller.isLoadingMore.value ? 1 : 0),
           itemBuilder: (context, index) {
-            if (index == widget.notifications.length) {
+            if (index == notifications.length) {
               return const Center(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(
-                    color: FColors.primary,
-                  ),
+                  child: CircularProgressIndicator(color: FColors.primary),
                 ),
               );
             }
 
-            final notification = widget.notifications[index];
-            return _NotificationTile(
-              notification: notification,
-              controller: widget.controller,
-              dark: widget.dark,
+            final notification = notifications[index];
+            // 【关键修复】使用 StreamBuilder 监听每个通知的实时更新
+            return StreamBuilder<NotificationModel?>(
+              stream: widget.controller.getNotificationStream(notification.notificationId),
+              initialData: notification,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const SizedBox.shrink();
+                }
+
+                final updatedNotification = snapshot.data!;
+                return _NotificationTile(
+                  notification: updatedNotification,
+                  controller: widget.controller,
+                  dark: widget.dark,
+                );
+              },
             );
           },
         ),
@@ -421,17 +426,13 @@ class _NotificationsListState extends State<_NotificationsList> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: (widget.dark
-                  ? FColors.primary
-                  : FColors.primary).withOpacity(0.1),
+              color: FColors.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Iconsax.notification_bing,
               size: 64,
-              color: widget.dark
-                  ? FColors.primary
-                  : FColors.primary,
+              color: FColors.primary,
             ),
           ),
           const SizedBox(height: 24),
@@ -440,9 +441,7 @@ class _NotificationsListState extends State<_NotificationsList> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: widget.dark
-                  ? FColors.darkText
-                  : FColors.textPrimary,
+              color: widget.dark ? FColors.darkText : FColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -450,9 +449,7 @@ class _NotificationsListState extends State<_NotificationsList> {
             'You\'re all caught up!',
             style: TextStyle(
               fontSize: 14,
-              color: widget.dark
-                  ? FColors.darkTextSecondary
-                  : FColors.textSecondary,
+              color: widget.dark ? FColors.darkTextSecondary : FColors.textSecondary,
             ),
           ),
         ],
@@ -475,8 +472,7 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final isSelected = controller.selectedNotifications
-          .contains(notification.notificationId);
+      final isSelected = controller.selectedNotifications.contains(notification.notificationId);
       final isSelectionMode = controller.isSelectionMode.value;
 
       return InkWell(
@@ -498,40 +494,29 @@ class _NotificationTile extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: isSelected
-                ? (dark ? FColors.primary : FColors.primary)
-                .withOpacity(0.1)
+                ? FColors.primary.withOpacity(0.1)
                 : notification.isRead
                 ? Colors.transparent
-                : (dark ? FColors.accent : FColors.accent)
-                .withOpacity(0.1),
+                : FColors.primary.withOpacity(0.05),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
-              // Selection checkbox or avatar
               if (isSelectionMode)
                 Container(
                   width: 24,
                   height: 24,
                   margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? (dark ? FColors.primary : FColors.primary)
-                        : Colors.transparent,
+                    color: isSelected ? FColors.primary : Colors.transparent,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: dark
-                          ? FColors.darkGrey
-                          : FColors.borderPrimary,
+                      color: dark ? FColors.darkGrey : FColors.borderPrimary,
                       width: 2,
                     ),
                   ),
                   child: isSelected
-                      ? const Icon(
-                    Icons.check,
-                    size: 16,
-                    color: FColors.white,
-                  )
+                      ? const Icon(Icons.check, size: 16, color: FColors.white)
                       : null,
                 )
               else
@@ -539,7 +524,6 @@ class _NotificationTile extends StatelessWidget {
 
               const SizedBox(width: 12),
 
-              // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -551,12 +535,8 @@ class _NotificationTile extends StatelessWidget {
                             notification.title,
                             style: TextStyle(
                               fontSize: 15,
-                              fontWeight: notification.isRead
-                                  ? FontWeight.w500
-                                  : FontWeight.w600,
-                              color: dark
-                                  ? FColors.darkText
-                                  : FColors.textPrimary,
+                              fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.w600,
+                              color: dark ? FColors.darkText : FColors.textPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -567,9 +547,7 @@ class _NotificationTile extends StatelessWidget {
                           FFormatter.formatTimeAgo(notification.createdAt),
                           style: TextStyle(
                             fontSize: 12,
-                            color: dark
-                                ? FColors.darkText
-                                : FColors.textSecondary,
+                            color: dark ? FColors.darkText : FColors.textSecondary,
                           ),
                         ),
                       ],
@@ -579,9 +557,7 @@ class _NotificationTile extends StatelessWidget {
                       notification.message,
                       style: TextStyle(
                         fontSize: 13,
-                        color: dark
-                            ? FColors.darkTextSecondary
-                            : FColors.textSecondary,
+                        color: dark ? FColors.darkTextSecondary : FColors.textSecondary,
                         height: 1.4,
                       ),
                       maxLines: 2,
@@ -591,14 +567,13 @@ class _NotificationTile extends StatelessWidget {
                 ),
               ),
 
-              // Unread indicator
               if (!notification.isRead && !isSelectionMode)
                 Container(
                   width: 8,
                   height: 8,
                   margin: const EdgeInsets.only(left: 8),
                   decoration: BoxDecoration(
-                    color: dark ? FColors.accent : FColors.accent,
+                    color: FColors.primary,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -628,13 +603,13 @@ class _NotificationTile extends StatelessWidget {
   Color _getAvatarColor() {
     switch (notification.type) {
       case 'system':
-        return dark ? FColors.primary : FColors.primary;
+        return FColors.primary;
       case 'achievement':
-        return dark ? FColors.success : FColors.success;
+        return FColors.success;
       case 'reminder':
-        return dark ? FColors.warning : FColors.warning;
+        return FColors.warning;
       default:
-        return dark ? FColors.info : FColors.info;
+        return FColors.primary;
     }
   }
 

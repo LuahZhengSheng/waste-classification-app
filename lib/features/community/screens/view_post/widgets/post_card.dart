@@ -122,8 +122,8 @@ class FPostCard extends StatelessWidget {
           // Violated badge for disabled posts
           if (isDisabled)
             Positioned(
-              top: 8,
-              right: 8,
+              top: 3,
+              right: 3,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: FSizes.sm,
@@ -146,7 +146,7 @@ class FPostCard extends StatelessWidget {
                     const Icon(
                       Iconsax.warning_2,
                       color: FColors.white,
-                      size: 14,
+                      size: 12,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -154,7 +154,7 @@ class FPostCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: FColors.white,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                        fontSize: 8,
                       ),
                     ),
                   ],
@@ -195,17 +195,25 @@ class FPostCard extends StatelessWidget {
   }
 
   Widget _buildUserInfoSection(
-      BuildContext context, bool dark, PostType postType) {
+      BuildContext context,
+      bool dark,
+      PostType postType,
+      ) {
+    // 【修改】优先使用 updatedAt，如果为 null 则用 createdAt
+    final displayDate = post.updatedAt ?? post.createdAt;
+    final wasEdited = post.updatedAt != null;
+
     if (isInDetailScreen) {
       final controller = Get.find<PostDetailsController>();
       final isUserPost = post.userId == controller.getCurrentUserId();
 
       return FUserInfo(
         userId: post.userId,
-        timeAgo: FFormatter.formatTimeAgo(post.createdAt),
+        timeAgo: FFormatter.formatTimeAgo(displayDate),
         postType: postType,
         showMenuButton: isUserPost,
         onMenuPressed: () => _showPostOptions(context, post),
+        wasEdited: wasEdited, // 【新增】传递编辑状态
       );
     } else {
       final controller = Get.find<PostsController>();
@@ -213,13 +221,15 @@ class FPostCard extends StatelessWidget {
 
       return FUserInfo(
         userId: post.userId,
-        timeAgo: FFormatter.formatTimeAgo(post.createdAt),
+        timeAgo: FFormatter.formatTimeAgo(displayDate),
         postType: postType,
         showMenuButton: isUserPost,
         onMenuPressed: () => _showPostOptions(context, post),
+        wasEdited: wasEdited, // 【新增】传递编辑状态
       );
     }
   }
+
 
   Widget _buildPostActions() {
     if (isInDetailScreen) {
@@ -371,13 +381,18 @@ class FPostCard extends StatelessWidget {
   }
 
   void _confirmDelete(PostModel post) async {
+    // 1. 先关闭 confirmation dialog
     Get.back();
 
     if (isInDetailScreen) {
+      // 2. 在 detail screen 中，先返回到 community 页面
+      Get.back();
+
+      // 3. 然后再删除 post
       final controller = Get.find<PostsController>();
       await controller.deletePost(post.postId);
-      Get.back();
     } else {
+      // 在 community 页面，直接删除
       final controller = Get.find<PostsController>();
       await controller.deletePost(post.postId);
     }

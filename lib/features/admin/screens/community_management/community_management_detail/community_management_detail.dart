@@ -1,27 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fyp/utils/constants/colors.dart';
-import 'package:fyp/utils/constants/sizes.dart';
-import 'package:fyp/utils/helpers/helper_functions.dart';
-import 'package:fyp/utils/formatters/formatter.dart';
-import 'package:fyp/features/community/models/post_model.dart';
-import 'package:fyp/features/admin/controllers/community_management/post_detail_controller.dart';
-import 'package:fyp/features/admin/screens/community_management/widgets/post_type_badge.dart';
-import 'package:fyp/features/admin/screens/community_management/widgets/admin_media_preview.dart';
-import 'package:fyp/data/repositories/user/user_repository.dart';
 
+import '../../../../../common/widgets/admin/badge.dart';
+import '../../../../../data/repositories/user/user_repository.dart';
+import '../../../../../utils/constants/colors.dart';
+import '../../../../../utils/constants/sizes.dart';
+import '../../../../../utils/formatters/formatter.dart';
+import '../../../../../utils/helpers/helper_functions.dart';
+import '../../../../../utils/helpers/media_helpers.dart';
 import '../../../../../utils/popups/admin_loaders.dart';
+import '../../../../community/models/post_model.dart';
 import '../../../controllers/community_management/community_management_controller.dart';
+import '../../../controllers/community_management/community_management_detail_controller.dart';
+import '../widgets/admin_media_preview.dart';
+import '../widgets/post_type_badge.dart';
 
-class PostDetailScreen extends StatelessWidget {
+class CommunityManagementDetailScreen extends StatelessWidget {
   final PostModel post;
 
-  const PostDetailScreen({super.key, required this.post});
+  const CommunityManagementDetailScreen({super.key, required this.post});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(PostDetailController(post));
+    final controller = Get.put(CommunityManagementDetailController(post));
     final dark = FHelperFunctions.isDarkMode(context);
 
     return Scaffold(
@@ -73,11 +75,11 @@ class PostDetailScreen extends StatelessWidget {
             () => Column(
           children: [
             // 固定顶部的内容变化提示
-            if (controller.hasContentChanged.value)
-              Padding(
-                padding: const EdgeInsets.all(FSizes.lg),
-                child: buildContentChangedNotification(controller, dark),
-              ),
+            // if (controller.hasContentChanged.value)
+            //   Padding(
+            //     padding: const EdgeInsets.all(FSizes.lg),
+            //     child: buildContentChangedNotification(controller, dark),
+            //   ),
 
             // 固定顶部的 comments 变化提示
             if (controller.hasCommentsChanged.value)
@@ -111,51 +113,51 @@ class PostDetailScreen extends StatelessWidget {
 
 // ==================== 通知区组件 ====================
 
-Widget buildContentChangedNotification(
-    PostDetailController controller, bool dark) {
-  return Container(
-    margin: const EdgeInsets.only(bottom: FSizes.spaceBtwItems),
-    padding: const EdgeInsets.all(FSizes.md),
-    decoration: BoxDecoration(
-      color: dark
-          ? FColors.adminDarkWarning.withOpacity(0.1)
-          : FColors.adminLightWarning.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-    ),
-    child: Row(
-      children: [
-        Icon(
-          Iconsax.info_circle,
-          color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
-          size: 20,
-        ),
-        const SizedBox(width: FSizes.sm),
-        Expanded(
-          child: Text(
-            'Post content has been updated',
-            style: TextStyle(
-              color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        IconButton(
-          onPressed: controller.dismissContentChangedNotification,
-          icon: Icon(
-            Iconsax.close_circle,
-            color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
-            size: 20,
-          ),
-          constraints: const BoxConstraints(),
-          padding: EdgeInsets.zero,
-        ),
-      ],
-    ),
-  );
-}
+// Widget buildContentChangedNotification(
+//     CommunityManagementDetailController controller, bool dark) {
+//   return Container(
+//     margin: const EdgeInsets.only(bottom: FSizes.spaceBtwItems),
+//     padding: const EdgeInsets.all(FSizes.md),
+//     decoration: BoxDecoration(
+//       color: dark
+//           ? FColors.adminDarkWarning.withOpacity(0.1)
+//           : FColors.adminLightWarning.withOpacity(0.1),
+//       borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+//     ),
+//     child: Row(
+//       children: [
+//         Icon(
+//           Iconsax.info_circle,
+//           color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+//           size: 20,
+//         ),
+//         const SizedBox(width: FSizes.sm),
+//         Expanded(
+//           child: Text(
+//             'Post content has been updated',
+//             style: TextStyle(
+//               color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+//               fontWeight: FontWeight.w600,
+//             ),
+//           ),
+//         ),
+//         IconButton(
+//           onPressed: controller.dismissContentChangedNotification,
+//           icon: Icon(
+//             Iconsax.close_circle,
+//             color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+//             size: 20,
+//           ),
+//           constraints: const BoxConstraints(),
+//           padding: EdgeInsets.zero,
+//         ),
+//       ],
+//     ),
+//   );
+// }
 
 Widget buildCommentsChangedNotification(
-    PostDetailController controller, bool dark) {
+    CommunityManagementDetailController controller, bool dark) {
   return Container(
     margin: const EdgeInsets.only(bottom: FSizes.spaceBtwItems),
     padding: const EdgeInsets.all(FSizes.md),
@@ -214,7 +216,7 @@ Widget buildCommentsChangedNotification(
 
 // ==================== Post Card ====================
 
-Widget buildPostCard(PostDetailController controller, bool dark) {
+Widget buildPostCard(CommunityManagementDetailController controller, bool dark) {
   final post = controller.currentPost.value;
   final poster = controller.usersCache[post.userId];
 
@@ -250,49 +252,11 @@ Widget buildPostCard(PostDetailController controller, bool dark) {
             children: [
               Row(
                 children: [
-                  PostTypeBadge(
-                    postType: post.postType,
-                    dark: dark,
-                    showIcon: true,
-                    fontSize: 13,
-                  ),
+                  // Post Type Badge - 使用 CommonBadge
+                  _buildPostTypeBadge(post.postType, dark),
                   const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: FSizes.md,
-                      vertical: FSizes.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: post.isDisabled
-                          ? (dark
-                          ? FColors.adminDarkError
-                          : FColors.adminLightError)
-                          : (dark
-                          ? FColors.adminDarkSuccess
-                          : FColors.adminLightSuccess),
-                      borderRadius: BorderRadius.circular(FSizes.cardRadiusSm),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          post.isDisabled ? Iconsax.pause : Iconsax.tick_circle,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: FSizes.xs),
-                        Text(
-                          post.isDisabled ? 'DISABLED' : 'ACTIVE',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Status Badge - 使用 CommonBadge
+                  _buildStatusBadge(post.isDisabled, dark),
                 ],
               ),
               const SizedBox(height: FSizes.md),
@@ -420,8 +384,6 @@ Widget buildPostCard(PostDetailController controller, bool dark) {
                   post.updatedAt,
                   Iconsax.calendar_edit,
                   dark,
-                  isEdited:
-                  post.updatedAt.difference(post.createdAt).inSeconds > 60,
                 ),
               ),
             ],
@@ -526,9 +488,88 @@ Widget buildPostCard(PostDetailController controller, bool dark) {
   );
 }
 
+Widget _buildPostTypeBadge(String postType, bool dark) {
+  Color color;
+  IconData icon;
+  String label;
+
+  switch (postType) {
+    case 'question':
+      color = dark ? FColors.adminDarkInfo : FColors.adminLightInfo;
+      icon = Iconsax.message_question;
+      label = 'Question';
+      break;
+    case 'discussion':
+      color = dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary;
+      icon = Iconsax.messages_3;
+      label = 'Discussion';
+      break;
+    case 'announcement':
+      color = dark ? FColors.adminDarkWarning : FColors.adminLightWarning;
+      icon = Iconsax.microphone;
+      label = 'Announcement';
+      break;
+    case 'event':
+      color = dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
+      icon = Iconsax.calendar;
+      label = 'Event';
+      break;
+    default:
+      color = dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
+      icon = Iconsax.document;
+      label = postType;
+  }
+
+  return CommonBadge(
+    icon: icon,
+    color: color,
+    text: label,
+    iconSize: 14,
+    textStyle: TextStyle(
+      color: color,
+      fontWeight: FontWeight.w600,
+      fontSize: 12,
+    ),
+    borderRadius: FSizes.cardRadiusMd,
+    padding: const EdgeInsets.symmetric(
+      horizontal: FSizes.sm,
+      vertical: FSizes.xs,
+    ),
+    borderColor: color.withOpacity(0.3),
+  );
+}
+
+Widget _buildStatusBadge(bool isDisabled, bool dark) {
+  final color = isDisabled
+      ? (dark ? FColors.adminDarkError : FColors.adminLightError)
+      : (dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess);
+
+  final icon = isDisabled ? Iconsax.pause : Iconsax.tick_circle;
+  final label = isDisabled ? 'DISABLED' : 'ACTIVE';
+
+  return CommonBadge(
+    icon: icon,
+    color: color,
+    text: label,
+    iconSize: 14,
+    textStyle: TextStyle(
+      color: color,
+      fontWeight: FontWeight.w700,
+      fontSize: 12,
+      letterSpacing: 0.5,
+    ),
+    borderRadius: FSizes.cardRadiusSm,
+    padding: const EdgeInsets.symmetric(
+      horizontal: FSizes.md,
+      vertical: FSizes.xs,
+    ),
+    borderColor: color,
+  );
+}
+
 // ==================== Comments Section ====================
 
-Widget buildCommentsSection(PostDetailController controller, bool dark) {
+Widget buildCommentsSection(CommunityManagementDetailController controller, bool dark) {
   return Container(
     decoration: BoxDecoration(
       color: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
@@ -708,14 +749,9 @@ Widget buildInfoRow(String label, String value, IconData icon, bool dark) {
   );
 }
 
-Widget buildDateCard(
-    String label,
-    DateTime date,
-    IconData icon,
-    bool dark, {
-      bool isEdited = true,
-    }) {
-  if (!isEdited && label == 'Updated') {
+Widget buildDateCard(String label, DateTime? date, IconData icon, bool dark) {
+  // 【新增】如果 date 为 null
+  if (date == null) {
     return Container(
       padding: const EdgeInsets.all(FSizes.md),
       decoration: BoxDecoration(
@@ -724,20 +760,51 @@ Widget buildDateCard(
             : FColors.adminLightSurfaceVariant.withOpacity(0.5),
         borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
       ),
-      child: Center(
-        child: Text(
-          'Not Edited',
-          style: TextStyle(
-            fontSize: 13,
-            fontStyle: FontStyle.italic,
-            color:
-            dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: dark
+                    ? FColors.adminDarkTextMuted
+                    : FColors.adminLightTextMuted,
+              ),
+              const SizedBox(width: FSizes.xs),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: dark
+                      ? FColors.adminDarkTextMuted
+                      : FColors.adminLightTextMuted,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: FSizes.sm),
+          Center(
+            child: Text(
+              'N/A',
+              style: TextStyle(
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                color: dark
+                    ? FColors.adminDarkTextMuted
+                    : FColors.adminLightTextMuted,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  // 原有的显示逻辑
   return Container(
     padding: const EdgeInsets.all(FSizes.md),
     decoration: BoxDecoration(
@@ -754,7 +821,9 @@ Widget buildDateCard(
             Icon(
               icon,
               size: 16,
-              color: dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary,
+              color: dark
+                  ? FColors.adminDarkPrimary
+                  : FColors.adminLightPrimary,
             ),
             const SizedBox(width: FSizes.xs),
             Text(
@@ -783,8 +852,9 @@ Widget buildDateCard(
           FFormatter.formatTimeAgo(date),
           style: TextStyle(
             fontSize: 11,
-            color:
-            dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+            color: dark
+                ? FColors.adminDarkTextMuted
+                : FColors.adminLightTextMuted,
           ),
         ),
       ],
@@ -870,7 +940,7 @@ Widget buildMediaGrid(List<String> media, bool dark) {
   print('Media URLs:');
   for (int i = 0; i < media.length; i++) {
     print('  [$i]: ${media[i]}');
-    print('       Is Image: ${isImageUrl(media[i])}');
+    print('       Is Image: ${MediaHelpers.isImageUrl(media[i])}');
   }
 
   print('Building Wrap widget with ${media.length} children');
@@ -902,9 +972,9 @@ Widget buildMediaThumbnail(String mediaUrl, int index, List<String> allMedia, bo
   print('buildMediaThumbnail called:');
   print('  Index: $index');
   print('  URL: $mediaUrl');
-  print('  Is Image: ${isImageUrl(mediaUrl)}');
+  print('  Is Image: ${MediaHelpers.isImageUrl(mediaUrl)}');
 
-  final bool isImage = isImageUrl(mediaUrl);
+  final bool isImage = MediaHelpers.isImageUrl(mediaUrl);
 
   return GestureDetector(
     onTap: () {
@@ -988,30 +1058,6 @@ Widget buildMediaThumbnail(String mediaUrl, int index, List<String> allMedia, bo
   );
 }
 
-bool isImageUrl(String url) {
-  try {
-    // 解析 URL 并获取路径部分（不包含查询参数）
-    final uri = Uri.parse(url);
-    final path = uri.path.toLowerCase();
-
-    print('isImageUrl check:');
-    print('  Full URL: $url');
-    print('  Path only: $path');
-
-    final imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
-    final result = imageExtensions.any((ext) => path.endsWith(ext));
-
-    print('  Result: $result');
-
-    return result;
-  } catch (e) {
-    print('Error parsing URL in isImageUrl: $e');
-    // 如果解析失败，回退到简单的字符串检查
-    final imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
-    return imageExtensions.any((ext) => url.toLowerCase().contains(ext));
-  }
-}
-
 Widget buildLoadingState(bool dark) {
   return Container(
     padding: const EdgeInsets.all(FSizes.xl * 2),
@@ -1077,7 +1123,7 @@ Widget buildEmptyCommentsState(bool dark) {
 }
 
 Widget buildCommentItem(
-    dynamic comment, PostDetailController controller, bool dark) {
+    dynamic comment, CommunityManagementDetailController controller, bool dark) {
   final commenter = controller.usersCache[comment.userId];
 
   return Obx(() {
@@ -1368,7 +1414,7 @@ Widget buildNoRepliesState(bool dark) {
 }
 
 Widget buildReplyItem(
-    dynamic reply, PostDetailController controller, bool dark) {
+    dynamic reply, CommunityManagementDetailController controller, bool dark) {
   final replier = controller.usersCache[reply.userId];
 
   return FutureBuilder<String?>(

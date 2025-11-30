@@ -253,6 +253,7 @@ class PostsController extends GetxController with SingleGetTickerProviderMixin {
   Future<void> deletePost(String postId) async {
     try {
       FLoaders.showLoading('Deleting post...');
+      print('object');
       await _postRepository.deletePost(postId);
       allPosts.removeWhere((post) => post.postId == postId);
       _categorizePosts(allPosts);

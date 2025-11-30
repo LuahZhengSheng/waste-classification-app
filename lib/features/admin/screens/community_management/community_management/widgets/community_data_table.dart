@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fyp/utils/constants/colors.dart';
-import 'package:fyp/utils/constants/sizes.dart';
-import 'package:fyp/utils/formatters/formatter.dart';
-import 'package:fyp/features/community/models/post_model.dart';
-import 'package:fyp/features/authentication/models/user_model.dart';
 
 import '../../../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../../../common/widgets/admin/badge.dart';
+import '../../../../../../utils/constants/colors.dart';
+import '../../../../../../utils/constants/sizes.dart';
+import '../../../../../../utils/formatters/formatter.dart';
 import '../../../../../../utils/popups/admin_loaders.dart';
+import '../../../../../authentication/models/user_model.dart';
+import '../../../../../community/models/post_model.dart';
 import '../../../../controllers/community_management/community_management_controller.dart';
 import '../../community_management_detail/community_management_detail.dart';
 import '../../widgets/admin_media_preview.dart';
@@ -536,14 +536,13 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
   }
 
   DataCell _buildUpdatedAtCell(PostModel post) {
-    final wasEdited = post.updatedAt.difference(post.createdAt).inSeconds > 60;
-
-    if (!wasEdited) {
+    // 【修改】检查 updatedAt 是否为 null
+    if (post.updatedAt == null) {
       return DataCell(
         Container(
           width: 150,
           child: Text(
-            'Not edited',
+            'N/A',
             style: TextStyle(
               fontSize: 12,
               color: widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
@@ -562,13 +561,13 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              _formatDateTime(post.updatedAt),
+              _formatDateTime(post.updatedAt!),
               style: _cellStyle(),
               maxLines: 1,
             ),
             const SizedBox(height: 2),
             Text(
-              FFormatter.formatTimeAgo(post.updatedAt),
+              FFormatter.formatTimeAgo(post.updatedAt!),
               style: TextStyle(
                 fontSize: 11,
                 color: widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
@@ -588,7 +587,7 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              onPressed: () => Get.to(() => PostDetailScreen(post: post)),
+              onPressed: () => Get.to(() => CommunityManagementDetailScreen(post: post)),
               icon: Icon(
                 Iconsax.eye,
                 color: widget.dark

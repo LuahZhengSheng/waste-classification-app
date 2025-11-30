@@ -138,7 +138,6 @@ class EventRepository extends GetxController {
     }
   }
 
-
   /// Build Event object with contained Location objects
   Future<Event> _buildEventWithLocation(
       DocumentSnapshot<Map<String, dynamic>> doc) async {

@@ -31,6 +31,9 @@ class PostDetailsScreen extends StatelessWidget {
     // Load post details when screen is created
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.loadPostDetails(postId);
+
+      // 确保加载当前用户数据（即使没有评论）
+      commentController.loadUserDataForComments([]);
     });
 
     return Scaffold(

@@ -4,18 +4,38 @@ import 'package:fyp/features/personalization/models/notification_model.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
-import 'package:fyp/utils/popups/loaders.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../../common/widgets/appbar/appbar.dart';
 
-class NotificationDetailScreen extends StatelessWidget {
+class NotificationDetailScreen extends StatefulWidget {
   const NotificationDetailScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  State<NotificationDetailScreen> createState() => _NotificationDetailScreenState();
+}
+
+class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // 【关键修复】延迟标记为已读，让用户先看到 "New" 标签
     final NotificationModel notification = Get.arguments as NotificationModel;
+    if (!notification.isRead) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          final controller = Get.find<NotificationController>();
+          controller.markAsRead(notification.notificationId);
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final NotificationModel initialNotification = Get.arguments as NotificationModel;
     final controller = Get.find<NotificationController>();
     final dark = FHelperFunctions.isDarkMode(context);
 
@@ -28,22 +48,18 @@ class NotificationDetailScreen extends StatelessWidget {
           Container(
             margin: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: dark
-                  ? FColors.darkSurface
-                  : FColors.white,
+              color: dark ? FColors.darkSurface : FColors.white,
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
-              icon: Icon(
+              icon: const Icon(
                 Iconsax.trash,
-                color: dark
-                    ? FColors.error
-                    : FColors.error,
+                color: FColors.error,
                 size: 20,
               ),
               onPressed: () => _showDeleteConfirmation(
                 context,
-                notification,
+                initialNotification,
                 controller,
                 dark,
               ),
@@ -51,30 +67,38 @@ class NotificationDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          // Modern SliverAppBar
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(FSizes.defaultSpace),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header Card
-                  _buildHeaderCard(notification, dark),
-                  const SizedBox(height: FSizes.spaceBtwItems),
+      body: StreamBuilder<NotificationModel?>(
+        stream: controller.getNotificationStream(initialNotification.notificationId),
+        initialData: initialNotification,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(color: FColors.primary),
+            );
+          }
 
-                  // Message Card
-                  _buildMessageCard(notification, dark),
-                  const SizedBox(height: FSizes.spaceBtwItems),
+          final notification = snapshot.data!;
 
-                  // Metadata Card
-                  _buildMetadataCard(notification, controller, dark),
-                ],
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(FSizes.defaultSpace),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeaderCard(notification, dark),
+                      const SizedBox(height: FSizes.spaceBtwItems),
+                      _buildMessageCard(notification, dark),
+                      const SizedBox(height: FSizes.spaceBtwItems),
+                      _buildMetadataCard(notification, controller, dark),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -88,23 +112,20 @@ class NotificationDetailScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Icon
           Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: _getTypeColor(notification.type, dark).withOpacity(0.2),
+              color: FColors.primary.withOpacity(0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
               _getTypeIcon(notification.type),
-              color: _getTypeColor(notification.type, dark),
+              color: FColors.primary,
               size: 28,
             ),
           ),
           const SizedBox(width: FSizes.md),
-
-          // Title and Type
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,19 +135,14 @@ class NotificationDetailScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: dark
-                        ? FColors.darkText
-                        : FColors.textPrimary,
+                    color: dark ? FColors.darkText : FColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getTypeColor(notification.type, dark).withOpacity(0.1),
+                    color: FColors.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -134,25 +150,19 @@ class NotificationDetailScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: _getTypeColor(notification.type, dark),
+                      color: FColors.primary,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Read status
+          // 【显示 "New" 标签】
           if (!notification.isRead)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: dark
-                    ? FColors.accent
-                    : FColors.accent,
+                color: FColors.primary,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Text(
@@ -185,17 +195,13 @@ class NotificationDetailScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (dark
-                      ? FColors.accent
-                      : FColors.accent).withOpacity(0.2),
+                  color: FColors.primary.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
+                child: const Icon(
                   Iconsax.message_text,
                   size: 18,
-                  color: dark
-                      ? FColors.accent
-                      : FColors.accent,
+                  color: FColors.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -204,9 +210,7 @@ class NotificationDetailScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: dark
-                      ? FColors.darkText
-                      : FColors.textPrimary,
+                  color: dark ? FColors.darkText : FColors.textPrimary,
                 ),
               ),
             ],
@@ -216,9 +220,7 @@ class NotificationDetailScreen extends StatelessWidget {
             notification.message,
             style: TextStyle(
               fontSize: 15,
-              color: dark
-                  ? FColors.darkTextSecondary
-                  : FColors.textSecondary,
+              color: dark ? FColors.darkTextSecondary : FColors.textSecondary,
               height: 1.6,
               letterSpacing: 0.2,
             ),
@@ -247,17 +249,13 @@ class NotificationDetailScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (dark
-                      ? FColors.info
-                      : FColors.info).withOpacity(0.2),
+                  color: FColors.primary.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
+                child: const Icon(
                   Iconsax.info_circle,
                   size: 18,
-                  color: dark
-                      ? FColors.info
-                      : FColors.info,
+                  color: FColors.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -266,16 +264,12 @@ class NotificationDetailScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: dark
-                      ? FColors.darkText
-                      : FColors.textPrimary,
+                  color: dark ? FColors.darkText : FColors.textPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: FSizes.md),
-
-          // Received time
           _buildMetadataRow(
             'Received',
             _formatDateTime(notification.createdAt),
@@ -283,8 +277,6 @@ class NotificationDetailScreen extends StatelessWidget {
             dark,
           ),
           const SizedBox(height: FSizes.sm),
-
-          // Status
           _buildMetadataRow(
             'Status',
             notification.isRead ? 'Read' : 'Unread',
@@ -292,8 +284,6 @@ class NotificationDetailScreen extends StatelessWidget {
             dark,
           ),
           const SizedBox(height: FSizes.sm),
-
-          // Type
           _buildMetadataRow(
             'Type',
             _getTypeLabel(notification.type),
@@ -311,18 +301,14 @@ class NotificationDetailScreen extends StatelessWidget {
         Icon(
           icon,
           size: 16,
-          color: dark
-              ? FColors.darkText
-              : FColors.textSecondary,
+          color: dark ? FColors.darkText : FColors.textSecondary,
         ),
         const SizedBox(width: 8),
         Text(
           label,
           style: TextStyle(
             fontSize: 14,
-            color: dark
-                ? FColors.darkText
-                : FColors.textSecondary,
+            color: dark ? FColors.darkText : FColors.textSecondary,
           ),
         ),
         const Spacer(),
@@ -331,26 +317,11 @@ class NotificationDetailScreen extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: dark
-                ? FColors.darkText
-                : FColors.textPrimary,
+            color: dark ? FColors.darkText : FColors.textPrimary,
           ),
         ),
       ],
     );
-  }
-
-  Color _getTypeColor(String type, bool dark) {
-    switch (type) {
-      case 'system':
-        return dark ? FColors.primary : FColors.primary;
-      case 'achievement':
-        return dark ? FColors.success : FColors.success;
-      case 'reminder':
-        return dark ? FColors.warning : FColors.warning;
-      default:
-        return dark ? FColors.info : FColors.info;
-    }
   }
 
   IconData _getTypeIcon(String type) {
@@ -372,8 +343,10 @@ class NotificationDetailScreen extends StatelessWidget {
         return 'System Notification';
       case 'achievement':
         return 'Achievement';
-      case 'reminder':
-        return 'Reminder';
+      case 'event_reminder':
+        return 'Event Reminder';
+      case 'community_post':
+        return 'Community Post';
       default:
         return 'Notification';
     }
@@ -438,9 +411,7 @@ class NotificationDetailScreen extends StatelessWidget {
               Text(
                 'Delete Notification',
                 style: TextStyle(
-                  color: dark
-                      ? FColors.darkText
-                      : FColors.textPrimary,
+                  color: dark ? FColors.darkText : FColors.textPrimary,
                   fontWeight: FontWeight.w600,
                   fontSize: 18,
                 ),
@@ -450,9 +421,7 @@ class NotificationDetailScreen extends StatelessWidget {
           content: Text(
             'Are you sure you want to delete this notification? This action cannot be undone.',
             style: TextStyle(
-              color: dark
-                  ? FColors.darkTextSecondary
-                  : FColors.textSecondary,
+              color: dark ? FColors.darkTextSecondary : FColors.textSecondary,
               height: 1.5,
             ),
           ),
@@ -468,18 +437,30 @@ class NotificationDetailScreen extends StatelessWidget {
               child: Text(
                 'Cancel',
                 style: TextStyle(
-                  color: dark
-                      ? FColors.darkTextSecondary
-                      : FColors.textSecondary,
+                  color: dark ? FColors.darkTextSecondary : FColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.of(context).pop();
-                await controller.deleteNotification(notification.notificationId);
-                Get.back();
+                // 先关闭 dialog，再执行删除，最后回退
+                Get.back(); // 关闭 dialog
+
+                try {
+                  Get.back();
+                  await controller.deleteNotification(notification.notificationId);
+                } catch (e) {
+                  // 如果删除失败，显示错误
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to delete notification: $e'),
+                        backgroundColor: FColors.error,
+                      ),
+                    );
+                  }
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: FColors.error,

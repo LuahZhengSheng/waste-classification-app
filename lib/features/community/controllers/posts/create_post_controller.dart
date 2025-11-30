@@ -56,6 +56,11 @@ class CreatePostController extends GetxController {
   final _originalMediaPaths = <String>[].obs; // 存储原始的 storage path
   final _removedMediaPaths = <String>[].obs; // 存储被删除的媒体路径
 
+  // 【新增】用于比较的原始数据
+  String _originalContent = '';
+  PostType _originalPostType = PostType.tip;
+  List<String> _originalMediaStoragePaths = [];
+
   // Constants
   static const int maxContentLength = 2000;
   static const int maxMediaCount = 10;
@@ -74,16 +79,98 @@ class CreatePostController extends GetxController {
   PostModel? get editingPost => _editingPost.value;
   bool get isLoadingMedia => _isLoadingMedia.value;
 
-  bool get canPost =>
-      contentController.text.trim().isNotEmpty &&
-          contentController.text.length <= maxContentLength &&
-          !_isPosting.value &&
-          !_isCompressing.value &&
-          !_isLoadingMedia.value;
+  /// 【新增】检查是否有修改
+  bool get hasChanges {
+    if (!isEditMode || editingPost == null) return true; // 创建模式始终允许发布
+
+    // 检查内容是否改变（trim 后比较）
+    final contentChanged = contentController.text.trim() != _originalContent.trim();
+
+    // 检查 post type 是否改变
+    final typeChanged = _selectedPostType.value != _originalPostType;
+
+    // 检查媒体是否改变
+    final currentMediaPaths = _mediaFiles
+        .where((m) => m.isExistingMedia)
+        .map((m) => m.storagePath ?? '')
+        .where((path) => path.isNotEmpty)
+        .toList();
+
+    final mediaChanged = !_areMediaPathsEqual(currentMediaPaths, _originalMediaStoragePaths) ||
+        _mediaFiles.any((m) => !m.isExistingMedia) || // 有新添加的媒体
+        _removedMediaPaths.isNotEmpty; // 有删除的媒体
+
+    // 【添加调试信息】
+    print('===== hasChanges Debug =====');
+    print('Content changed: $contentChanged');
+    print('  Current: "${contentController.text.trim()}"');
+    print('  Original: "$_originalContent"');
+    print('Type changed: $typeChanged');
+    print('  Current: ${_selectedPostType.value}');
+    print('  Original: $_originalPostType');
+    print('Media changed: $mediaChanged');
+    print('  Current paths: $currentMediaPaths');
+    print('  Original paths: $_originalMediaStoragePaths');
+    print('  Removed paths: $_removedMediaPaths');
+    print('  New media count: ${_mediaFiles.where((m) => !m.isExistingMedia).length}');
+    print('Result: ${contentChanged || typeChanged || mediaChanged}');
+    print('============================');
+
+    return contentChanged || typeChanged || mediaChanged;
+  }
+
+  /// 【新增】检查两个媒体路径列表是否相等
+  bool _areMediaPathsEqual(List<String> list1, List<String> list2) {
+    if (list1.length != list2.length) return false;
+
+    // 排序后比较
+    final sorted1 = List<String>.from(list1)..sort();
+    final sorted2 = List<String>.from(list2)..sort();
+
+    for (int i = 0; i < sorted1.length; i++) {
+      if (sorted1[i] != sorted2[i]) return false;
+    }
+
+    return true;
+  }
+
+  /// 【修改】canPost - 编辑模式下需要有修改才能发布
+  bool get canPost {
+    final hasContent = contentController.text.trim().isNotEmpty;
+    final validLength = contentController.text.length <= maxContentLength;
+    final notPosting = !_isPosting.value;
+    final notCompressing = !_isCompressing.value;
+    final notLoading = !_isLoadingMedia.value;
+    final hasModifications = isEditMode ? hasChanges : true;
+
+    print('===== canPost Debug =====');
+    print('Has content: $hasContent');
+    print('Valid length: $validLength');
+    print('Not posting: $notPosting');
+    print('Not compressing: $notCompressing');
+    print('Not loading: $notLoading');
+    print('Has modifications: $hasModifications (isEditMode: $isEditMode)');
+    print('Result: ${hasContent && validLength && notPosting && notCompressing && notLoading && hasModifications}');
+    print('=========================');
+
+    return hasContent &&
+        validLength &&
+        notPosting &&
+        notCompressing &&
+        notLoading &&
+        hasModifications;
+  }
 
   @override
   void onInit() {
     super.onInit();
+
+    // 【新增】监听 content 变化，触发 UI 更新
+    contentController.addListener(() {
+      update(); // 触发 GetBuilder 更新
+      _selectedPostType.refresh(); // 触发 Obx 更新
+    });
+
     if (Get.arguments != null && Get.arguments is PostModel) {
       _initializeEditMode(Get.arguments as PostModel);
     }
@@ -98,7 +185,7 @@ class CreatePostController extends GetxController {
     super.onClose();
   }
 
-  /// Initialize edit mode with existing post data
+  /// 【修改】Initialize edit mode with existing post data
   Future<void> _initializeEditMode(PostModel post) async {
     try {
       _isEditMode.value = true;
@@ -107,18 +194,20 @@ class CreatePostController extends GetxController {
 
       // Preload content
       contentController.text = post.content;
+      _originalContent = post.content; // 【新增】保存原始内容
 
       // Preload post type
       _selectedPostType.value = PostType.fromString(post.postType);
+      _originalPostType = PostType.fromString(post.postType); // 【新增】保存原始类型
 
       // 需要从 Firestore 获取原始的 storage paths
-      // 因为 post.media 已经被转换成了完整的 URL
       final userId = AuthenticationRepository.instance.authUser?.uid ?? '';
       final originalPost = await _postRepository.getOriginalPost(post.postId);
 
       if (originalPost != null && originalPost.media.isNotEmpty) {
         // 保存原始的 storage paths
         _originalMediaPaths.addAll(originalPost.media);
+        _originalMediaStoragePaths = List<String>.from(originalPost.media); // 【新增】保存副本用于比较
 
         // 使用 URL 来加载媒体（post.media 是 URL）
         for (int i = 0; i < post.media.length; i++) {
@@ -196,6 +285,8 @@ class CreatePostController extends GetxController {
   /// Set post type
   void setPostType(PostType type) {
     _selectedPostType.value = type;
+    // 触发 canPost 重新计算
+    update();
   }
 
   /// Open custom camera
@@ -332,6 +423,9 @@ class CreatePostController extends GetxController {
       );
 
       _mediaFiles.add(mediaFile);
+
+      // 【新增】触发更新
+      update();
     } catch (e) {
       FLoaders.errorSnackBar(title: 'Error', message: 'Failed to add media: $e');
     }
@@ -392,12 +486,24 @@ class CreatePostController extends GetxController {
 
       await mediaFile.dispose();
       _mediaFiles.removeAt(index);
+
+      // 【新增】触发更新
+      update();
     }
   }
 
-  /// Create or update post
+  /// 【修改】Create or update post
   Future<void> createPost() async {
-    if (!canPost) return;
+    if (!canPost) {
+      // 【新增】如果编辑模式下没有修改，显示提示
+      if (isEditMode && !hasChanges) {
+        FLoaders.warningSnackBar(
+          title: 'No Changes',
+          message: 'You haven\'t made any changes to update.',
+        );
+      }
+      return;
+    }
 
     try {
       FLoaders.showLoading(isEditMode ? 'Updating post...' : 'Creating post...');
@@ -443,11 +549,11 @@ class CreatePostController extends GetxController {
           content: contentController.text.trim(),
           media: mediaPaths,
           updatedAt: DateTime.now(),
+          isDisabled: false,
         );
       } else {
         // Create new post
         post = PostModel(
-          postId: _uuid.v4(),
           userId: userId,
           postType: _selectedPostType.value.value,
           content: contentController.text.trim(),
@@ -455,7 +561,6 @@ class CreatePostController extends GetxController {
           likes: [],
           commentCount: 0,
           createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
           isDisabled: false,
         );
       }
@@ -531,7 +636,7 @@ class CreatePostController extends GetxController {
     }
   }
 
-  /// Clear form
+  /// 【修改】Clear form
   void _clearForm() {
     contentController.clear();
     for (var media in _mediaFiles) {
@@ -543,6 +648,11 @@ class CreatePostController extends GetxController {
     _editingPost.value = null;
     _originalMediaPaths.clear();
     _removedMediaPaths.clear();
+
+    // 【新增】清除原始数据
+    _originalContent = '';
+    _originalPostType = PostType.tip;
+    _originalMediaStoragePaths.clear();
   }
 
   /// 当用户取消编辑时，重新加载原始数据

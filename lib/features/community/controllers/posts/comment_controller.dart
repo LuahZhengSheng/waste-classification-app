@@ -50,6 +50,9 @@ class CommentController extends GetxController {
     commentController.addListener(() {
       commentText.value = commentController.text;
     });
+
+    // 立即加载当前用户数据
+    _loadCurrentUserData();
   }
 
   @override
@@ -60,16 +63,41 @@ class CommentController extends GetxController {
     super.onClose();
   }
 
+  Future<void> _loadCurrentUserData() async {
+    try {
+      final currentUserId = getCurrentUserId();
+      if (currentUserId.isEmpty) return;
+
+      // 如果缓存中没有当前用户数据，则加载
+      if (!userDataCache.containsKey(currentUserId)) {
+        final userData = await userRepository.fetchOtherUserDetails(currentUserId);
+        userDataCache[currentUserId] = userData;
+      }
+    } catch (e) {
+      debugPrint('Failed to load current user data: $e');
+    }
+  }
+
   /// Load user data for all comments
   Future<void> loadUserDataForComments(List<Comment> comments) async {
     print('0test');
-    if (comments.isEmpty) return;
+    if (comments.isEmpty) {
+      // 【修改】即使没有评论，也确保当前用户数据已加载
+      await _loadCurrentUserData();
+      return;
+    }
 
     try {
       isLoadingUserData.value = true;
 
-      // 获取所有唯一的 user IDs
+      // 获取所有唯一的 user IDs（包括当前用户）
       final uniqueUserIds = comments.map((c) => c.userId).toSet();
+
+      // 【新增】添加当前用户 ID
+      final currentUserId = getCurrentUserId();
+      if (currentUserId.isNotEmpty) {
+        uniqueUserIds.add(currentUserId);
+      }
 
       // 过滤出还没有缓存的用户
       final uncachedUserIds = uniqueUserIds.where((id) => !userDataCache.containsKey(id)).toSet();
@@ -204,6 +232,7 @@ class CommentController extends GetxController {
           title: 'Authentication Required',
           message: 'Please login to comment',
         );
+        isSubmitting.value = false; // 【新增】确保重置
         return;
       }
 
@@ -217,15 +246,15 @@ class CommentController extends GetxController {
         updatedAt: DateTime.now(),
       );
 
-      // Clear input immediately
-      commentController.clear();
-      commentText.value = '';
-
       // Add to Firestore
       await commentRepository.addComment(postId, newComment);
 
       // Update comment count
       await postRepository.increaseCommentCount(postId);
+
+      // 【移动到这里】只有成功后才清空输入
+      commentController.clear();
+      commentText.value = '';
 
       FLoaders.successSnackBar(
         title: 'Success',
@@ -237,6 +266,7 @@ class CommentController extends GetxController {
         message: 'Failed to add comment: ${e.toString()}',
       );
     } finally {
+      // 【关键】确保无论如何都重置 loading 状态
       isSubmitting.value = false;
     }
   }
@@ -326,7 +356,7 @@ class CommentController extends GetxController {
 
       FLoaders.showLoading('Deleting comment...');
 
-      await commentRepository.deleteComment(_currentPostId, comment.commentId);
+      await commentRepository.deleteCommentById(comment.commentId);
       await postRepository.decreaseCommentCount(_currentPostId);
 
       FLoaders.stopLoading();

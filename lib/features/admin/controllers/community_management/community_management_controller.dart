@@ -6,6 +6,8 @@ import 'package:fyp/features/community/models/post_model.dart';
 import 'package:fyp/features/authentication/models/user_model.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 
+import '../../../../data/repositories/personalization/notification_repository.dart';
+
 enum PostStatusFilter { active, disabled }
 
 class CommunityManagementController extends GetxController {
@@ -13,6 +15,7 @@ class CommunityManagementController extends GetxController {
 
   final PostRepository _postRepository = Get.put(PostRepository());
   final UserRepository _userRepository = Get.put(UserRepository());
+  final NotificationRepository _notificationRepository = Get.put(NotificationRepository());
   final TextEditingController searchController = TextEditingController();
 
   // Observables
@@ -278,8 +281,9 @@ class CommunityManagementController extends GetxController {
           bValue = b.createdAt;
           break;
         case 7: // Updated At
-          aValue = a.updatedAt;
-          bValue = b.updatedAt;
+        // 【修改】处理 null 的情况
+          aValue = a.updatedAt ?? DateTime(1970); // 如果为 null，使用很早的日期
+          bValue = b.updatedAt ?? DateTime(1970);
           break;
         default:
           return 0;
@@ -302,18 +306,31 @@ class CommunityManagementController extends GetxController {
 
   Future<void> togglePostStatus(PostModel post) async {
     try {
+      final isDisabling = !post.isDisabled; // true = 即将 disable, false = 即将 recover
+
       final updatedPost = post.copyWith(
-        isDisabled: !post.isDisabled,
+        isDisabled: isDisabling,
       );
 
+      print('commentCount: ${updatedPost.commentCount}');
+
+      // 保存 post 状态
       await _postRepository.savePost(updatedPost);
 
-      // å®žæ—¶æ›´æ–°æœ¬åœ°æ•°æ®
+      // 【新增】创建通知给发帖人
+      await _createPostStatusNotification(
+        userId: post.userId,
+        postId: post.postId,
+        postContent: post.content,
+        isDisabled: isDisabling,
+      );
+
+      // 实时更新本地数据
       _updateLocalPost(updatedPost);
 
       FLoaders.successSnackBar(
         title: 'Success',
-        message: 'Post ${post.isDisabled ? 'recovered' : 'disabled'} successfully',
+        message: 'Post ${isDisabling ? 'disabled' : 'recovered'} successfully',
       );
     } catch (e) {
       FLoaders.errorSnackBar(
@@ -323,21 +340,60 @@ class CommunityManagementController extends GetxController {
     }
   }
 
-  /// å®žæ—¶æ›´æ–°æœ¬åœ°å¸–å­æ•°æ®
+  /// 创建 post 状态变化通知
+  Future<void> _createPostStatusNotification({
+    required String userId,
+    required String postId,
+    required String postContent,
+    required bool isDisabled,
+  }) async {
+    try {
+      // 截取 post 内容前 50 个字符作为预览
+      final contentPreview = postContent.length > 50
+          ? '${postContent.substring(0, 50)}...'
+          : postContent;
+
+      if (isDisabled) {
+        // Post 被 disable 的通知
+        await _notificationRepository.createNotificationForUser(
+          userId: userId,
+          title: 'Post Disabled',
+          message: 'Your post "$contentPreview" has been disabled by an administrator.',
+          type: 'community_post',
+        );
+        print('✅ Created disable notification for user $userId');
+      } else {
+        // Post 被 recover 的通知
+        await _notificationRepository.createNotificationForUser(
+          userId: userId,
+          title: 'Post Recovered',
+          message: 'Your post "$contentPreview" has been recovered and is now visible.',
+          type: 'community_post',
+          eventId: postId,
+        );
+        print('✅ Created recover notification for user $userId');
+      }
+    } catch (e) {
+      // 通知创建失败不应该影响 post 状态更新
+      print('❌ Failed to create notification: $e');
+    }
+  }
+
+  /// 实时更新本地帖子数据
   void _updateLocalPost(PostModel updatedPost) {
-    // æ›´æ–° allPosts ä¸­çš„å¸–å­
+    // 更新 allPosts 中的帖子
     final index = allPosts.indexWhere((p) => p.postId == updatedPost.postId);
     if (index != -1) {
       allPosts[index] = updatedPost;
     }
 
-    // æ›´æ–° filteredPosts ä¸­çš„å¸–å­
+    // 更新 filteredPosts 中的帖子
     final filteredIndex = filteredPosts.indexWhere((p) => p.postId == updatedPost.postId);
     if (filteredIndex != -1) {
       filteredPosts[filteredIndex] = updatedPost;
     }
 
-    // é‡æ–°åº”ç”¨ç­›é€‰ï¼ˆç¡®ä¿å¸–å­åœ¨æ­£ç¡®çš„æ ‡ç­¾é¡µæ˜¾ç¤ºï¼‰
+    // 重新应用筛选（确保帖子在正确的标签页显示）
     applyFiltersAndSearch();
   }
 

@@ -120,7 +120,7 @@ class ReplyRepository extends GetxController {
   }
 
   /// Delete reply
-  Future<void> deleteReply(String replyId) async {
+  Future<void> deleteReplyById(String replyId) async {
     try {
       // 从独立的 replies 集合中删除
       await _db
@@ -135,6 +135,87 @@ class ReplyRepository extends GetxController {
       throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
+    }
+  }
+
+  /// Delete all replies of multiple comments
+  Future<void> deleteRepliesByComments(List<String> commentIds) async {
+    try {
+      if (commentIds.isEmpty) {
+        print('No comment IDs provided, skipping reply deletion');
+        return;
+      }
+
+      int totalDeleted = 0;
+
+      // Firestore 的 'in' 查询最多支持 10 个元素，所以需要分批处理
+      const batchSize = 10;
+      for (int i = 0; i < commentIds.length; i += batchSize) {
+        final batchCommentIds = commentIds.skip(i).take(batchSize).toList();
+
+        // Query replies for this batch of comments
+        final snapshot = await _db
+            .collection("replies")
+            .where('commentId', whereIn: batchCommentIds)
+            .get();
+
+        if (snapshot.docs.isEmpty) {
+          print('No replies found for comment batch ${i ~/ batchSize + 1}');
+          continue;
+        }
+
+        // Delete all replies using batch
+        final batch = _db.batch();
+        for (var doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+
+        totalDeleted += snapshot.docs.length;
+        print('✅ Deleted ${snapshot.docs.length} replies for comment batch ${i ~/ batchSize + 1}');
+      }
+
+      print('✅ Total replies deleted: $totalDeleted');
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } on FormatException catch (_) {
+      throw const FFormatException();
+    } on PlatformException catch (e) {
+      throw FPlatformException(e.code).message;
+    } catch (e) {
+      throw 'Failed to delete replies: $e';
+    }
+  }
+
+  /// Delete all replies of a single comment
+  Future<void> deleteRepliesByComment(String commentId) async {
+    try {
+      final snapshot = await _db
+          .collection("replies")
+          .where('commentId', isEqualTo: commentId)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        print('No replies found for comment $commentId');
+        return;
+      }
+
+      // Delete all replies using batch
+      final batch = _db.batch();
+      for (var doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      print('✅ Deleted ${snapshot.docs.length} replies for comment $commentId');
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } on FormatException catch (_) {
+      throw const FFormatException();
+    } on PlatformException catch (e) {
+      throw FPlatformException(e.code).message;
+    } catch (e) {
+      throw 'Failed to delete replies: $e';
     }
   }
 

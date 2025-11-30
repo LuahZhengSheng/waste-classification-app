@@ -145,6 +145,11 @@ class NotificationController extends GetxController with GetSingleTickerProvider
     });
   }
 
+  /// 【新增】获取单个通知的实时更新 Stream
+  Stream<NotificationModel?> getNotificationStream(String notificationId) {
+    return _repository.getNotificationStream(notificationId);
+  }
+
   /// Refresh notifications
   Future<void> refreshNotifications() async {
     try {
@@ -274,11 +279,16 @@ class NotificationController extends GetxController with GetSingleTickerProvider
   }
 
   /// View notification details
-  void viewNotificationDetails(NotificationModel notification) {
-    if (!notification.isRead) {
-      markAsRead(notification.notificationId);
-    }
-    Get.to(() => const NotificationDetailScreen(), arguments: notification);
+  Future<void> viewNotificationDetails(NotificationModel notification) async {
+    // 【移除自动标记已读 - 让 detail 页面控制】
+    // if (!notification.isRead) {
+    //   await markAsRead(notification.notificationId);
+    // }
+
+    Get.to(
+          () => const NotificationDetailScreen(),
+      arguments: notification,
+    );
   }
 
   /// Reset selection state when leaving the screen

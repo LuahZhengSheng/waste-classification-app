@@ -40,9 +40,8 @@ class UserRepository extends GetxController {
         .snapshots()
         .asyncMap((snapshot) async {
       final users = snapshot.docs.map((doc) => UserModel.fromSnapshot(doc)).toList();
-      // 加载所有用户的头像URL
-      await _loadProfileImagesForUsers(users);
-      return users;
+
+      return await _convertUsersProfileImgToUrl(users);
     }).handleError((error) {
       if (kDebugMode) {
         print('Error in monthly leaderboard stream: $error');
@@ -62,9 +61,8 @@ class UserRepository extends GetxController {
         .snapshots()
         .asyncMap((snapshot) async {
       final users = snapshot.docs.map((doc) => UserModel.fromSnapshot(doc)).toList();
-      // 加载所有用户的头像URL
-      await _loadProfileImagesForUsers(users);
-      return users;
+      // 【修改】使用新方法转换
+      return await _convertUsersProfileImgToUrl(users);
     }).handleError((error) {
       if (kDebugMode) {
         print('Error in all-time leaderboard stream: $error');
@@ -89,7 +87,6 @@ class UserRepository extends GetxController {
     return query
         .snapshots()
         .asyncMap((snapshot) async {
-
       if (snapshot.docs.isEmpty) {
         return <UserModel>[];
       }
@@ -98,23 +95,19 @@ class UserRepository extends GetxController {
         return UserModel.fromSnapshot(doc);
       }).toList();
 
-      await _loadProfileImagesForUsers(users);
-
-      return users;
+      // 【修改】使用新方法转换
+      return await _convertUsersProfileImgToUrl(users);
     }).handleError((error) {
       if (error is FirebaseException) {
         print('🔥 Firebase 错误详情:');
         print('   - code: ${error.code}');
         print('   - message: ${error.message}');
-        print('   - stackTrace: ${error.stackTrace}');
       }
 
       if (kDebugMode) {
-        print('🐛 Debug模式: 在控制台打印完整错误信息');
         print('Error in users sorted by $field stream: $error');
       }
 
-      print('🔄 返回空列表以避免UI崩溃');
       return <UserModel>[];
     });
   }
@@ -128,11 +121,8 @@ class UserRepository extends GetxController {
         .asyncMap((documentSnapshot) async {
       if (documentSnapshot.exists) {
         final user = UserModel.fromSnapshot(documentSnapshot);
-        // 加载当前用户的头像URL
-        if (user.profileImg != null && user.profileImg!.isNotEmpty) {
-          await _loadProfileImage(user.profileImg!);
-        }
-        return user;
+        // 【修改】使用新方法转换
+        return await _convertProfileImgToUrl(user);
       } else {
         return UserModel.empty();
       }
@@ -151,24 +141,6 @@ class UserRepository extends GetxController {
         await _loadProfileImage(user.profileImg!);
       }
     }
-  }
-
-  /// 批量加载用户头像并更新用户对象的profileImg字段
-  Future<void> _loadProfileImagesForUsers(List<UserModel> users) async {
-    print("==> Start loading profile images for users. Total users: ${users.length}");
-
-    for (final user in users) {
-      print("Processing user: ${user.userId}, profileImg: ${user.profileImg}");
-
-      if (user.profileImg != null && user.profileImg!.isNotEmpty) {
-        print("Loading profile image for user: ${user.userId} -> ${user.profileImg}");
-        await _loadProfileImage(user.profileImg!);
-      } else {
-        print("User ${user.userId} has no profileImg, skipping.");
-      }
-    }
-
-    print("==> Finished loading profile images.");
   }
 
   /// 加载单个头像到缓存 - 私有方法
@@ -205,6 +177,11 @@ class UserRepository extends GetxController {
         return null;
       }
 
+      // 【新增】如果已经是完整 URL，直接返回
+      if (fileName.startsWith('http')) {
+        return fileName;
+      }
+
       // 先检查缓存
       if (profileImageCache.containsKey(fileName)) {
         return profileImageCache[fileName];
@@ -224,18 +201,35 @@ class UserRepository extends GetxController {
         if (kDebugMode) {
           print('Profile image not found: $fileName, using default');
         }
+        // 【修改】返回 null 而不是抛出异常
+        return null;
       }
-      throw 'Failed to get profile image URL: ${e.message ?? e.code}';
+      // 【修改】其他 Firebase 错误也返回 null
+      if (kDebugMode) {
+        print('Firebase error getting profile image: ${e.message ?? e.code}');
+      }
+      return null;
     } catch (e) {
-      throw 'Failed to get profile image URL: $e';
+      // 【修改】捕获所有其他错误，返回 null
+      if (kDebugMode) {
+        print('Error getting profile image URL: $e');
+      }
+      return null;
     }
   }
 
   /// 从缓存获取头像URL（同步方法）
   String? getCachedProfileImageUrl(String? fileName) {
     if (fileName == null || fileName.isEmpty) return null;
+
+    // 【新增】如果已经是完整 URL，直接返回
+    if (fileName.startsWith('http')) {
+      return fileName;
+    }
+
     return profileImageCache[fileName];
   }
+
 
   // ========== 用户管理方法 ==========
 
@@ -248,28 +242,9 @@ class UserRepository extends GetxController {
           .get();
 
       if (documentSnapshot.exists) {
-        final data = documentSnapshot.data()!;
-        final username = data['username'] as String? ?? 'User';
-        final email = data['email'] as String? ?? '';
-        final profileImgFileName = data['profileImg'] as String? ?? '';
-
-        String? profileImgUrl;
-        if (profileImgFileName.isNotEmpty) {
-          try {
-            profileImgUrl = await getProfileImageUrl(profileImgFileName);
-          } catch (e) {
-            if (kDebugMode) {
-              print('Failed to get profile image URL for user $userId: $e');
-            }
-          }
-        }
-
-        return UserModel.profileOnly(
-          userId: userId,
-          username: username,
-          email: email,
-          profileImg: profileImgUrl ?? '',
-        );
+        final user = UserModel.fromSnapshot(documentSnapshot);
+        // 【修改】使用新方法转换
+        return await _convertProfileImgToUrl(user);
       } else {
         return UserModel.empty()..copyWith(userId: userId);
       }
@@ -289,14 +264,11 @@ class UserRepository extends GetxController {
     try {
       print('=== START: Getting Users Profile Data ===');
       print('Requested user IDs count: ${userIds.length}');
-      print('Requested user IDs: ${userIds.toList()}');
 
       if (userIds.isEmpty) {
-        print('No user IDs provided, returning empty map');
         return {};
       }
 
-      print('Querying Firestore for users data...');
       final querySnapshot = await _db
           .collection(_usersCollection)
           .where(FieldPath.documentId, whereIn: userIds.toList())
@@ -308,70 +280,26 @@ class UserRepository extends GetxController {
 
       for (final doc in querySnapshot.docs) {
         print('Processing user: ${doc.id}');
-        final data = doc.data();
+        final user = UserModel.fromSnapshot(doc);
 
-        final username = data['username'] as String? ?? 'User';
-        final email = data['email'] as String? ?? ''; // 添加 email 字段
-        final profileImgFileName = data['profileImg'] as String? ?? '';
+        final convertedUser = await _convertProfileImgToUrl(user);
+        result[doc.id] = convertedUser;
 
-        print('User ${doc.id} - username: $username, email: $email, profileImgFileName: $profileImgFileName');
-
-        String? profileImgUrl;
-        if (profileImgFileName.isNotEmpty) {
-          try {
-            print('Fetching profile image URL for user ${doc.id}...');
-            profileImgUrl = await getProfileImageUrl(profileImgFileName);
-            print('Profile image URL fetched successfully for user ${doc.id}: ${profileImgUrl != null}');
-          } catch (e) {
-            print('❌ Failed to get profile image URL for user ${doc.id}: $e');
-            if (kDebugMode) {
-              print('Failed to get profile image URL for user ${doc.id}: $e');
-            }
-          }
-        } else {
-          print('No profile image file name for user ${doc.id}');
-        }
-
-        result[doc.id] = UserModel.profileOnly(
-          userId: doc.id,
-          username: username,
-          email: email, // 添加 email 参数
-          profileImg: profileImgUrl ?? '',
-        );
-
-        print('✅ User ${doc.id} added to result map');
+        print('✅ User ${doc.id} added with profileImg: ${convertedUser.profileImg}');
       }
 
-      // Add default data for any missing users
-      print('Checking for missing users...');
+      // Add default data for missing users
       final missingUsers = userIds.where((userId) => !result.containsKey(userId)).toList();
-
-      if (missingUsers.isNotEmpty) {
-        print('Found ${missingUsers.length} missing users: $missingUsers');
-        for (final userId in missingUsers) {
-          print('Adding default data for missing user: $userId');
-          result[userId] = UserModel.empty()..copyWith(userId: userId);
-        }
-      } else {
-        print('No missing users found');
+      for (final userId in missingUsers) {
+        result[userId] = UserModel.empty()..copyWith(userId: userId);
       }
-
-      print('=== END: Users Profile Data Retrieved ===');
-      print('Final result contains ${result.length} users');
-      print('Result keys: ${result.keys.toList()}');
 
       return result;
     } on FirebaseException catch (e) {
-      print('❌ FirebaseException in getUsersProfileData: ${e.code} - ${e.message}');
+      print('❌ FirebaseException: ${e.code} - ${e.message}');
       throw FFirebaseException(e.code).message;
-    } on FormatException catch (_) {
-      print('❌ FormatException in getUsersProfileData');
-      throw const FFormatException();
-    } on PlatformException catch (e) {
-      print('❌ PlatformException in getUsersProfileData: ${e.code} - ${e.message}');
-      throw FPlatformException(e.code).message;
     } catch (e, stackTrace) {
-      print('❌ Unexpected error in getUsersProfileData: $e');
+      print('❌ Error: $e');
       print('Stack trace: $stackTrace');
       throw 'Failed to get users profile data: $e';
     }
@@ -411,7 +339,9 @@ class UserRepository extends GetxController {
           .get();
 
       if (documentSnapshot.exists) {
-        return UserModel.fromSnapshot(documentSnapshot);
+        final user = UserModel.fromSnapshot(documentSnapshot);
+        // 【修改】使用新方法转换
+        return await _convertProfileImgToUrl(user);
       } else {
         return UserModel.empty();
       }
@@ -432,9 +362,11 @@ class UserRepository extends GetxController {
         .collection(_usersCollection)
         .doc(userId)
         .snapshots()
-        .map((documentSnapshot) {
+        .asyncMap((documentSnapshot) async {
       if (documentSnapshot.exists) {
-        return UserModel.fromSnapshot(documentSnapshot);
+        final user = UserModel.fromSnapshot(documentSnapshot);
+        // 使用新方法转换
+        return await _convertProfileImgToUrl(user);
       } else {
         return UserModel.empty();
       }
@@ -748,7 +680,6 @@ class UserRepository extends GetxController {
     }
   }
 
-
   /// Get user by username
   Future<UserModel?> getUserByUsername(String username) async {
     try {
@@ -763,7 +694,9 @@ class UserRepository extends GetxController {
         return null;
       }
 
-      return UserModel.fromSnapshot(querySnapshot.docs.first);
+      final user = UserModel.fromSnapshot(querySnapshot.docs.first);
+      // 【修改】使用新方法转换
+      return await _convertProfileImgToUrl(user);
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
@@ -784,7 +717,9 @@ class UserRepository extends GetxController {
           .get();
 
       if (documentSnapshot.exists) {
-        return UserModel.fromSnapshot(documentSnapshot);
+        final user = UserModel.fromSnapshot(documentSnapshot);
+        // 【修改】使用新方法转换
+        return await _convertProfileImgToUrl(user);
       } else {
         return UserModel.empty();
       }
@@ -813,13 +748,46 @@ class UserRepository extends GetxController {
           .limit(10)
           .get();
 
-      return querySnapshot.docs
+      final users = querySnapshot.docs
           .map((doc) => UserModel.fromSnapshot(doc))
           .toList();
+
+      // 【修改】使用新方法转换
+      return await _convertUsersProfileImgToUrl(users);
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
     } catch (e) {
       throw 'Failed to search users: $e';
     }
+  }
+
+  /// 【新增】将用户的 profileImg 从文件名转换为完整 URL
+  Future<UserModel> _convertProfileImgToUrl(UserModel user) async {
+    if (user.profileImg == null || user.profileImg!.isEmpty) {
+      return user;
+    }
+
+    // 如果已经是完整 URL，直接返回
+    if (user.profileImg!.startsWith('http')) {
+      return user;
+    }
+
+    // 获取完整 URL
+    final url = await getProfileImageUrl(user.profileImg!);
+
+    // 返回更新后的用户对象
+    return user.copyWith(profileImg: url ?? user.profileImg);
+  }
+
+  /// 【新增】批量转换用户列表的 profileImg
+  Future<List<UserModel>> _convertUsersProfileImgToUrl(List<UserModel> users) async {
+    final List<UserModel> result = [];
+
+    for (final user in users) {
+      final convertedUser = await _convertProfileImgToUrl(user);
+      result.add(convertedUser);
+    }
+
+    return result;
   }
 }

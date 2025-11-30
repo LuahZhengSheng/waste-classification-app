@@ -287,7 +287,7 @@ class ReplyController extends GetxController {
 
       FLoaders.showLoading('Deleting reply...');
 
-      await replyRepository.deleteReply(reply.replyId);
+      await replyRepository.deleteReplyById(reply.replyId);
 
       // Decrease reply count
       await commentRepository.decreaseReplyCount(commentId);

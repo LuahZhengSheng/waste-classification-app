@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 import 'package:fyp/utils/helpers/network_manager.dart';
-import 'package:fyp/utils/constants/image_strings.dart';
 
 import '../../../data/repositories/user/user_repository.dart';
 import '../../authentication/models/user_model.dart';

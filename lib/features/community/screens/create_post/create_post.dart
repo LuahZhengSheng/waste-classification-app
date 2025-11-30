@@ -9,6 +9,8 @@ import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../utils/popups/loaders.dart';
+
 class CreatePostScreen extends StatelessWidget {
   const CreatePostScreen({super.key});
 
@@ -21,7 +23,8 @@ class CreatePostScreen extends StatelessWidget {
       // 如果是编辑模式且正在加载媒体，显示全屏加载
       if (controller.isEditMode && controller.isLoadingMedia) {
         return Scaffold(
-          backgroundColor: dark ? FColors.communityDarkBackground : FColors.light,
+          backgroundColor:
+              dark ? FColors.communityDarkBackground : FColors.light,
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -34,15 +37,15 @@ class CreatePostScreen extends StatelessWidget {
                 Text(
                   'Loading post data...',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: dark ? FColors.white : FColors.black,
-                  ),
+                        color: dark ? FColors.white : FColors.black,
+                      ),
                 ),
                 const SizedBox(height: FSizes.xs),
                 Text(
                   'Please wait',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: dark ? FColors.darkTextSecondary : FColors.grey,
-                  ),
+                        color: dark ? FColors.darkTextSecondary : FColors.grey,
+                      ),
                 ),
               ],
             ),
@@ -56,29 +59,8 @@ class CreatePostScreen extends StatelessWidget {
         appBar: FAppBar(
           title: Text(controller.isEditMode ? 'Edit Post' : 'Create Post'),
           showBackArrow: true,
-          backgroundColor: dark ? FColors.communityDarkBackground : FColors.white,
-          actions: [
-            TextButton(
-              onPressed: controller.isPosting ? null : () => controller.createPost(),
-              child: controller.isPosting
-                  ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: FColors.primary,
-                ),
-              )
-                  : Text(
-                controller.isEditMode ? 'Update' : 'Post',
-                style: TextStyle(
-                  color: controller.canPost ? FColors.primary : FColors.darkGrey,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ],
+          backgroundColor:
+              dark ? FColors.communityDarkBackground : FColors.white,
         ),
         body: Column(
           children: [
@@ -92,10 +74,11 @@ class CreatePostScreen extends StatelessWidget {
                       // Post Type Selector
                       Text(
                         'Post Type',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: dark ? FColors.white : FColors.black,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: dark ? FColors.white : FColors.black,
+                                ),
                       ),
                       const SizedBox(height: FSizes.sm),
                       const FPostTypeSelector(),
@@ -104,10 +87,11 @@ class CreatePostScreen extends StatelessWidget {
                       // Content Input
                       Text(
                         'Content',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: dark ? FColors.white : FColors.black,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: dark ? FColors.white : FColors.black,
+                                ),
                       ),
                       const SizedBox(height: FSizes.sm),
                       TextField(
@@ -121,12 +105,14 @@ class CreatePostScreen extends StatelessWidget {
                         decoration: InputDecoration(
                           hintText: 'Share your thoughts...',
                           hintStyle: TextStyle(
-                            color: dark ? FColors.darkTextSecondary : FColors.grey,
+                            color:
+                                dark ? FColors.darkTextSecondary : FColors.grey,
                           ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.all(FSizes.md),
                           counterStyle: TextStyle(
-                            color: dark ? FColors.darkTextSecondary : FColors.grey,
+                            color:
+                                dark ? FColors.darkTextSecondary : FColors.grey,
                             fontSize: 12,
                           ),
                         ),
@@ -139,17 +125,22 @@ class CreatePostScreen extends StatelessWidget {
                         children: [
                           Text(
                             'Media',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: dark ? FColors.white : FColors.black,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: dark ? FColors.white : FColors.black,
+                                ),
                           ),
                           Text(
                             '${controller.mediaFiles.length}/10',
                             style: TextStyle(
                               color: controller.mediaFiles.length >= 10
                                   ? FColors.error
-                                  : (dark ? FColors.darkTextSecondary : FColors.grey),
+                                  : (dark
+                                      ? FColors.darkTextSecondary
+                                      : FColors.grey),
                               fontSize: 14,
                             ),
                           ),
@@ -201,53 +192,59 @@ class CreatePostScreen extends StatelessWidget {
                 color: dark ? FColors.communityDarkSurface : FColors.white,
                 border: Border(
                   top: BorderSide(
-                    color: dark ? FColors.communityDarkBorder : FColors.grey.withOpacity(0.2),
+                    color: dark
+                        ? FColors.communityDarkBorder
+                        : FColors.grey.withOpacity(0.2),
                   ),
                 ),
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: controller.canPost && !controller.isPosting
-                      ? () => controller.createPost()
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: FColors.primary,
-                    disabledBackgroundColor: dark ? FColors.darkGrey : FColors.grey,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: controller.isPosting
-                      ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: FColors.white,
-                    ),
-                  )
-                      : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Iconsax.send_1,
-                        color: FColors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: FSizes.sm),
-                      Text(
-                        controller.isEditMode ? 'Update' : 'Post',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: FColors.white,
-                          fontWeight: FontWeight.w600,
+              child: GetBuilder<CreatePostController>(
+                builder: (controller) {
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: ElevatedButton(
+                      onPressed: controller.canPost && !controller.isPosting
+                          ? () => controller.createPost()
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: FColors.primary,
+                        disabledBackgroundColor: dark ? FColors.darkGrey : FColors.grey,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
                         ),
+                        elevation: 0,
                       ),
-                    ],
-                  ),
-                ),
+                      child: controller.isPosting
+                          ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: FColors.white,
+                        ),
+                      )
+                          : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Iconsax.send_1,
+                            color: FColors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: FSizes.sm),
+                          Text(
+                            controller.isEditMode ? 'Update' : 'Post',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: FColors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],

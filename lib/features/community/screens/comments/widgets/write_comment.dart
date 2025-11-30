@@ -16,22 +16,30 @@ class FWriteCommentInput extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<CommentController>();
 
-    return FInputField(
-      controller: controller.commentController,
-      focusNode: controller.commentFocusNode,
-      isEnabled: !controller.isSubmitting.value,
-      isSubmitting: controller.isSubmitting.value,
-      hintText: 'Write a comment...',
-      isEditMode: controller.isEditMode.value,
-      onSubmit: () {
-        if (controller.isEditMode.value) {
-          controller.saveEdit();
-        } else {
-          controller.addComment(postId);
-        }
-      },
-      onCancel: () => controller.cancelEdit(),
-      isComment: true, // 明确标记这是评论输入框
-    );
+    // 【修改】使用 Obx 包裹，监听 isSubmitting 和 isEditMode 变化
+    return Obx(() {
+      print('🔄 FWriteCommentInput rebuilding');
+      print('   isSubmitting: ${controller.isSubmitting.value}');
+      print('   isEditMode: ${controller.isEditMode.value}');
+
+      return FInputField(
+        controller: controller.commentController,
+        focusNode: controller.commentFocusNode,
+        isEnabled: !controller.isSubmitting.value,
+        isSubmitting: controller.isSubmitting.value,
+        hintText: 'Write a comment...',
+        isEditMode: controller.isEditMode.value,
+        onSubmit: () {
+          print('📤 Submit button pressed');
+          if (controller.isEditMode.value) {
+            controller.saveEdit();
+          } else {
+            controller.addComment(postId);
+          }
+        },
+        onCancel: () => controller.cancelEdit(),
+        isComment: true,
+      );
+    });
   }
 }

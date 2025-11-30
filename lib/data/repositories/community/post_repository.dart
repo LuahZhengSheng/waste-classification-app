@@ -9,18 +9,41 @@ import 'package:fyp/utils/exceptions/firebase_exceptions.dart';
 import 'package:fyp/utils/exceptions/format_exceptions.dart';
 import 'package:fyp/utils/exceptions/platform_exceptions.dart';
 
+import '../../../utils/helpers/media_helpers.dart';
+import 'comment_repository.dart';
+import 'reply_repository.dart';
+
 class PostRepository extends GetxController {
   static PostRepository get instance => Get.find();
 
   final _db = FirebaseFirestore.instance;
   final FirebaseStorage storage = FirebaseStorage.instance;
 
+
+  CommentRepository get _commentRepository {
+    try {
+      return Get.find<CommentRepository>();
+    } catch (e) {
+      // 如果找不到，就创建一个
+      return Get.put(CommentRepository());
+    }
+  }
+
+  ReplyRepository get _replyRepository {
+    try {
+      return Get.find<ReplyRepository>();
+    } catch (e) {
+      // 如果找不到，就创建一个
+      return Get.put(ReplyRepository());
+    }
+  }
+
   /// Get original post data without converting media paths to URLs
   /// This is used for edit mode to get the original storage paths
   Future<PostModel?> getOriginalPost(String postId) async {
     try {
       final doc = await _db.collection("posts").doc(postId).get();
-      if (doc.exists && doc.data()?['isDisabled'] != true) {
+      if (doc.exists) {
         // Use fromSnapshot without URL conversion to get original storage paths
         return PostModel.fromSnapshot(doc);
       }
@@ -150,6 +173,7 @@ class PostRepository extends GetxController {
   Stream<List<PostModel>> getAllPostsStream() {
     return _db
         .collection("posts")
+        .where('isDisabled', isEqualTo: false)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
@@ -293,9 +317,28 @@ class PostRepository extends GetxController {
   }
 
   /// Function to save post data to Firestore
-  Future<void> savePost(PostModel post) async {
+  Future<String> savePost(PostModel post) async {
     try {
-      await _db.collection("posts").doc(post.postId).set(post.toJson());
+      final postJson = post.toJson();
+
+      // Convert URLs to file names
+      if (postJson['media'] != null && postJson['media'] is List) {
+        postJson['media'] = MediaHelpers.convertUrlsToFileNames(
+            List<String>.from(postJson['media'])
+        );
+      }
+
+      // 【修改】如果是新 post（没有 postId），让 Firestore 生成 ID
+      if (post.postId.isEmpty) {
+        final docRef = await _db.collection("posts").add(postJson);
+        print('✅ Created new post with ID: ${docRef.id}');
+        return docRef.id; // 返回生成的 ID
+      } else {
+        // 如果有 postId，说明是更新现有 post
+        await _db.collection("posts").doc(post.postId).set(postJson);
+        print('✅ Updated existing post: ${post.postId}');
+        return post.postId;
+      }
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
@@ -312,7 +355,6 @@ class PostRepository extends GetxController {
     try {
       await _db.collection("posts").doc(postId).update({
         'likes': likes,
-        'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
@@ -359,17 +401,26 @@ class PostRepository extends GetxController {
     }
   }
 
-  /// Delete post (soft delete by setting isDisabled to true)
-  /// Also deletes associated media from storage
+  /// Delete post (hard delete)
+  /// Deletes the post, all associated media, comments, and replies
   Future<void> deletePost(String postId) async {
     try {
+      print('Go1');
       // Get post data first
       final doc = await _db.collection("posts").doc(postId).get();
       if (!doc.exists) return;
 
       final post = PostModel.fromSnapshot(doc);
-
-      // Delete media from storage
+      print('Go2');
+      // 1. Delete all comments and get their IDs
+      final commentIds = await _commentRepository.deleteCommentsByPost(postId);
+      print('Go3');
+      // 2. Delete all replies of those comments
+      if (commentIds.isNotEmpty) {
+        await _replyRepository.deleteRepliesByComments(commentIds);
+      }
+      print('Go4');
+      // 3. Delete media from storage
       if (post.media.isNotEmpty) {
         for (var storagePath in post.media) {
           try {
@@ -382,16 +433,16 @@ class PostRepository extends GetxController {
                 : 'posts/${post.userId}/images/$storagePath';
 
             await storage.ref(fullPath).delete();
+            print('✅ Deleted media: $fullPath');
           } catch (e) {
-            print('Failed to delete media $storagePath: $e');
+            print('❌ Failed to delete media $storagePath: $e');
           }
         }
       }
-
-      // Soft delete the post
-      await _db.collection("posts").doc(postId).update({
-        'isDisabled': true,
-      });
+      print('Go5');
+      // 4. Delete the post document
+      await _db.collection("posts").doc(postId).delete();
+      print('✅ Deleted post: $postId');
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
@@ -399,6 +450,7 @@ class PostRepository extends GetxController {
     } on PlatformException catch (e) {
       throw FPlatformException(e.code).message;
     } catch (e) {
+      print('error: $e');
       throw 'Something went wrong. Please try again.';
     }
   }
@@ -407,7 +459,7 @@ class PostRepository extends GetxController {
   Future<PostModel?> getPostById(String postId) async {
     try {
       final doc = await _db.collection("posts").doc(postId).get();
-      if (doc.exists && doc.data()?['isDisabled'] != true) {
+      if (doc.exists) {
         var post = PostModel.fromSnapshot(doc);
 
         // Convert storage paths to URLs
@@ -566,7 +618,6 @@ class PostRepository extends GetxController {
     try {
       await _db.collection("posts").doc(postId).update({
         'isDisabled': isDisabled,
-        'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
       throw FFirebaseException(e.code).message;

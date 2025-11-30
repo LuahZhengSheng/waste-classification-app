@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uuid/uuid.dart';
 import 'package:get/get.dart';
 import 'package:fyp/data/repositories/authentication/authentication_repository.dart';
 import 'package:fyp/features/personalization/models/notification_model.dart';
@@ -8,16 +7,13 @@ class NotificationRepository extends GetxController {
   static NotificationRepository get instance => Get.find();
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final Uuid _uuid = const Uuid();
 
-  /// Get current user ID
   String get _currentUserId => AuthenticationRepository.instance.authUser?.uid ?? '';
 
-  /// Get notifications collection reference for current user
   CollectionReference get _notificationsRef =>
       _db.collection('users').doc(_currentUserId).collection('notifications');
 
-  /// Create bulk notifications for multiple users
+  /// 【修改】使用 Firestore 自动生成 ID
   Future<void> createBulkNotificationsForUsers({
     required List<String> userIds,
     required String title,
@@ -30,15 +26,14 @@ class NotificationRepository extends GetxController {
       final timestamp = FieldValue.serverTimestamp();
 
       for (final userId in userIds) {
-        final notificationId = _uuid.v4();
+        // 【使用 Firestore 自动生成的 document reference】
         final notificationRef = _db
             .collection('users')
             .doc(userId)
             .collection('notifications')
-            .doc(notificationId);
+            .doc(); // 自动生成 ID
 
         final notificationData = {
-          'notificationId': notificationId,
           'title': title,
           'message': message,
           'type': type,
@@ -46,7 +41,6 @@ class NotificationRepository extends GetxController {
           'createdAt': timestamp,
         };
 
-        // 如果有事件ID，添加到通知数据中
         if (eventId != null && eventId.isNotEmpty) {
           notificationData['eventId'] = eventId;
         }
@@ -62,7 +56,7 @@ class NotificationRepository extends GetxController {
     }
   }
 
-  /// Create single notification for a user
+  /// 【修改】使用 Firestore 自动生成 ID
   Future<void> createNotificationForUser({
     required String userId,
     required String title,
@@ -71,15 +65,14 @@ class NotificationRepository extends GetxController {
     String? eventId,
   }) async {
     try {
-      final notificationId = _uuid.v4();
+      // 【使用 Firestore 自动生成的 document reference】
       final notificationRef = _db
           .collection('users')
           .doc(userId)
           .collection('notifications')
-          .doc(notificationId);
+          .doc(); // 自动生成 ID
 
       final notificationData = {
-        'notificationId': notificationId,
         'title': title,
         'message': message,
         'type': type,
@@ -87,17 +80,32 @@ class NotificationRepository extends GetxController {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // 如果有事件ID，添加到通知数据中
       if (eventId != null && eventId.isNotEmpty) {
         notificationData['eventId'] = eventId;
       }
 
       await notificationRef.set(notificationData);
-      print('✅ Created notification record for user $userId');
+      print('✅ Created notification record for user $userId with ID: ${notificationRef.id}');
     } catch (e) {
       print('❌ Error creating notification record: $e');
       throw 'Failed to create notification record: $e';
     }
+  }
+
+  /// 获取单个通知的 Stream
+  Stream<NotificationModel?> getNotificationStream(String notificationId) {
+    return _notificationsRef
+        .doc(notificationId)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return null;
+
+      final data = doc.data() as Map<String, dynamic>;
+      return NotificationModel.fromMap({
+        ...data,
+        'notificationId': doc.id,
+      });
+    });
   }
 
   /// Get real-time notifications stream with pagination
@@ -143,7 +151,6 @@ class NotificationRepository extends GetxController {
     });
   }
 
-  /// Get notifications with pagination (one-time fetch)
   Future<List<NotificationModel>> getNotifications({
     int limit = 15,
     DocumentSnapshot? lastDocument,
@@ -170,7 +177,6 @@ class NotificationRepository extends GetxController {
     }
   }
 
-  /// Get last document snapshot for pagination
   Future<DocumentSnapshot?> getLastDocument(List<NotificationModel> notifications) async {
     if (notifications.isEmpty) return null;
 
@@ -183,7 +189,6 @@ class NotificationRepository extends GetxController {
     }
   }
 
-  /// Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
       await _notificationsRef.doc(notificationId).update({'isRead': true});
@@ -192,7 +197,6 @@ class NotificationRepository extends GetxController {
     }
   }
 
-  /// Mark all notifications as read
   Future<void> markAllAsRead() async {
     try {
       final batch = _db.batch();
@@ -210,7 +214,6 @@ class NotificationRepository extends GetxController {
     }
   }
 
-  /// Delete notification
   Future<void> deleteNotification(String notificationId) async {
     try {
       await _notificationsRef.doc(notificationId).delete();
@@ -219,7 +222,6 @@ class NotificationRepository extends GetxController {
     }
   }
 
-  /// Batch delete notifications
   Future<void> batchDeleteNotifications(List<String> notificationIds) async {
     try {
       final batch = _db.batch();
@@ -234,7 +236,6 @@ class NotificationRepository extends GetxController {
     }
   }
 
-  /// Get unread count stream for real-time updates
   Stream<int> getUnreadCountStream() {
     return _notificationsRef
         .where('isRead', isEqualTo: false)
@@ -242,12 +243,11 @@ class NotificationRepository extends GetxController {
         .map((snapshot) => snapshot.docs.length);
   }
 
-  /// Get total count stream for real-time updates
   Stream<int> getTotalCountStream() {
     return _notificationsRef.snapshots().map((snapshot) => snapshot.docs.length);
   }
 
-  /// Create notification (for testing purposes)
+  /// 【修改】使用 Firestore 自动生成 ID
   Future<void> createNotification({
     required String title,
     required String message,

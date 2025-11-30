@@ -2,20 +2,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fyp/features/community/models/comment_model.dart';
 
 class PostModel {
-  final String postId;           // Firestore doc ID
-  final String userId;           // Author ID
-  final String postType;         // Type of community (tip, discussion, question, etc.)
-  final String content;          // Post content
-  List<String> media;            // List of media URLs
-  List<String> likes;            // User IDs who liked this community
-  int commentCount;              // Number of comments (for display)
+  final String postId;
+  final String userId;
+  final String postType;
+  final String content;
+  List<String> media;
+  List<String> likes;
+  int commentCount;
   final DateTime createdAt;
-  final DateTime updatedAt;
-  bool isDisabled;               // Whether this community is disabled
-  List<Comment> comments;        // Loaded comments (optional)
+  final DateTime? updatedAt;     // 【修改】改为可选的
+  bool isDisabled;
+  List<Comment> comments;
 
   PostModel({
-    required this.postId,
+    String? postId,
     required this.userId,
     required this.postType,
     required this.content,
@@ -23,27 +23,25 @@ class PostModel {
     List<String>? likes,
     this.commentCount = 0,
     DateTime? createdAt,
-    DateTime? updatedAt,
+    this.updatedAt,                // 【修改】改为可选，默认不提供
     this.isDisabled = false,
     List<Comment>? comments,
-  })  : media = media ?? [],
+  })  : postId = postId ?? '',
+        media = media ?? [],
         likes = likes ?? [],
         comments = comments ?? [],
-        createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+        createdAt = createdAt ?? DateTime.now();
 
   /// Create an empty Post object
   static PostModel empty() => PostModel(
-    postId: '',
     userId: '',
     postType: '',
     content: '',
   );
 
-  /// Convert Post to Firestore JSON (without comments, since they are separate docs)
+  /// Convert Post to Firestore JSON
   Map<String, dynamic> toJson() {
-    return {
-      'postId': postId,
+    final json = {
       'userId': userId,
       'postType': postType,
       'content': content,
@@ -51,9 +49,15 @@ class PostModel {
       'likes': likes,
       'commentCount': commentCount,
       'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
       'isDisabled': isDisabled,
     };
+
+    // 【新增】只有 updatedAt 不为 null 时才添加
+    if (updatedAt != null) {
+      json['updatedAt'] = Timestamp.fromDate(updatedAt!);
+    }
+
+    return json;
   }
 
   /// Create Post from Firestore snapshot
@@ -71,7 +75,7 @@ class PostModel {
       likes: List<String>.from(data['likes'] ?? []),
       commentCount: data['commentCount'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(), // 【修改】可能为 null
       isDisabled: data['isDisabled'] ?? false,
     );
   }
@@ -86,7 +90,7 @@ class PostModel {
     List<String>? likes,
     int? commentCount,
     DateTime? createdAt,
-    DateTime? updatedAt,
+    DateTime? updatedAt,         // 可以传 null 来保持原值
     bool? isDisabled,
     List<Comment>? comments,
   }) {
@@ -99,11 +103,15 @@ class PostModel {
       likes: likes ?? this.likes,
       commentCount: commentCount ?? this.commentCount,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      updatedAt: updatedAt ?? this.updatedAt, // 保持原值或使用新值
       isDisabled: isDisabled ?? this.isDisabled,
       comments: comments ?? this.comments,
     );
   }
+
+  /// Check if the post was edited
+  bool get wasEdited => updatedAt != null &&
+      updatedAt!.difference(createdAt).inSeconds > 60;
 
   /// Attach loaded comments to the Post object
   PostModel withComments(List<Comment> loadedComments) {

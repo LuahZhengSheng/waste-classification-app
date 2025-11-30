@@ -120,7 +120,7 @@ class CommentRepository extends GetxController {
   }
 
   /// Delete comment
-  Future<void> deleteComment(String postId, String commentId) async {
+  Future<void> deleteCommentById(String commentId) async {
     try {
       // Delete comment document from independent collection
       await _db
@@ -135,6 +135,44 @@ class CommentRepository extends GetxController {
       throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
+    }
+  }
+
+  /// 【新增】Delete all comments of a post
+  /// Returns the list of deleted comment IDs for deleting their replies
+  Future<List<String>> deleteCommentsByPost(String postId) async {
+    try {
+      // Get all comments of the post
+      final snapshot = await _db
+          .collection("comments")
+          .where('postId', isEqualTo: postId)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        print('No comments found for post $postId');
+        return [];
+      }
+
+      // Collect comment IDs before deletion
+      final commentIds = snapshot.docs.map((doc) => doc.id).toList();
+
+      // Delete all comments using batch
+      final batch = _db.batch();
+      for (var doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      print('✅ Deleted ${commentIds.length} comments for post $postId');
+      return commentIds;
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } on FormatException catch (_) {
+      throw const FFormatException();
+    } on PlatformException catch (e) {
+      throw FPlatformException(e.code).message;
+    } catch (e) {
+      throw 'Failed to delete comments: $e';
     }
   }
 

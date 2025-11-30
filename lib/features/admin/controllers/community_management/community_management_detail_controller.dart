@@ -10,10 +10,10 @@ import 'package:fyp/data/repositories/community/reply_repository.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 
-class PostDetailController extends GetxController {
+class CommunityManagementDetailController extends GetxController {
   final PostModel initialPost;
 
-  PostDetailController(this.initialPost);
+  CommunityManagementDetailController(this.initialPost);
 
   final PostRepository postRepository = Get.put(PostRepository());
   final CommentRepository commentRepository = Get.put(CommentRepository());
