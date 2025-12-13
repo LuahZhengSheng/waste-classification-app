@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -27,11 +29,21 @@ class AddRecyclingActivityScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final staffController = Get.find<StaffHomeController>();
+
+    // 🆕 Get existing image file if editing
+    File? existingImageFile;
+    if (isEditing && editIndex != null) {
+      final activityWithImage =
+          staffController.currentActivitiesWithImages[editIndex!];
+      existingImageFile = activityWithImage.imageFile;
+    }
+
     final controller = Get.put(
       AddActivityFormController(
         isEditing: isEditing,
         existingActivity: existingActivity,
         wasteCategories: staffController.wasteCategories,
+        existingImageFile: existingImageFile, // 🆕 Pass existing image file
       ),
     );
     final dark = FHelperFunctions.isDarkMode(context);
@@ -44,7 +56,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
         return true;
       },
       child: Scaffold(
-        backgroundColor: dark ? FColors.staffDarkBackground : FColors.staffLightBackground,
+        backgroundColor:
+            dark ? FColors.staffDarkBackground : FColors.staffLightBackground,
         appBar: FAppBar(
           title: Text(
             isEditing ? 'Edit Activity' : 'Add Recycling Activity',
@@ -53,7 +66,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: dark ? FColors.staffDarkSurface : FColors.staffLightSurface,
+          backgroundColor:
+              dark ? FColors.staffDarkSurface : FColors.staffLightSurface,
           elevation: 0,
           showBackArrow: true,
           backArrowColor: dark ? FColors.staffDarkText : FColors.staffLightText,
@@ -77,23 +91,16 @@ class AddRecyclingActivityScreen extends StatelessWidget {
               children: [
                 _buildWasteCategorySection(controller, dark),
                 const SizedBox(height: FSizes.spaceBtwSections),
-
                 _buildWasteObjectSection(controller, dark),
                 const SizedBox(height: FSizes.spaceBtwSections),
-
                 _buildWeightSection(controller, dark),
                 const SizedBox(height: FSizes.spaceBtwSections),
-
                 _buildImageUploadSection(controller, dark, staffController),
                 const SizedBox(height: FSizes.spaceBtwSections),
-
                 Obx(() => controller.calculatedPoints.value > 0
                     ? _buildPointsPreview(controller, dark)
                     : const SizedBox()),
-
-                if (controller.calculatedPoints.value > 0)
-                  const SizedBox(height: FSizes.spaceBtwSections),
-
+                const SizedBox(height: FSizes.spaceBtwSections),
                 _buildSubmitButton(staffController, controller, dark),
               ],
             ),
@@ -103,7 +110,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWasteCategorySection(AddActivityFormController controller, bool dark) {
+  Widget _buildWasteCategorySection(
+      AddActivityFormController controller, bool dark) {
     return Container(
       padding: const EdgeInsets.all(FSizes.lg),
       decoration: BoxDecoration(
@@ -124,7 +132,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             children: [
               Icon(
                 Iconsax.category,
-                color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
+                color:
+                    dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
                 size: FSizes.iconMd,
               ),
               const SizedBox(width: FSizes.sm),
@@ -139,60 +148,78 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: FSizes.md),
-
           Obx(() => Wrap(
-            spacing: FSizes.sm,
-            runSpacing: FSizes.sm,
-            children: controller.wasteCategories.map((category) {
-              final isSelected = controller.selectedCategory.value?.categoryId == category.categoryId;
+                spacing: FSizes.sm,
+                runSpacing: FSizes.sm,
+                children: controller.wasteCategories.map((category) {
+                  final isSelected =
+                      controller.selectedCategory.value?.categoryId ==
+                          category.categoryId;
 
-              return GestureDetector(
-                onTap: () => controller.selectCategory(category),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: FSizes.md, vertical: FSizes.sm),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? (dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary)
-                        : (dark ? FColors.staffDarkSurfaceVariant : FColors.staffLightSurfaceVariant),
-                    borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
-                    border: Border.all(
-                      color: isSelected
-                          ? (dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary)
-                          : (dark ? FColors.staffDarkBorder : FColors.staffLightBorder),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        category.icon,
+                  return GestureDetector(
+                    onTap: () => controller.selectCategory(category),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: FSizes.md, vertical: FSizes.sm),
+                      decoration: BoxDecoration(
                         color: isSelected
-                            ? Colors.white
-                            : (dark ? FColors.staffDarkText : FColors.staffLightText),
-                        size: 16,
-                      ),
-                      const SizedBox(width: FSizes.xs),
-                      Text(
-                        category.name,
-                        style: TextStyle(
+                            ? (dark
+                                ? FColors.staffDarkPrimary
+                                : FColors.staffLightPrimary)
+                            : (dark
+                                ? FColors.staffDarkSurfaceVariant
+                                : FColors.staffLightSurfaceVariant),
+                        borderRadius:
+                            BorderRadius.circular(FSizes.borderRadiusLg),
+                        border: Border.all(
                           color: isSelected
-                              ? Colors.white
-                              : (dark ? FColors.staffDarkText : FColors.staffLightText),
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              ? (dark
+                                  ? FColors.staffDarkPrimary
+                                  : FColors.staffLightPrimary)
+                              : (dark
+                                  ? FColors.staffDarkBorder
+                                  : FColors.staffLightBorder),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          )),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            category.icon,
+                            color: isSelected
+                                ? Colors.white
+                                : (dark
+                                    ? FColors.staffDarkText
+                                    : FColors.staffLightText),
+                            size: 16,
+                          ),
+                          const SizedBox(width: FSizes.xs),
+                          Text(
+                            category.name,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : (dark
+                                      ? FColors.staffDarkText
+                                      : FColors.staffLightText),
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              )),
         ],
       ),
     );
   }
 
-  Widget _buildWasteObjectSection(AddActivityFormController controller, bool dark) {
+  Widget _buildWasteObjectSection(
+      AddActivityFormController controller, bool dark) {
     return Container(
       padding: const EdgeInsets.all(FSizes.lg),
       decoration: BoxDecoration(
@@ -213,7 +240,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             children: [
               Icon(
                 Iconsax.edit,
-                color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
+                color:
+                    dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
                 size: FSizes.iconMd,
               ),
               const SizedBox(width: FSizes.sm),
@@ -228,7 +256,6 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: FSizes.md),
-
           TextFormField(
             controller: controller.wasteObjectController,
             validator: controller.validateWasteObject,
@@ -237,7 +264,9 @@ class AddRecyclingActivityScreen extends StatelessWidget {
               hintText: 'e.g., Plastic bottles, Newspaper, Old laptop',
               prefixIcon: const Icon(Iconsax.document_text),
               filled: true,
-              fillColor: dark ? FColors.staffDarkSurfaceVariant : FColors.staffLightSurfaceVariant,
+              fillColor: dark
+                  ? FColors.staffDarkSurfaceVariant
+                  : FColors.staffLightSurfaceVariant,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(FSizes.inputFieldRadius),
                 borderSide: BorderSide.none,
@@ -245,13 +274,16 @@ class AddRecyclingActivityScreen extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(FSizes.inputFieldRadius),
                 borderSide: BorderSide(
-                  color: dark ? FColors.staffDarkBorder : FColors.staffLightBorder,
+                  color:
+                      dark ? FColors.staffDarkBorder : FColors.staffLightBorder,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(FSizes.inputFieldRadius),
                 borderSide: BorderSide(
-                  color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
+                  color: dark
+                      ? FColors.staffDarkPrimary
+                      : FColors.staffLightPrimary,
                   width: 2,
                 ),
               ),
@@ -284,7 +316,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             children: [
               Icon(
                 Iconsax.weight_1,
-                color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
+                color:
+                    dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
                 size: FSizes.iconMd,
               ),
               const SizedBox(width: FSizes.sm),
@@ -299,7 +332,6 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: FSizes.md),
-
           TextFormField(
             controller: controller.weightController,
             validator: controller.validateWeight,
@@ -311,7 +343,9 @@ class AddRecyclingActivityScreen extends StatelessWidget {
               prefixIcon: const Icon(Iconsax.weight_1),
               suffixText: 'kg',
               filled: true,
-              fillColor: dark ? FColors.staffDarkSurfaceVariant : FColors.staffLightSurfaceVariant,
+              fillColor: dark
+                  ? FColors.staffDarkSurfaceVariant
+                  : FColors.staffLightSurfaceVariant,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(FSizes.inputFieldRadius),
                 borderSide: BorderSide.none,
@@ -319,13 +353,16 @@ class AddRecyclingActivityScreen extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(FSizes.inputFieldRadius),
                 borderSide: BorderSide(
-                  color: dark ? FColors.staffDarkBorder : FColors.staffLightBorder,
+                  color:
+                      dark ? FColors.staffDarkBorder : FColors.staffLightBorder,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(FSizes.inputFieldRadius),
                 borderSide: BorderSide(
-                  color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
+                  color: dark
+                      ? FColors.staffDarkPrimary
+                      : FColors.staffLightPrimary,
                   width: 2,
                 ),
               ),
@@ -336,7 +373,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildImageUploadSection(AddActivityFormController controller, bool dark, StaffHomeController staffController) {
+  Widget _buildImageUploadSection(AddActivityFormController controller,
+      bool dark, StaffHomeController staffController) {
     return Container(
       padding: const EdgeInsets.all(FSizes.lg),
       decoration: BoxDecoration(
@@ -357,7 +395,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             children: [
               Icon(
                 Iconsax.camera,
-                color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
+                color:
+                    dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
                 size: FSizes.iconMd,
               ),
               const SizedBox(width: FSizes.sm),
@@ -373,7 +412,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
               Text(
                 '* (Max 1 image, 10MB)',
                 style: TextStyle(
-                  color: dark ? FColors.staffDarkError : FColors.staffLightError,
+                  color:
+                      dark ? FColors.staffDarkError : FColors.staffLightError,
                   fontSize: 12,
                 ),
               ),
@@ -381,72 +421,15 @@ class AddRecyclingActivityScreen extends StatelessWidget {
           ),
           const SizedBox(height: FSizes.md),
 
+          // 🆕 Simplified: Always show File preview or upload button
           Obx(() {
             if (controller.selectedImage.value != null) {
               return _buildImagePreview(controller, dark);
-            } else if (controller.hasExistingImage.value && isEditing) {
-              return _buildNetworkImagePreview(controller, dark, staffController);
             } else {
               return _buildImageUploadButton(controller, dark);
             }
           }),
         ],
-      ),
-    );
-  }
-
-  Widget _buildImageUploadButton(AddActivityFormController controller, bool dark) {
-    return GestureDetector(
-      onTap: controller.pickImage,
-      child: Container(
-        height: 200,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: dark ? FColors.staffDarkSurfaceVariant : FColors.staffLightSurfaceVariant,
-          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-          border: Border.all(
-            color: dark
-                ? FColors.staffDarkPrimary.withOpacity(0.3)
-                : FColors.staffLightPrimary.withOpacity(0.3),
-            width: 2,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(FSizes.md),
-              decoration: BoxDecoration(
-                color: dark
-                    ? FColors.staffDarkPrimary.withOpacity(0.2)
-                    : FColors.staffLightPrimary.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
-              ),
-              child: Icon(
-                Iconsax.camera,
-                color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
-                size: FSizes.iconLg,
-              ),
-            ),
-            const SizedBox(height: FSizes.md),
-            Text(
-              'Tap to upload image',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: dark ? FColors.staffDarkText : FColors.staffLightText,
-              ),
-            ),
-            const SizedBox(height: FSizes.xs),
-            Text(
-              'Take a photo of the waste items',
-              style: TextStyle(
-                fontSize: 14,
-                color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -462,9 +445,9 @@ class AddRecyclingActivityScreen extends StatelessWidget {
               isVideo: false,
             );
             Get.to(() => UnifiedMediaLightbox(
-              mediaItems: [mediaItem],
-              initialIndex: 0,
-            ));
+                  mediaItems: [mediaItem],
+                  initialIndex: 0,
+                ));
           },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
@@ -499,7 +482,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
           bottom: FSizes.sm,
           left: FSizes.sm,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+            padding: const EdgeInsets.symmetric(
+                horizontal: FSizes.sm, vertical: FSizes.xs),
             decoration: BoxDecoration(
               color: Colors.black54,
               borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
@@ -517,148 +501,65 @@ class AddRecyclingActivityScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNetworkImagePreview(AddActivityFormController controller, bool dark, StaffHomeController staffController) {
-    // Use the controller method to get the image URL
-    final imageUrl = controller.getExistingImageUrl(staffController.userId.value);
-
-    return Stack(
-      children: [
-        GestureDetector(
-          onTap: () {
-            if (imageUrl.isNotEmpty) {
-              final mediaItem = UnifiedMediaItem.network(
-                id: 'network_image_${DateTime.now().millisecondsSinceEpoch}',
-                networkUrl: imageUrl,
-                isVideo: false,
-              );
-              Get.to(() => UnifiedMediaLightbox(
-                mediaItems: [mediaItem],
-                initialIndex: 0,
-              ));
-            }
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-            child: imageUrl.isNotEmpty
-                ? Image.network(
-              imageUrl,
-              height: 200,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  height: 200,
-                  width: double.infinity,
-                  color: dark ? Colors.grey[800] : Colors.grey[300],
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                          : null,
-                      color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
-                    ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                print('Image loading error: $error');
-                return Container(
-                  height: 200,
-                  width: double.infinity,
-                  color: dark ? Colors.grey[800] : Colors.grey[300],
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Iconsax.gallery_slash,
-                        color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-                        size: 40,
-                      ),
-                      const SizedBox(height: FSizes.sm),
-                      Text(
-                        'Failed to load image',
-                        style: TextStyle(
-                          color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: FSizes.xs),
-                      Text(
-                        'URL: ${imageUrl.substring(0, 50)}...',
-                        style: TextStyle(
-                          color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-                          fontSize: 10,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            )
-                : Container(
-              height: 200,
-              width: double.infinity,
-              color: dark ? Colors.grey[800] : Colors.grey[300],
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Iconsax.gallery_slash,
-                    color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-                    size: 40,
-                  ),
-                  const SizedBox(height: FSizes.sm),
-                  Text(
-                    'No image available',
-                    style: TextStyle(
-                      color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  Widget _buildImageUploadButton(
+      AddActivityFormController controller, bool dark) {
+    return GestureDetector(
+      onTap: controller.pickImage,
+      child: Container(
+        height: 200,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: dark
+              ? FColors.staffDarkSurfaceVariant
+              : FColors.staffLightSurfaceVariant,
+          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+          border: Border.all(
+            color: dark
+                ? FColors.staffDarkPrimary.withOpacity(0.3)
+                : FColors.staffLightPrimary.withOpacity(0.3),
+            width: 2,
           ),
         ),
-        Positioned(
-          top: FSizes.sm,
-          right: FSizes.sm,
-          child: GestureDetector(
-            onTap: controller.removeImage,
-            child: Container(
-              padding: const EdgeInsets.all(FSizes.xs),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(FSizes.md),
               decoration: BoxDecoration(
-                color: dark ? FColors.staffDarkError : FColors.staffLightError,
-                borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
+                color: dark
+                    ? FColors.staffDarkPrimary.withOpacity(0.2)
+                    : FColors.staffLightPrimary.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
               ),
-              child: const Icon(
-                Iconsax.close_circle,
-                color: Colors.white,
-                size: 20,
+              child: Icon(
+                Iconsax.camera,
+                color:
+                    dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
+                size: FSizes.iconLg,
               ),
             ),
-          ),
+            const SizedBox(height: FSizes.md),
+            Text(
+              'Tap to upload image',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: dark ? FColors.staffDarkText : FColors.staffLightText,
+              ),
+            ),
+            const SizedBox(height: FSizes.xs),
+            Text(
+              'Take a photo of the waste items',
+              style: TextStyle(
+                fontSize: 14,
+                color: dark
+                    ? FColors.staffDarkTextSecondary
+                    : FColors.staffLightTextSecondary,
+              ),
+            ),
+          ],
         ),
-        if (imageUrl.isNotEmpty)
-          Positioned(
-            bottom: FSizes.sm,
-            left: FSizes.sm,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
-              ),
-              child: const Text(
-                'Tap to view fullscreen',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 
@@ -671,7 +572,8 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             : FColors.staffLightSecondary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
         border: Border.all(
-          color: dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
+          color:
+              dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
           width: 2,
         ),
       ),
@@ -680,7 +582,9 @@ class AddRecyclingActivityScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(FSizes.md),
             decoration: BoxDecoration(
-              color: dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
+              color: dark
+                  ? FColors.staffDarkSecondary
+                  : FColors.staffLightSecondary,
               borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
             ),
             child: const Icon(
@@ -699,14 +603,17 @@ class AddRecyclingActivityScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: dark ? FColors.staffDarkText : FColors.staffLightText,
+                    color:
+                        dark ? FColors.staffDarkText : FColors.staffLightText,
                   ),
                 ),
                 Text(
                   'User will earn ${controller.calculatedPoints.value} points',
                   style: TextStyle(
                     fontSize: 14,
-                    color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
+                    color: dark
+                        ? FColors.staffDarkTextSecondary
+                        : FColors.staffLightTextSecondary,
                   ),
                 ),
               ],
@@ -717,7 +624,9 @@ class AddRecyclingActivityScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
+              color: dark
+                  ? FColors.staffDarkSecondary
+                  : FColors.staffLightSecondary,
             ),
           ),
         ],
@@ -725,49 +634,51 @@ class AddRecyclingActivityScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSubmitButton(StaffHomeController staffController, AddActivityFormController controller, bool dark) {
+  Widget _buildSubmitButton(StaffHomeController staffController,
+      AddActivityFormController controller, bool dark) {
     return Obx(() => SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: controller.isLoading.value
-            ? null
-            : () => _submitForm(staffController, controller),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: FSizes.lg),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(FSizes.buttonRadius),
-          ),
-        ),
-        child: controller.isLoading.value
-            ? const SizedBox(
-          height: 20,
-          width: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-          ),
-        )
-            : Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(isEditing ? Iconsax.edit : Iconsax.add),
-            const SizedBox(width: FSizes.sm),
-            Text(
-              isEditing ? 'Update Activity' : 'Add Activity',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: controller.isLoading.value
+                ? null
+                : () => _submitForm(staffController, controller),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: dark
+                  ? FColors.staffDarkSecondary
+                  : FColors.staffLightSecondary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: FSizes.lg),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(FSizes.buttonRadius),
               ),
             ),
-          ],
-        ),
-      ),
-    ));
+            child: controller.isLoading.value
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        isEditing ? 'Update Activity' : 'Add Activity',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ));
   }
 
-  Future<void> _submitForm(StaffHomeController staffController, AddActivityFormController controller) async {
+  Future<void> _submitForm(StaffHomeController staffController,
+      AddActivityFormController controller) async {
     if (controller.validateForm()) {
       try {
         final activity = controller.createActivity(
@@ -780,9 +691,11 @@ class AddRecyclingActivityScreen extends StatelessWidget {
 
         bool success;
         if (isEditing && editIndex != null) {
-          success = await staffController.editRecyclingActivity(editIndex!, activity, imageFile);
+          success = await staffController.editRecyclingActivity(
+              editIndex!, activity, imageFile);
         } else {
-          success = await staffController.addRecyclingActivity(activity, imageFile);
+          success =
+              await staffController.addRecyclingActivity(activity, imageFile);
         }
 
         if (success) {
@@ -803,11 +716,13 @@ class AddRecyclingActivityScreen extends StatelessWidget {
     }
   }
 
-  Future<bool> _showUnsavedChangesDialog(AddActivityFormController controller) async {
+  Future<bool> _showUnsavedChangesDialog(
+      AddActivityFormController controller) async {
     final result = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Unsaved Changes'),
-        content: const Text('You have unsaved changes. Are you sure you want to leave?'),
+        content: const Text(
+            'You have unsaved changes. Are you sure you want to leave?'),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),

@@ -172,7 +172,7 @@ class UserAchievement {
   double progressPercentage() {
     if (targetCriteria == 0) return 0;
 
-    // If achievement is locked, calculate progress towards level 1
+    // ✅ 如果 achievement 被锁定（currentLevel == 0），计算向等级 1 的进度
     if (currentLevel == 0) {
       final firstLevel = achievement.achievementLevels
           .where((level) => level.level == 1)
@@ -185,15 +185,17 @@ class UserAchievement {
       return (progress / target).clamp(0.0, 1.0);
     }
 
-    // Calculate progress from current level to next level
+    // ✅ 计算从当前等级到下一个等级的进度
     final next = nextLevel;
-    if (next == null) return 1.0; // Max level reached
+    if (next == null) return 1.0; // 已达到最高等级
 
-    final currentLevelData = achievement.achievementLevels
-        .where((level) => level.level == currentLevel)
+    // ✅ 找到上一个等级的解锁标准（而不是当前等级）
+    final previousLevel = achievement.achievementLevels
+        .where((level) => level.level == currentLevel - 1)
         .firstOrNull;
 
-    final previousCriteria = currentLevelData?.unlockCriteria ?? 0;
+    // ✅ 如果当前等级是 1，previousCriteria 应该是 0
+    final previousCriteria = previousLevel?.unlockCriteria ?? 0;
     final range = targetCriteria - previousCriteria;
 
     if (range == 0) return 1.0;

@@ -6,6 +6,7 @@ import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../utils/popups/loaders.dart';
 import '../../controllers/scan_sort_camera_controller.dart';
 
 class ScanSortCameraScreen extends StatelessWidget {
@@ -463,11 +464,7 @@ class ScanSortCameraScreen extends StatelessWidget {
                   }
                 } catch (e) {
                   print('❌ Gallery picker error: $e');
-                  Get.snackbar(
-                    'Error',
-                    'Failed to pick image: $e',
-                    snackPosition: SnackPosition.BOTTOM,
-                  );
+                  FLoaders.errorSnackBar(title: 'Error', message: 'Failed to pick image: $e');
                 }
               } : null, // 🎯 上传时禁用相册按钮
               dark: dark,
@@ -485,19 +482,11 @@ class ScanSortCameraScreen extends StatelessWidget {
                     await controller.processCapturedImage(file);
                   } else {
                     print('❌ Photo capture returned null');
-                    Get.snackbar(
-                      'Error',
-                      'Failed to capture photo',
-                      snackPosition: SnackPosition.BOTTOM,
-                    );
+                    FLoaders.errorSnackBar(title: 'Error', message: 'Failed to capture photo');
                   }
                 } catch (e) {
                   print('❌ Capture button error: $e');
-                  Get.snackbar(
-                    'Error',
-                    'Failed to capture photo: $e',
-                    snackPosition: SnackPosition.BOTTOM,
-                  );
+                  FLoaders.errorSnackBar(title: 'Error', message: 'Failed to capture photo: $e');
                 }
               } : null, // 🎯 上传时禁用拍照按钮
               child: Container(

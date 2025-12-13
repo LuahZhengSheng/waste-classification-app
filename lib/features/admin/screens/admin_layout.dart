@@ -11,8 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/repositories/authentication/authentication_repository.dart';
 import '../../../data/repositories/user/user_repository.dart';
 import '../../../utils/popups/loaders.dart';
-import '../../recycling_center/screens/profile/staff_profile.dart';
-import '../../recycling_center/screens/staff_home/staff_home.dart';
 import 'achievement_management/achievement_management/achievement_management.dart';
 import 'admin_layout/topbar.dart';
 import 'authentication/admin_login.dart';
@@ -392,17 +390,23 @@ class AdminSidebarMenu extends StatelessWidget {
   IconData _getIconData(String iconName) {
     switch (iconName) {
       case 'dashboard':
-        return Iconsax.element_4;
-      case 'people':
-        return Iconsax.people;
+        return Iconsax.element_4; // Dashboard 仪表盘
+      case 'user_management':
+        return Iconsax.profile_2user; // 用户管理
+      case 'manager_management':
+        return Iconsax.personalcard; // 管理员管理
+      case 'center_staff':
+        return Iconsax.user_tag; // 中心员工管理
       case 'event':
-        return Iconsax.calendar;
-      case 'category':
-        return Iconsax.category;
-      case 'analytics':
-        return Iconsax.chart_2;
-      case 'settings':
-        return Iconsax.setting_2;
+        return Iconsax.calendar_2; // 活动管理
+      case 'reward':
+        return Iconsax.gift; // 奖励管理
+      case 'community':
+        return Iconsax.messages_2; // 社区管理
+      case 'achievement':
+        return Iconsax.medal_star; // 成就管理
+      case 'partner_center':
+        return Iconsax.building_4; // 合作伙伴中心
       default:
         return Iconsax.element_4;
     }
@@ -445,7 +449,7 @@ class AdminSidebarMenuController extends GetxController {
       case 'community_manager':
         return [
           SidebarItem(icon: 'dashboard', title: 'Dashboard', route: 'dashboard'),
-          SidebarItem(icon: 'analytics', title: 'Community Management', route: 'community_management'),
+          SidebarItem(icon: 'community', title: 'Community Management', route: 'community_management'),
         ];
       case 'event_manager':
         return [
@@ -455,27 +459,27 @@ class AdminSidebarMenuController extends GetxController {
       case 'reward_manager':
         return [
           SidebarItem(icon: 'dashboard', title: 'Dashboard', route: 'dashboard'),
-          SidebarItem(icon: 'category', title: 'Reward Management', route: 'reward_management'),
+          SidebarItem(icon: 'reward', title: 'Reward Management', route: 'reward_management'),
         ];
       case 'admin':
         return [
           SidebarItem(icon: 'dashboard', title: 'Dashboard', route: 'dashboard'),
-          SidebarItem(icon: 'people', title: 'User Management', route: 'user_management'),
-          SidebarItem(icon: 'people', title: 'Manager Management', route: 'manager_management'),
-          SidebarItem(icon: 'people', title: 'Center Staff Management', route: 'center_staff_management'),
+          SidebarItem(icon: 'user_management', title: 'User Management', route: 'user_management'),
+          SidebarItem(icon: 'manager_management', title: 'Manager Management', route: 'manager_management'),
+          SidebarItem(icon: 'center_staff', title: 'Center Staff Management', route: 'center_staff_management'),
           SidebarItem(icon: 'event', title: 'Event Management', route: 'event_management'),
-          SidebarItem(icon: 'category', title: 'Reward Management', route: 'reward_management'),
-          SidebarItem(icon: 'analytics', title: 'Community Management', route: 'community_management'),
-          SidebarItem(icon: 'settings', title: 'Achievement Management', route: 'achievement_management'),
-          SidebarItem(icon: 'settings', title: 'Partner Recycling Centers', route: 'partner_centers'),
+          SidebarItem(icon: 'reward', title: 'Reward Management', route: 'reward_management'),
+          SidebarItem(icon: 'community', title: 'Community Management', route: 'community_management'),
+          SidebarItem(icon: 'achievement', title: 'Achievement Management', route: 'achievement_management'),
+          SidebarItem(icon: 'partner_center', title: 'Partner Recycling Centers', route: 'partner_centers'),
         ];
       default:
-      // If role is not recognized, only show dashboard
         return [
           SidebarItem(icon: 'dashboard', title: 'Dashboard', route: 'dashboard'),
         ];
     }
   }
+
 
   void onHover(bool hovering) {
     isHovered.value = hovering;
@@ -616,80 +620,4 @@ class SidebarItem {
     required this.title,
     required this.route,
   });
-}
-
-// Staff Navigation Menu
-class StaffNavigationMenu extends StatelessWidget {
-  const StaffNavigationMenu({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = Get.put(NavigationController());
-    final dark = FHelperFunctions.isDarkMode(context);
-
-    return Scaffold(
-      bottomNavigationBar: Obx(
-            () => NavigationBar(
-          height: 70,
-          elevation: 0,
-          selectedIndex: controller.selectedIndex.value,
-          onDestinationSelected: (index) {
-            controller.selectedIndex.value = index;
-          },
-          backgroundColor: dark ? FColors.black : FColors.white,
-          indicatorColor: Colors.transparent,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          labelTextStyle: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) {
-              return TextStyle(
-                color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
-                fontWeight: FontWeight.w600,
-              );
-            }
-            return TextStyle(
-              color: FColors.darkGrey,
-              fontWeight: FontWeight.normal,
-            );
-          }),
-          destinations: [
-            NavigationDestination(
-              icon: Icon(
-                Iconsax.home,
-                color: controller.selectedIndex.value == 0
-                    ? dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary
-                    : FColors.darkGrey,
-              ),
-              label: 'Home',
-              selectedIcon: Icon(
-                Iconsax.home,
-                color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
-              ),
-            ),
-            NavigationDestination(
-              icon: Icon(
-                Iconsax.user,
-                color: controller.selectedIndex.value == 1
-                    ? dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary
-                    : FColors.darkGrey,
-              ),
-              label: 'Profile',
-              selectedIcon: Icon(
-                Iconsax.user,
-                color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Obx(() => controller.screens[controller.selectedIndex.value]),
-    );
-  }
-}
-
-class NavigationController extends GetxController {
-  final Rx<int> selectedIndex = 0.obs;
-  final screens = [
-    const StaffHomeScreen(),
-    const StaffProfileScreen(),
-  ];
 }

@@ -215,27 +215,49 @@ class PostsController extends GetxController with SingleGetTickerProviderMixin {
   /// Toggle like
   Future<void> toggleLike(String postId) async {
     try {
-      final post = allPosts.firstWhere((p) => p.postId == postId);
-      final currentUserId = getCurrentUserId();
-      final newLikes = List<String>.from(post.likes);
+      // 1. ✅ 找到当前 post
+      final postIndex = allPosts.indexWhere((p) => p.postId == postId);
+      if (postIndex == -1) return;
 
-      if (newLikes.contains(currentUserId)) {
+      final originalPost = allPosts[postIndex]; // 保存原始状态用于回滚
+      final currentUserId = getCurrentUserId();
+
+      // 2. ✅ 计算新的 likes 列表
+      final newLikes = List<String>.from(originalPost.likes);
+      final isCurrentlyLiked = newLikes.contains(currentUserId);
+
+      if (isCurrentlyLiked) {
         newLikes.remove(currentUserId);
       } else {
         newLikes.add(currentUserId);
       }
 
-      await _postRepository.updatePostLikes(postId, newLikes);
+      // 3. ✅ 乐观更新：立即更新本地 UI
+      allPosts[postIndex] = originalPost.copyWith(likes: newLikes);
+      allPosts.refresh();
+      _categorizePosts(allPosts);
+      _filterPosts(); // 重新过滤以更新 filteredPosts
 
-      // Update local state
-      final index = allPosts.indexWhere((p) => p.postId == postId);
-      if (index != -1) {
-        allPosts[index] = allPosts[index].copyWith(likes: newLikes);
+      // 4. ✅ 异步更新 Firestore
+      try {
+        await _postRepository.updatePostLikes(postId, newLikes);
+      } catch (e) {
+        // ❌ 更新失败，回滚到原始状态
+        allPosts[postIndex] = originalPost;
         allPosts.refresh();
         _categorizePosts(allPosts);
+        _filterPosts();
+
+        FLoaders.errorSnackBar(
+          title: 'Error',
+          message: 'Failed to update like',
+        );
       }
     } catch (e) {
-      FLoaders.errorSnackBar(title: 'Error', message: e.toString());
+      FLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Something went wrong',
+      );
     }
   }
 
@@ -277,6 +299,23 @@ class PostsController extends GetxController with SingleGetTickerProviderMixin {
       _initializePosts();
     } catch (e) {
       isLoading.value = false;
+      FLoaders.errorSnackBar(title: 'Error', message: e.toString());
+    }
+  }
+
+  /// Update post reports
+  Future<void> updatePostReports(String postId, Map<String, List<String>> reports) async {
+    try {
+      await _postRepository.updatePostReports(postId, reports);
+
+      // Update local state
+      final index = allPosts.indexWhere((p) => p.postId == postId);
+      if (index != -1) {
+        allPosts[index] = allPosts[index].copyWith(reports: reports);
+        allPosts.refresh();
+        _categorizePosts(allPosts);
+      }
+    } catch (e) {
       FLoaders.errorSnackBar(title: 'Error', message: e.toString());
     }
   }

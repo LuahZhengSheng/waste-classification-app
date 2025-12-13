@@ -19,9 +19,11 @@ class DetectionHistoryRepository extends GetxController {
     required File imageFile,
     required int detectionCount,
     required List<String> detectedItems,
+    required List<String> categoryIds,
   }) async {
     try {
       final userId = AuthenticationRepository.instance.authUser!.uid;
+      final historyRef = _db.collection('detection_history').doc();
 
       // 获取文件名（使用 ImageCompressor 生成的 UUID.webp）
       final fileName = imageFile.path.split('/').last;
@@ -35,11 +37,12 @@ class DetectionHistoryRepository extends GetxController {
 
       // Create history model
       final history = DetectionHistoryModel(
-        historyId: '', // Will be set by Firestore
+        historyId: historyRef.id,
         userId: userId,
         imageUrl: imageUrl,
         detectionCount: detectionCount,
         detectedItems: detectedItems,
+        categoryIds: categoryIds,
         createdAt: DateTime.now(),
       );
 

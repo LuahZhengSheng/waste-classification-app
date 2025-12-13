@@ -67,7 +67,7 @@ class _EventDataTableState extends State<EventDataTable> {
   }
 
   double _calculateTableWidth() {
-    return 200 + 180 + 200 + 150 + 250 + 180 + 180 + 180 + 120 + 120 + 180 + 120 + 120 + 180;
+    return 200 + 180 + 200 + 150 + 250 + 180 + 180 + 180 + 120 + 120 + 180 + 120 + 120 + 200;
   }
 
   @override
@@ -130,7 +130,7 @@ class _EventDataTableState extends State<EventDataTable> {
             top: 0,
             bottom: 0,
             child: Container(
-              width: 180,
+              width: 200,
               decoration: BoxDecoration(
                 color: widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
                 boxShadow: [
@@ -254,13 +254,13 @@ class _EventDataTableState extends State<EventDataTable> {
 
   DataColumn _buildEmptySpacerColumn() {
     return DataColumn(
-      label: SizedBox(width: 120, child: const Text('')),
+      label: SizedBox(width: 150, child: const Text('')),
     );
   }
 
   DataColumn _buildActionColumn() {
     return DataColumn(
-      label: SizedBox(width: 180, child: Text('Actions', style: _headerStyle())),
+      label: SizedBox(width: 200, child: Text('Actions', style: _headerStyle())),
     );
   }
 
@@ -332,7 +332,7 @@ class _EventDataTableState extends State<EventDataTable> {
 
   DataCell _buildEmptySpacerCell() {
     return DataCell(
-      Container(width: 120, child: const Text('')),
+      Container(width: 150, child: const Text('')),
     );
   }
 
@@ -413,7 +413,7 @@ class _EventDataTableState extends State<EventDataTable> {
     final computedStatus = event.computedStatus;
 
     return DataCell(
-      Container(
+      SizedBox(
         width: 180,
         child: Row(
           mainAxisSize: MainAxisSize.min,

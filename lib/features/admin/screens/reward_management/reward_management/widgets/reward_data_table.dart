@@ -654,7 +654,7 @@ class _AdminRewardDataTableState extends State<RewardDataTable> {
   Widget _buildPointsBadge(int points, bool dark) {
     final color = dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary;
     return CommonBadge(
-      icon: Iconsax.medal,
+      icon: Iconsax.medal_star5,
       color: color,
       text: points.toString(),
       iconSize: 16,

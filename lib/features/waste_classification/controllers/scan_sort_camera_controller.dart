@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../utils/popups/loaders.dart';
 import '../screens/detection_history/detection_history.dart';
 import '../screens/dropfoff_location/dropoff_location.dart';
 import '../screens/waste_category_guideline/waste_category_guide.dart';
@@ -249,20 +250,12 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     } on CameraException catch (e) {
       print('❌ Camera exception: ${e.description ?? e.code}');
       _isCapturing.value = false;
-      Get.snackbar(
-        'Error',
-        'Failed to capture photo: ${e.description ?? e.code}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to capture photo: ${e.description ?? e.code}');
       return null;
     } catch (e) {
       print('❌ Capture error: $e');
       _isCapturing.value = false;
-      Get.snackbar(
-        'Error',
-        'Failed to capture photo: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to capture photo: $e');
       return null;
     }
   }
@@ -294,11 +287,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
         return null;
       }
 
-      Get.snackbar(
-        'Error',
-        'Failed to pick image: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to pick image: $e');
       return null;
     }
   }
@@ -322,12 +311,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
 
         if (detectionController.isInitializing.value) {
           print('⏳ Waiting for model initialization...');
-          Get.snackbar(
-            'Please Wait',
-            'Model is initializing...',
-            snackPosition: SnackPosition.BOTTOM,
-            duration: const Duration(seconds: 2),
-          );
+          FLoaders.infoSnackBar(title: 'Please Wait', message: 'Model is initializing...');
 
           int attempts = 0;
           while (detectionController.isInitializing.value && attempts < 30) {
@@ -338,11 +322,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
           if (detectionController.isInitializing.value) {
             print('❌ Model initialization timeout');
             _isUploading.value = false; // 🎯 重置上传状态
-            Get.snackbar(
-              'Error',
-              'Model initialization timeout. Please try again.',
-              snackPosition: SnackPosition.BOTTOM,
-            );
+            FLoaders.errorSnackBar(title: 'Error', message: 'Model initialization timeout. Please try again.');
             return;
           }
         }
@@ -355,12 +335,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     } catch (e, stackTrace) {
       print('❌ Failed to process image: $e');
       print('Stack trace: $stackTrace');
-      Get.snackbar(
-        'Error',
-        'Failed to process image: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 3),
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to process image: $e');
     } finally {
       // 🎯 无论成功或失败，都重置上传状态
       _isUploading.value = false;
@@ -420,11 +395,7 @@ class ScanSortCameraController extends GetxController with WidgetsBindingObserve
     try {
       await openAppSettings();
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Cannot open settings: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Cannot open settings: $e');
     }
   }
 

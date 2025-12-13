@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fyp/utils/constants/colors.dart';
-import 'package:fyp/utils/constants/sizes.dart';
-import 'package:fyp/features/leaderboard_achievement/models/achievement_model.dart';
-import 'package:fyp/features/admin/controllers/achievement_management/achievement_management_controller.dart';
 
 import '../../../../../../common/widgets/admin/badge.dart';
+import '../../../../../../utils/constants/colors.dart';
+import '../../../../../../utils/constants/sizes.dart';
 import '../../../../../../utils/popups/admin_loaders.dart';
+import '../../../../../leaderboard_achievement/models/achievement_model.dart';
+import '../../../../controllers/achievement_management/achievement_management_controller.dart';
 import '../../achievement_management_detail/achievement_management_detail.dart';
 
 class AchievementDataTable extends StatefulWidget {

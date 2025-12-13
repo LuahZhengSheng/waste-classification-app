@@ -9,6 +9,7 @@ import 'package:fyp/data/repositories/recycling_center/recycling_center_reposito
 
 import '../../../../../common/widgets/admin/badge.dart';
 import '../../../../../common/widgets/admin/small_profile_image.dart';
+import 'send_password_reset_dialog.dart';
 import 'staff_actions_dialog.dart';
 import 'staff_detail_dialog.dart';
 
@@ -79,8 +80,8 @@ class _StaffDataTableState extends State<StaffDataTable> {
 
   double _calculateTableWidth() {
     // Profile(80) + Username(150) + Staff ID(200) + Center ID(200) + Email(200) +
-    // Phone(150) + Gender(120) + Join Date(150) + Verified(100) + Spacer(100) + Actions(150)
-    return 80 + 150 + 200 + 200 + 200 + 150 + 120 + 150 + 100 + 100 + 150;
+    // Phone(150) + Gender(120) + Join Date(150) + Verified(100) + Spacer(100) + Actions(200)
+    return 80 + 150 + 200 + 200 + 200 + 150 + 120 + 150 + 100 + 100 + 200;
   }
 
   Future<void> _loadCenterNames() async {
@@ -164,7 +165,7 @@ class _StaffDataTableState extends State<StaffDataTable> {
             top: 0,
             bottom: 0,
             child: Container(
-              width: 150,
+              width: 200,
               decoration: BoxDecoration(
                 color: widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
                 boxShadow: [
@@ -298,7 +299,7 @@ class _StaffDataTableState extends State<StaffDataTable> {
   DataColumn _buildEmptySpacerColumn() {
     return DataColumn(
       label: SizedBox(
-        width: 100,
+        width: 150,
         child: const Text(''),
       ),
     );
@@ -307,7 +308,7 @@ class _StaffDataTableState extends State<StaffDataTable> {
   DataColumn _buildActionColumn() {
     return DataColumn(
       label: SizedBox(
-        width: 150,
+        width: 200,
         child: Text('Actions', style: _headerStyle()),
       ),
     );
@@ -321,8 +322,8 @@ class _StaffDataTableState extends State<StaffDataTable> {
         _wrapSelectableCell(staff.userId, 200),
         _wrapCenterColumnCell(staff, 200),
         _wrapCell(staff.email, 200),
-        _wrapCell(staff.phoneNo ?? 'N/A', 150),
-        _wrapCell(staff.gender ?? 'N/A', 120),
+        _wrapCell(staff.displayPhoneNo, 150),
+        _wrapCell(staff.displayGender, 120),
         _wrapCell(FFormatter.formatDate(staff.joinDate), 150),
         DataCell(Container(child: _buildVerifiedBadge(staff.isVerified))),
         _buildEmptySpacerCell(),
@@ -364,7 +365,6 @@ class _StaffDataTableState extends State<StaffDataTable> {
   }
 
   DataCell _wrapCenterColumnCell(RecyclingCenterStaff staff, double width) {
-    // Center ID, Center Name (if available)
     final centerName = _centerNames[staff.centerId];
     return DataCell(
       Container(
@@ -402,14 +402,13 @@ class _StaffDataTableState extends State<StaffDataTable> {
   DataCell _buildEmptySpacerCell() {
     return DataCell(
       Container(
-        width: 100,
+        width: 150,
         child: const Text(''),
       ),
     );
   }
 
   Widget _buildProfileImage(RecyclingCenterStaff staff) {
-    print('build image: ${staff.profileImg}');
     return SmallProfileImage(
       profileImg: staff.profileImg,
       username: staff.username,
@@ -443,10 +442,11 @@ class _StaffDataTableState extends State<StaffDataTable> {
   DataCell _buildActionCell(RecyclingCenterStaff staff) {
     return DataCell(
       Container(
-        width: 150,
+        width: 200,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // View button
             IconButton(
               onPressed: () => _viewStaff(staff),
               icon: Icon(
@@ -458,6 +458,8 @@ class _StaffDataTableState extends State<StaffDataTable> {
               ),
               tooltip: 'View Staff',
             ),
+
+            // Edit button
             IconButton(
               onPressed: () => _editStaff(staff),
               icon: Icon(
@@ -469,6 +471,8 @@ class _StaffDataTableState extends State<StaffDataTable> {
               ),
               tooltip: 'Edit Staff',
             ),
+
+            // Ban/Recover button
             IconButton(
               onPressed: () => widget.isBannedView ? _recoverStaff(staff) : _banStaff(staff),
               icon: Icon(
@@ -479,6 +483,25 @@ class _StaffDataTableState extends State<StaffDataTable> {
                 size: 18,
               ),
               tooltip: widget.isBannedView ? 'Recover Staff' : 'Ban Staff',
+            ),
+
+            // Send password reset link button
+            IconButton(
+              onPressed: staff.canSendPasswordResetLink() && !staff.isVerified && staff.isActive && !staff.isBanned
+                  ? () => _showSendResetLinkDialog(staff)
+                  : null,
+              icon: Icon(
+                Iconsax.send_2,
+                size: 18,
+                color: staff.canSendPasswordResetLink() && !staff.isVerified && staff.isActive && !staff.isBanned
+                    ? widget.dark ? FColors.adminDarkInfo : FColors.adminLightInfo
+                    : widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted,
+              ),
+              tooltip: staff.canSendPasswordResetLink() && !staff.isVerified && staff.isActive && !staff.isBanned
+                  ? 'Send Password Reset Link'
+                  : staff.canSendPasswordResetLink()
+                  ? 'Only available for unverified staff'
+                  : 'Wait ${staff.getFormattedRemainingResetTime()} before sending again',
             ),
           ],
         ),
@@ -533,6 +556,25 @@ class _StaffDataTableState extends State<StaffDataTable> {
   void _recoverStaff(RecyclingCenterStaff staff) {
     Get.dialog(
       RecoverStaffDialog(staff: staff),
+      barrierDismissible: false,
+    );
+  }
+
+  void _showSendResetLinkDialog(RecyclingCenterStaff staff) {
+    // Check if can send
+    if (!staff.canSendPasswordResetLink()) {
+      final remainingTime = staff.getFormattedRemainingResetTime();
+      Get.snackbar(
+        'Wait Required',
+        'Please wait $remainingTime before sending another reset link.',
+        backgroundColor: widget.dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    Get.dialog(
+      SendStaffPasswordResetDialog(staff: staff),
       barrierDismissible: false,
     );
   }

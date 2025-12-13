@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
@@ -20,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../features/admin/screens/admin_layout.dart';
 import '../../../features/admin/screens/authentication/admin_login.dart';
+import '../../../staff_navigation_menu.dart';
 
 class AuthenticationRepository extends GetxController {
   static AuthenticationRepository get instance => Get.find();
@@ -63,7 +65,7 @@ class AuthenticationRepository extends GetxController {
         switch (role) {
           case 'admin':
           // Admin can access all pages, default to User Management
-            Get.offAll(() => const UserManagementPage());
+            Get.offAll(() => const AdminDashboard());
             break;
           case 'community_manager':
           // Community Manager - default to Dashboard (since they can't access User Management)
@@ -124,32 +126,31 @@ class AuthenticationRepository extends GetxController {
   }
 
   /// 更新用户 FCM Token
-  Future<void> _updateUserFCMToken(String userId) async {
-    try {
-      // 获取当前设备的 FCM token
-      String? fcmToken = await _firebaseMessaging.getToken();
-
-      print('fcmToken: $fcmToken');
-      print('userID#: $userId');
-
-      if (fcmToken != null && userId.isNotEmpty) {
-        // 使用数组来存储多个设备的 token，避免覆盖
-        await _firestore.collection(_usersCollection).doc(userId).set({
-          'fcmTokens': FieldValue.arrayUnion([fcmToken]), // 使用数组和 FieldValue.arrayUnion
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        if (kDebugMode) {
-          print('FCM Token added to fcmTokens array for user: $userId');
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error updating FCM token: $e');
-      }
-      // 不抛出异常，因为 FCM token 更新失败不应该影响登录流程
-    }
-  }
+  // Future<void> _updateUserFCMToken(String userId) async {
+  //   try {
+  //     // 获取当前设备的 FCM token
+  //     String? fcmToken = await _firebaseMessaging.getToken();
+  //
+  //     print('fcmToken: $fcmToken');
+  //     print('userID#: $userId');
+  //
+  //     if (fcmToken != null && userId.isNotEmpty) {
+  //       // 使用数组来存储多个设备的 token，避免覆盖
+  //       await _firestore.collection(_usersCollection).doc(userId).set({
+  //         'fcmTokens': FieldValue.arrayUnion([fcmToken]), // 使用数组和 FieldValue.arrayUnion
+  //       }, SetOptions(merge: true));
+  //
+  //       if (kDebugMode) {
+  //         print('FCM Token added to fcmTokens array for user: $userId');
+  //       }
+  //     }
+  //   } catch (e) {
+  //     if (kDebugMode) {
+  //       print('Error updating FCM token: $e');
+  //     }
+  //     // 不抛出异常，因为 FCM token 更新失败不应该影响登录流程
+  //   }
+  // }
 
 /* --------------------------- Email & Password sign-in --------------------------- */
 
@@ -161,9 +162,9 @@ class AuthenticationRepository extends GetxController {
           email: email, password: password);
 
       // 登录成功后更新 FCM token
-      if (userCredential.user != null) {
-        await _updateUserFCMToken(userCredential.user!.uid);
-      }
+      // if (userCredential.user != null) {
+      //   await _updateUserFCMToken(userCredential.user!.uid);
+      // }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
@@ -279,9 +280,9 @@ class AuthenticationRepository extends GetxController {
       final UserCredential? userCredential = await _auth.signInWithCredential(credentials);
 
       // 登录成功后更新 FCM token
-      if (userCredential?.user != null) {
-        await _updateUserFCMToken(userCredential!.user!.uid);
-      }
+      // if (userCredential?.user != null) {
+      //   await _updateUserFCMToken(userCredential!.user!.uid);
+      // }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
@@ -301,34 +302,69 @@ class AuthenticationRepository extends GetxController {
   /// [FacebookAuthentication] - FACEBOOK
   Future<UserCredential?> signInWithFacebook() async {
     try {
-      // Trigger the sign-in flow
-      final LoginResult loginResult = await FacebookAuth.instance.login();
+      if (kDebugMode) print('🔵 Starting Facebook login...');
 
-      // Create a credential from the access token
+      // Trigger the sign-in flow
+      final LoginResult loginResult = await FacebookAuth.instance.login(
+        permissions: ['email', 'public_profile'],
+      );
+
+      if (kDebugMode) print('🔵 Login status: ${loginResult.status}');
+
+      // 检查登录状态
+      if (loginResult.status != LoginStatus.success) {
+        if (kDebugMode) {
+          print('🔴 Facebook login failed: ${loginResult.status}');
+          print('🔴 Message: ${loginResult.message}');
+        }
+        return null;
+      }
+
+      // 确保 accessToken 存在
+      if (loginResult.accessToken == null) {
+        if (kDebugMode) print('🔴 Facebook access token is null');
+        return null;
+      }
+
+      if (kDebugMode) print('🔵 Creating Firebase credential...');
+
+      // 在 6.2.0 版本中使用 .token 而不是 .tokenString
       final OAuthCredential facebookAuthCredential =
-      FacebookAuthProvider.credential(
-          '${loginResult.accessToken?.tokenString}');
+      FacebookAuthProvider.credential(loginResult.accessToken!.token);
+
+      if (kDebugMode) print('🔵 Signing in with Firebase...');
 
       // Once signed in, return the UserCredential
       final UserCredential userCredential =
-      await FirebaseAuth.instance.signInWithCredential(facebookAuthCredential);
+      await _auth.signInWithCredential(facebookAuthCredential);
 
       // 登录成功后更新 FCM token
-      if (userCredential.user != null) {
-        await _updateUserFCMToken(userCredential.user!.uid);
+      // if (userCredential.user != null) {
+      //   if (kDebugMode) print('🔵 Updating FCM token...');
+      //   await _updateUserFCMToken(userCredential.user!.uid);
+      // }
+
+      if (kDebugMode) {
+        print('✅ Facebook sign-in successful!');
+        print('✅ User ID: ${userCredential.user?.uid}');
+        print('✅ Email: ${userCredential.user?.email}');
+        print('✅ Display Name: ${userCredential.user?.displayName}');
       }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
+      if (kDebugMode) print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
       throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
+      if (kDebugMode) print('❌ FirebaseException: ${e.code} - ${e.message}');
       throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
       throw const FFormatException();
     } on PlatformException catch (e) {
+      if (kDebugMode) print('❌ PlatformException: ${e.code} - ${e.message}');
       throw FPlatformException(e.code).message;
     } catch (e) {
-      if (kDebugMode) print('Something went wrong: $e');
+      if (kDebugMode) print('❌ Unexpected error: $e');
       return null;
     }
   }
@@ -361,7 +397,7 @@ class AuthenticationRepository extends GetxController {
       await currentUser.linkWithCredential(googleCredential);
 
       // 链接成功后更新 FCM token
-      await _updateUserFCMToken(currentUser.uid);
+      // await _updateUserFCMToken(currentUser.uid);
 
       // 返回合并后的用户凭证
       return userCredential;
@@ -397,7 +433,15 @@ class AuthenticationRepository extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
-      // Get.offAll(() => const LoginScreen());
+      // 🆕 确保在主线程上导航
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // 🆕 使用 offAllNamed 或 offAll
+        if (kIsWeb) {
+          Get.offAll(() => const AdminLoginScreen());
+        } else {
+          Get.offAll(() => const LoginScreen());
+        }
+      });
     } on FirebaseAuthException catch (e) {
       throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
@@ -426,6 +470,124 @@ class AuthenticationRepository extends GetxController {
       throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
+    }
+  }
+
+  /// Check if user is banned by email
+  Future<bool> isUserBanned(String email) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_usersCollection)
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final userData = querySnapshot.docs.first.data();
+        return userData['isBanned'] == true;
+      }
+
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking ban status: $e');
+      }
+      // 如果检查失败，返回 false 允许继续登录流程
+      return false;
+    }
+  }
+
+  /// Check user status before allowing login
+  Future<Map<String, dynamic>> checkUserStatus(String email) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_usersCollection)
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return {
+          'canLogin': false,
+          'reason': 'User not found',
+          'message': 'No account found with this email address.',
+        };
+      }
+
+      final userData = querySnapshot.docs.first.data();
+
+      // Check if user is banned
+      if (userData['isBanned'] == true) {
+        return {
+          'canLogin': false,
+          'reason': 'banned',
+          'message': 'Your account has been suspended. Please contact support.',
+        };
+      }
+
+      // Check if user is inactive
+      if (userData['isActive'] == false) {
+        return {
+          'canLogin': false,
+          'reason': 'inactive',
+          'message': 'Your account is inactive. Please contact support to reactivate.',
+        };
+      }
+
+      return {
+        'canLogin': true,
+        'reason': 'ok',
+        'message': 'Account is valid',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking user status: $e');
+      }
+      return {
+        'canLogin': true,
+        'reason': 'error',
+        'message': 'Unable to verify account status',
+      };
+    }
+  }
+
+  /// Check if user's email is verified (using Firebase Auth)
+  Future<bool> isEmailVerified(String uid) async {
+    try {
+      // Reload user to get latest email verification status
+      await _auth.currentUser?.reload();
+      final user = _auth.currentUser;
+
+      return user?.emailVerified ?? false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking email verification: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Check if user is inactive
+  Future<bool> isUserInactive(String email) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_usersCollection)
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final userData = querySnapshot.docs.first.data();
+        return userData['isActive'] == false;
+      }
+
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking ban status: $e');
+      }
+      // 如果检查失败，返回 false 允许继续登录流程
+      return false;
     }
   }
 }

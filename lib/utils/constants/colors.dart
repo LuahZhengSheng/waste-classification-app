@@ -35,7 +35,8 @@ class FColors {
 
   // Background Colors
   static const Color light = Color(0xFFFFFFFF);
-  static const Color dark = Color(0xFF1A1A1A); // 更新：更柔和的深色
+  static const Color dark = Color(0xFF000000); //更新：更柔和的深色
+  // static const Color dark = Color(0xFF1A1A1A); //更新：更柔和的深色
   static const Color primaryBackground = Color(0xFFF3F5F5);
 
   // Background Container Colors
@@ -62,7 +63,7 @@ class FColors {
   static const Color black = Color(0xFF232323);
   static const Color darkerGrey = Color(0xFF333333); // 更新：更明亮的深灰色
   static const Color darkGrey = Color(0xFF939393);
-  static const Color grey = Color(0xFFE0E0E0);
+  static const Color grey = Color(0xFFD0D0D0);
   static const Color softGrey = Color(0xFFF4F4F4);
   static const Color lightGrey = Color(0xFFF9F9F9);
   static const Color white = Color(0xFFFFFFFF);
@@ -290,7 +291,7 @@ class FColors {
   static const Color adminLightTextMuted = Color(0xFFADB5BD);
   static const Color adminLightIcon = Color(0xFF525F7F);
 
-  static const Color adminLightBorder = Color(0xFFE9ECEF);
+  static const Color adminLightBorder = Color(0xFFF1F3F5);
   static const Color adminLightDivider = Color(0xFFDEE2E6);
 
   static const Color adminLightSuccess = Color(0xFF2DCE89);

@@ -9,6 +9,7 @@ class UniversalTimeFilter extends StatelessWidget {
   final Function(TimeFilter) onFilterChanged;
   final bool darkMode;
   final bool showCloseButton;
+  final Color? primaryColor; // 新增：自定义主题色
 
   const UniversalTimeFilter({
     super.key,
@@ -16,7 +17,11 @@ class UniversalTimeFilter extends StatelessWidget {
     required this.onFilterChanged,
     required this.darkMode,
     this.showCloseButton = true,
+    this.primaryColor, // 可选参数，默认使用 FColors.primary
   });
+
+  // 获取实际使用的主题色
+  Color get _primaryColor => primaryColor ?? FColors.primary;
 
   IconData _getTimeFilterIcon(TimeFilter filter) {
     switch (filter) {
@@ -72,9 +77,9 @@ class UniversalTimeFilter extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: FSizes.defaultSpace),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Iconsax.filter,
-                    color: FColors.primary,
+                    color: _primaryColor,
                     size: 24,
                   ),
                   const SizedBox(width: 12),
@@ -109,7 +114,7 @@ class UniversalTimeFilter extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: FColors.primary,
+                      backgroundColor: _primaryColor,
                       foregroundColor: FColors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -144,7 +149,7 @@ class UniversalTimeFilter extends StatelessWidget {
             vertical: 16,
           ),
           decoration: BoxDecoration(
-            color: isSelected ? FColors.primary.withOpacity(0.1) : Colors.transparent,
+            color: isSelected ? _primaryColor.withOpacity(0.1) : Colors.transparent,
           ),
           child: Row(
             children: [
@@ -152,14 +157,14 @@ class UniversalTimeFilter extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? FColors.primary.withOpacity(0.2)
+                      ? _primaryColor.withOpacity(0.2)
                       : (darkMode ? FColors.communityDarkBorder : FColors.grey.withOpacity(0.2)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   _getTimeFilterIcon(filter),
                   color: isSelected
-                      ? FColors.primary
+                      ? _primaryColor
                       : (darkMode ? FColors.darkTextSecondary : FColors.textSecondary),
                   size: 20,
                 ),
@@ -169,16 +174,16 @@ class UniversalTimeFilter extends StatelessWidget {
                 child: Text(
                   filter.displayName,
                   style: TextStyle(
-                    color: isSelected ? FColors.primary : (darkMode ? FColors.white : FColors.black),
+                    color: isSelected ? _primaryColor : (darkMode ? FColors.white : FColors.black),
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     fontSize: 15,
                   ),
                 ),
               ),
               if (isSelected)
-                const Icon(
+                Icon(
                   Iconsax.tick_circle5,
-                  color: FColors.primary,
+                  color: _primaryColor,
                   size: 24,
                 ),
             ],
@@ -202,12 +207,12 @@ class UniversalTimeFilter extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: isFiltered
-                ? FColors.primary.withOpacity(0.1)
+                ? _primaryColor.withOpacity(0.1)
                 : (darkMode ? FColors.communityDarkSurface : FColors.grey.withOpacity(0.1)),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isFiltered
-                  ? FColors.primary
+                  ? _primaryColor
                   : (darkMode ? FColors.communityDarkBorder : FColors.grey.withOpacity(0.2)),
               width: 1.5,
             ),
@@ -218,7 +223,7 @@ class UniversalTimeFilter extends StatelessWidget {
               Icon(
                 _getTimeFilterIcon(selectedFilter),
                 color: isFiltered
-                    ? FColors.primary
+                    ? _primaryColor
                     : (darkMode ? FColors.darkTextSecondary : FColors.textSecondary),
                 size: 20,
               ),
@@ -227,7 +232,7 @@ class UniversalTimeFilter extends StatelessWidget {
                 selectedFilter.displayName,
                 style: TextStyle(
                   color: isFiltered
-                      ? FColors.primary
+                      ? _primaryColor
                       : (darkMode ? FColors.white : FColors.black),
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
@@ -237,7 +242,7 @@ class UniversalTimeFilter extends StatelessWidget {
               Icon(
                 Iconsax.arrow_down_1,
                 color: isFiltered
-                    ? FColors.primary
+                    ? _primaryColor
                     : (darkMode ? FColors.darkTextSecondary : FColors.textSecondary),
                 size: 16,
               ),

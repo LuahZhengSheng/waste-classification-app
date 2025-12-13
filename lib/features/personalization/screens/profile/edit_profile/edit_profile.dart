@@ -6,6 +6,7 @@ import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 
+import '../../../../../utils/validators/validation.dart';
 import '../../../controllers/edit_profile_controller.dart';
 
 class EditProfileScreen extends StatelessWidget {
@@ -39,7 +40,9 @@ class EditProfileScreen extends StatelessWidget {
         : (dark ? FColors.white : FColors.black);
 
     final Color textSecondaryColor = isStaffProfile
-        ? (dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary)
+        ? (dark
+            ? FColors.staffDarkTextSecondary
+            : FColors.staffLightTextSecondary)
         : FColors.darkGrey;
 
     final Color borderColor = isStaffProfile
@@ -58,16 +61,14 @@ class EditProfileScreen extends StatelessWidget {
         title: const Text('Personal Information'),
         actions: [
           Obx(() => IconButton(
-            onPressed: controller.isLoading.value
-                ? null
-                : controller.toggleEditMode,
-            icon: Icon(
-              controller.isEditing.value ? Icons.close : Iconsax.edit,
-              color: controller.isEditing.value
-                  ? errorColor
-                  : primaryColor,
-            ),
-          )),
+                onPressed: controller.isLoading.value
+                    ? null
+                    : controller.toggleEditMode,
+                icon: Icon(
+                  controller.isEditing.value ? Icons.close : Iconsax.edit,
+                  color: controller.isEditing.value ? errorColor : primaryColor,
+                ),
+              )),
         ],
       ),
       body: SingleChildScrollView(
@@ -84,9 +85,9 @@ class EditProfileScreen extends StatelessWidget {
                       final networkImage =
                           controller.profileController.user.value.profileImg;
                       final image =
-                      networkImage != null && networkImage.isNotEmpty
-                          ? NetworkImage(networkImage)
-                          : null;
+                          networkImage != null && networkImage.isNotEmpty
+                              ? NetworkImage(networkImage)
+                              : null;
 
                       return GestureDetector(
                         onTap: controller.profileController.viewProfileImage,
@@ -112,10 +113,10 @@ class EditProfileScreen extends StatelessWidget {
                                 backgroundColor: FColors.light,
                                 child: image == null
                                     ? Icon(
-                                  Iconsax.user,
-                                  size: 40,
-                                  color: textSecondaryColor,
-                                )
+                                        Iconsax.user,
+                                        size: 40,
+                                        color: textSecondaryColor,
+                                      )
                                     : null,
                               ),
                             ),
@@ -147,19 +148,19 @@ class EditProfileScreen extends StatelessWidget {
                                     ],
                                   ),
                                   child: controller.profileController
-                                      .imageUploading.value
+                                          .imageUploading.value
                                       ? Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
                                       : const Icon(
-                                    Iconsax.camera,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
+                                          Iconsax.camera,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
                                 ),
                               ),
                             ),
@@ -171,8 +172,8 @@ class EditProfileScreen extends StatelessWidget {
                     Text(
                       'Tap to view or change profile picture',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: textSecondaryColor,
-                      ),
+                            color: textSecondaryColor,
+                          ),
                     ),
                   ],
                 ),
@@ -187,31 +188,32 @@ class EditProfileScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     /// Basic Information
-                    _buildSectionTitle(context, 'Basic Information', primaryColor),
+                    _buildSectionTitle(
+                        context, 'Basic Information', primaryColor),
                     const SizedBox(height: FSizes.md),
 
                     Obx(() => _buildTextField(
-                      context,
-                      controller: controller.username,
-                      label: 'Username',
-                      icon: Iconsax.user_edit,
-                      enabled: controller.isEditing.value,
-                      primaryColor: primaryColor,
-                      surfaceColor: surfaceColor,
-                      textColor: textColor,
-                      textSecondaryColor: textSecondaryColor,
-                      borderColor: borderColor,
-                      errorColor: errorColor,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Username is required';
-                        }
-                        if (value.length < 3) {
-                          return 'Username must be at least 3 characters';
-                        }
-                        return null;
-                      },
-                    )),
+                          context,
+                          controller: controller.username,
+                          label: 'Username',
+                          icon: Iconsax.user_edit,
+                          enabled: controller.isEditing.value,
+                          primaryColor: primaryColor,
+                          surfaceColor: surfaceColor,
+                          textColor: textColor,
+                          textSecondaryColor: textSecondaryColor,
+                          borderColor: borderColor,
+                          errorColor: errorColor,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Username is required';
+                            }
+                            if (value.length < 3) {
+                              return 'Username must be at least 3 characters';
+                            }
+                            return null;
+                          },
+                        )),
                     const SizedBox(height: FSizes.spaceBtwInputFields),
 
                     _buildTextField(
@@ -230,141 +232,147 @@ class EditProfileScreen extends StatelessWidget {
                     const SizedBox(height: FSizes.spaceBtwInputFields),
 
                     Obx(() => _buildTextField(
-                      context,
-                      controller: controller.phoneNumber,
-                      label: 'Phone Number',
-                      icon: Iconsax.call,
-                      keyboardType: TextInputType.phone,
-                      enabled: controller.isEditing.value,
-                      primaryColor: primaryColor,
-                      surfaceColor: surfaceColor,
-                      textColor: textColor,
-                      textSecondaryColor: textSecondaryColor,
-                      borderColor: borderColor,
-                      errorColor: errorColor,
-                      validator: controller.validateMalaysianPhoneNumber,
-                    )),
+                          context,
+                          controller: controller.phoneNumber,
+                          label: 'Phone Number',
+                          icon: Iconsax.call,
+                          keyboardType: TextInputType.phone,
+                          enabled: controller.isEditing.value,
+                          primaryColor: primaryColor,
+                          surfaceColor: surfaceColor,
+                          textColor: textColor,
+                          textSecondaryColor: textSecondaryColor,
+                          borderColor: borderColor,
+                          errorColor: errorColor,
+                          validator: (value) {
+                            if (value != null && value.isNotEmpty && value != 'N/A') {
+                              return FValidator.validatePhoneNumber(value);
+                            }
+                            return null;
+                          },
+                        )),
 
                     const SizedBox(height: FSizes.spaceBtwSections),
 
                     /// Personal Information
-                    _buildSectionTitle(context, 'Personal Information', primaryColor),
+                    _buildSectionTitle(
+                        context, 'Personal Information', primaryColor),
                     const SizedBox(height: FSizes.md),
 
                     Obx(() => controller.isEditing.value
                         ? _buildDropdownField(
-                      context,
-                      selectedValue: controller.selectedGender.value,
-                      label: 'Gender',
-                      icon: Iconsax.man,
-                      items: controller.genderOptions,
-                      enabled: true,
-                      primaryColor: primaryColor,
-                      surfaceColor: surfaceColor,
-                      textColor: textColor,
-                      textSecondaryColor: textSecondaryColor,
-                      borderColor: borderColor,
-                      onChanged: (value) {
-                        controller.selectedGender.value = value;
-                      },
-                    )
+                            context,
+                            selectedValue: controller.selectedGender.value,
+                            label: 'Gender',
+                            icon: Iconsax.man,
+                            items: controller.genderOptions,
+                            enabled: true,
+                            primaryColor: primaryColor,
+                            surfaceColor: surfaceColor,
+                            textColor: textColor,
+                            textSecondaryColor: textSecondaryColor,
+                            borderColor: borderColor,
+                            onChanged: (value) {
+                              controller.selectedGender.value = value;
+                            },
+                          )
                         : _buildReadOnlyGenderField(
-                      context,
-                      value: controller.selectedGender.value,
-                      label: 'Gender',
-                      icon: Iconsax.man,
-                      surfaceColor: surfaceColor,
-                      textSecondaryColor: textSecondaryColor,
-                    )),
+                            context,
+                            value: controller.selectedGender.value,
+                            label: 'Gender',
+                            icon: Iconsax.man,
+                            surfaceColor: surfaceColor,
+                            textSecondaryColor: textSecondaryColor,
+                          )),
                     const SizedBox(height: FSizes.spaceBtwInputFields),
 
                     Obx(() => _buildDateField(
-                      context,
-                      controller: controller.dateOfBirth,
-                      label: 'Date of Birth',
-                      icon: Iconsax.calendar,
-                      enabled: controller.isEditing.value,
-                      primaryColor: primaryColor,
-                      surfaceColor: surfaceColor,
-                      textColor: textColor,
-                      textSecondaryColor: textSecondaryColor,
-                      borderColor: borderColor,
-                      onTap: () => controller.selectDate(context),
-                    )),
+                          context,
+                          controller: controller.dateOfBirth,
+                          label: 'Date of Birth',
+                          icon: Iconsax.calendar,
+                          enabled: controller.isEditing.value,
+                          primaryColor: primaryColor,
+                          surfaceColor: surfaceColor,
+                          textColor: textColor,
+                          textSecondaryColor: textSecondaryColor,
+                          borderColor: borderColor,
+                          onTap: () => controller.selectDate(context),
+                        )),
 
                     const SizedBox(height: FSizes.spaceBtwSections * 1.5),
 
                     /// Save Button (only show when editing)
                     Obx(() => controller.isEditing.value
                         ? Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: controller.isLoading.value
-                                ? null
-                                : () => controller.updateUserProfile(),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: FSizes.md),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    FSizes.borderRadiusLg),
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: controller.isLoading.value
+                                      ? null
+                                      : () => controller.updateUserProfile(),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primaryColor,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: FSizes.md),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                          FSizes.borderRadiusLg),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: controller.isLoading.value
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Save Changes',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                ),
                               ),
-                              elevation: 0,
-                            ),
-                            child: controller.isLoading.value
-                                ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                              const SizedBox(height: FSizes.md),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: controller.isLoading.value
+                                      ? null
+                                      : controller.resetForm,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: FSizes.md),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                          FSizes.borderRadiusLg),
+                                    ),
+                                    side: BorderSide(color: textSecondaryColor),
+                                  ),
+                                  child: Text(
+                                    'Cancel',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: textSecondaryColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ),
                               ),
-                            )
-                                : Text(
-                              'Save Changes',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: FSizes.md),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: controller.isLoading.value
-                                ? null
-                                : controller.resetForm,
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: FSizes.md),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    FSizes.borderRadiusLg),
-                              ),
-                              side: BorderSide(color: textSecondaryColor),
-                            ),
-                            child: Text(
-                              'Cancel',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                color: textSecondaryColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
+                            ],
+                          )
                         : const SizedBox()),
 
                     const SizedBox(height: FSizes.defaultSpace),
@@ -378,32 +386,33 @@ class EditProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionTitle(BuildContext context, String title, Color primaryColor) {
+  Widget _buildSectionTitle(
+      BuildContext context, String title, Color primaryColor) {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: primaryColor,
-      ),
+            fontWeight: FontWeight.bold,
+            color: primaryColor,
+          ),
     );
   }
 
   Widget _buildTextField(
-      BuildContext context, {
-        required TextEditingController controller,
-        required String label,
-        required IconData icon,
-        required Color primaryColor,
-        required Color surfaceColor,
-        required Color textColor,
-        required Color textSecondaryColor,
-        required Color borderColor,
-        required Color errorColor,
-        TextInputType? keyboardType,
-        String? Function(String?)? validator,
-        bool enabled = true,
-        String? helperText,
-      }) {
+    BuildContext context, {
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required Color primaryColor,
+    required Color surfaceColor,
+    required Color textColor,
+    required Color textSecondaryColor,
+    required Color borderColor,
+    required Color errorColor,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+    bool enabled = true,
+    String? helperText,
+  }) {
     final dark = FHelperFunctions.isDarkMode(context);
 
     return Container(
@@ -411,17 +420,17 @@ class EditProfileScreen extends StatelessWidget {
         color: enabled
             ? surfaceColor
             : (dark
-            ? FColors.darkerGrey.withOpacity(0.3)
-            : FColors.grey.withOpacity(0.3)),
+                ? FColors.darkerGrey.withOpacity(0.3)
+                : FColors.grey.withOpacity(0.3)),
         borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
         boxShadow: enabled
             ? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ]
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ]
             : [],
       ),
       child: TextFormField(
@@ -430,16 +439,14 @@ class EditProfileScreen extends StatelessWidget {
         validator: validator,
         enabled: enabled,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: enabled
-              ? textColor
-              : textSecondaryColor,
-        ),
+              color: enabled ? textColor : textSecondaryColor,
+            ),
         decoration: InputDecoration(
           labelText: label,
           helperText: helperText,
           helperStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: textSecondaryColor,
-          ),
+                color: textSecondaryColor,
+              ),
           prefixIcon: Container(
             margin: const EdgeInsets.all(FSizes.sm),
             padding: const EdgeInsets.all(FSizes.sm),
@@ -483,8 +490,8 @@ class EditProfileScreen extends StatelessWidget {
           fillColor: enabled
               ? surfaceColor
               : (dark
-              ? FColors.darkerGrey.withOpacity(0.3)
-              : FColors.grey.withOpacity(0.3)),
+                  ? FColors.darkerGrey.withOpacity(0.3)
+                  : FColors.grey.withOpacity(0.3)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: FSizes.md,
             vertical: FSizes.md,
@@ -496,19 +503,19 @@ class EditProfileScreen extends StatelessWidget {
 
   // 下拉菜单构建方法（仅在编辑模式下使用）
   Widget _buildDropdownField(
-      BuildContext context, {
-        required String? selectedValue,
-        required String label,
-        required IconData icon,
-        required List<String> items,
-        required Function(String?) onChanged,
-        required Color primaryColor,
-        required Color surfaceColor,
-        required Color textColor,
-        required Color textSecondaryColor,
-        required Color borderColor,
-        bool enabled = true,
-      }) {
+    BuildContext context, {
+    required String? selectedValue,
+    required String label,
+    required IconData icon,
+    required List<String> items,
+    required Function(String?) onChanged,
+    required Color primaryColor,
+    required Color surfaceColor,
+    required Color textColor,
+    required Color textSecondaryColor,
+    required Color borderColor,
+    bool enabled = true,
+  }) {
     final dark = FHelperFunctions.isDarkMode(context);
 
     return Container(
@@ -516,17 +523,17 @@ class EditProfileScreen extends StatelessWidget {
         color: enabled
             ? surfaceColor
             : (dark
-            ? FColors.darkerGrey.withOpacity(0.3)
-            : FColors.grey.withOpacity(0.3)),
+                ? FColors.darkerGrey.withOpacity(0.3)
+                : FColors.grey.withOpacity(0.3)),
         borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
         boxShadow: enabled
             ? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ]
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ]
             : [],
       ),
       child: DropdownButtonFormField<String>(
@@ -564,8 +571,8 @@ class EditProfileScreen extends StatelessWidget {
           fillColor: enabled
               ? surfaceColor
               : (dark
-              ? FColors.darkerGrey.withOpacity(0.3)
-              : FColors.grey.withOpacity(0.3)),
+                  ? FColors.darkerGrey.withOpacity(0.3)
+                  : FColors.grey.withOpacity(0.3)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: FSizes.md,
             vertical: FSizes.md,
@@ -577,8 +584,8 @@ class EditProfileScreen extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: textColor,
-              ),
+                    color: textColor,
+                  ),
             ),
           );
         }).toList(),
@@ -592,25 +599,25 @@ class EditProfileScreen extends StatelessWidget {
         hint: Text(
           'Select Gender',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: textSecondaryColor,
-          ),
+                color: textSecondaryColor,
+              ),
         ),
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: textColor,
-        ),
+              color: textColor,
+            ),
       ),
     );
   }
 
   // 新增：只读模式下的性别显示
   Widget _buildReadOnlyGenderField(
-      BuildContext context, {
-        required String? value,
-        required String label,
-        required IconData icon,
-        required Color surfaceColor,
-        required Color textSecondaryColor,
-      }) {
+    BuildContext context, {
+    required String? value,
+    required String label,
+    required IconData icon,
+    required Color surfaceColor,
+    required Color textSecondaryColor,
+  }) {
     final dark = FHelperFunctions.isDarkMode(context);
 
     return Container(
@@ -628,10 +635,10 @@ class EditProfileScreen extends StatelessWidget {
       child: TextFormField(
         readOnly: true,
         enabled: false,
-        controller: TextEditingController(text: value ?? 'Not set'),
+        controller: TextEditingController(text: value ?? 'N/A'),
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: textSecondaryColor,
-        ),
+              color: textSecondaryColor,
+            ),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Container(
@@ -669,18 +676,18 @@ class EditProfileScreen extends StatelessWidget {
   }
 
   Widget _buildDateField(
-      BuildContext context, {
-        required TextEditingController controller,
-        required String label,
-        required IconData icon,
-        required VoidCallback onTap,
-        required Color primaryColor,
-        required Color surfaceColor,
-        required Color textColor,
-        required Color textSecondaryColor,
-        required Color borderColor,
-        bool enabled = true,
-      }) {
+    BuildContext context, {
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    required Color primaryColor,
+    required Color surfaceColor,
+    required Color textColor,
+    required Color textSecondaryColor,
+    required Color borderColor,
+    bool enabled = true,
+  }) {
     final dark = FHelperFunctions.isDarkMode(context);
 
     return Container(
@@ -688,17 +695,17 @@ class EditProfileScreen extends StatelessWidget {
         color: enabled
             ? surfaceColor
             : (dark
-            ? FColors.darkerGrey.withOpacity(0.3)
-            : FColors.grey.withOpacity(0.3)),
+                ? FColors.darkerGrey.withOpacity(0.3)
+                : FColors.grey.withOpacity(0.3)),
         borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
         boxShadow: enabled
             ? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ]
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ]
             : [],
       ),
       child: TextFormField(
@@ -707,10 +714,8 @@ class EditProfileScreen extends StatelessWidget {
         onTap: enabled ? onTap : null,
         enabled: enabled,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: enabled
-              ? textColor
-              : textSecondaryColor,
-        ),
+              color: enabled ? textColor : textSecondaryColor,
+            ),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Container(
@@ -753,8 +758,8 @@ class EditProfileScreen extends StatelessWidget {
           fillColor: enabled
               ? surfaceColor
               : (dark
-              ? FColors.darkerGrey.withOpacity(0.3)
-              : FColors.grey.withOpacity(0.3)),
+                  ? FColors.darkerGrey.withOpacity(0.3)
+                  : FColors.grey.withOpacity(0.3)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: FSizes.md,
             vertical: FSizes.md,

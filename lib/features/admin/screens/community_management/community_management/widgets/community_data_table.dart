@@ -13,6 +13,7 @@ import '../../../../../community/models/post_model.dart';
 import '../../../../controllers/community_management/community_management_controller.dart';
 import '../../community_management_detail/community_management_detail.dart';
 import '../../widgets/admin_media_preview.dart';
+import 'post_report_dialog.dart';
 
 class CommunityDataTable extends StatefulWidget {
   final List<PostModel> posts;
@@ -78,9 +79,8 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
   }
 
   double _calculateTableWidth() {
-    // Post ID(200) + Poster(250) + Type(140) + Media(140) +
-    // Likes(100) + Comments(100) + Created(150) + Updated(150) + Spacer(120) + Actions(180)
-    return 200 + 250 + 140 + 140 + 100 + 100 + 150 + 150 + 120 + 180;
+    // 增加 Actions 列宽度以容纳新按钮
+    return 200 + 250 + 140 + 140 + 120 + 100 + 100 + 150 + 150 + 120 + 220;
   }
 
   @override
@@ -146,7 +146,7 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
             top: 0,
             bottom: 0,
             child: Container(
-              width: 180,
+              width: 220,
               decoration: BoxDecoration(
                 color: widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
                 boxShadow: [
@@ -229,10 +229,11 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
       DataColumn(label: SizedBox(width: 250, child: _buildColumnHeader('Poster', 1))),
       DataColumn(label: SizedBox(width: 140, child: _buildColumnHeader('Type', 2))),
       DataColumn(label: SizedBox(width: 140, child: _buildColumnHeader('Media', 3))),
-      DataColumn(label: SizedBox(width: 100, child: _buildColumnHeader('Likes', 4)), numeric: true),
-      DataColumn(label: SizedBox(width: 100, child: _buildColumnHeader('Comments', 5)), numeric: true),
-      DataColumn(label: SizedBox(width: 150, child: _buildColumnHeader('Created', 6))),
-      DataColumn(label: SizedBox(width: 150, child: _buildColumnHeader('Updated', 7))),
+      DataColumn(label: SizedBox(width: 120, child: _buildColumnHeader('Reports', 4)), numeric: true),
+      DataColumn(label: SizedBox(width: 100, child: _buildColumnHeader('Likes', 5)), numeric: true),
+      DataColumn(label: SizedBox(width: 100, child: _buildColumnHeader('Comments', 6)), numeric: true),
+      DataColumn(label: SizedBox(width: 150, child: _buildColumnHeader('Created', 7))),
+      DataColumn(label: SizedBox(width: 150, child: _buildColumnHeader('Updated', 8))),
       _buildEmptySpacerColumn(),
     ];
 
@@ -245,7 +246,7 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
 
   DataColumn _buildEmptySpacerColumn() {
     return DataColumn(
-      label: SizedBox(width: 120, child: const Text('')),
+      label: SizedBox(width: 170, child: const Text('')),
     );
   }
 
@@ -282,7 +283,7 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
 
   DataColumn _buildActionColumn() {
     return DataColumn(
-      label: SizedBox(width: 180, child: Text('Actions', style: _headerStyle())),
+      label: SizedBox(width: 220, child: Text('Actions', style: _headerStyle())),
     );
   }
 
@@ -295,6 +296,7 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
         _buildPosterCell(user, post),
         _buildPostTypeBadge(post.postType),
         _buildMediaCell(post),
+        _buildReportersCell(post),
         DataCell(
           Container(
             width: 100,
@@ -350,7 +352,7 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
 
   DataCell _buildEmptySpacerCell() {
     return DataCell(
-      Container(width: 120, child: const Text('')),
+      Container(width: 170, child: const Text('')),
     );
   }
 
@@ -460,10 +462,10 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
         icon = Iconsax.messages_3;
         label = 'Discussion';
         break;
-      case 'announcement':
+      case 'tip':
         color = widget.dark ? FColors.adminDarkWarning : FColors.adminLightWarning;
         icon = Iconsax.microphone;
-        label = 'Announcement';
+        label = 'Tip';
         break;
       case 'event':
         color = widget.dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
@@ -508,6 +510,95 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
     );
   }
 
+  DataCell _buildReportersCell(PostModel post) {
+    final reportCount = post.reportCount;
+    Color badgeColor;
+    Color textColor;
+
+    // 根据 reportCount 设置颜色
+    if (reportCount >= 10) {
+      badgeColor = widget.dark
+          ? FColors.adminDarkError.withOpacity(0.15)
+          : FColors.adminLightError.withOpacity(0.15);
+      textColor = widget.dark ? FColors.adminDarkError : FColors.adminLightError;
+    } else if (reportCount >= 5) {
+      badgeColor = widget.dark
+          ? FColors.adminDarkWarning.withOpacity(0.15)
+          : FColors.adminLightWarning.withOpacity(0.15);
+      textColor = widget.dark ? FColors.adminDarkWarning : FColors.adminLightWarning;
+    } else if (reportCount > 0) {
+      badgeColor = widget.dark
+          ? FColors.adminDarkInfo.withOpacity(0.15)
+          : FColors.adminLightInfo.withOpacity(0.15);
+      textColor = widget.dark ? FColors.adminDarkInfo : FColors.adminLightInfo;
+    } else {
+      badgeColor = widget.dark
+          ? FColors.adminDarkTextMuted.withOpacity(0.15)
+          : FColors.adminLightTextMuted.withOpacity(0.15);
+      textColor = widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted;
+    }
+
+    return DataCell(
+      Container(
+        width: 120,
+        child: InkWell(
+          onTap: reportCount > 0
+              ? () => _showReportDetailsDialog(post)
+              : null,
+          borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+            decoration: BoxDecoration(
+              color: badgeColor,
+              borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+              border: Border.all(
+                color: textColor.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Iconsax.warning_2,
+                  size: 14,
+                  color: textColor,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  reportCount.toString(),
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                if (reportCount > 0) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Iconsax.eye,
+                    size: 12,
+                    color: textColor.withOpacity(0.7),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReportDetailsDialog(PostModel post) {
+    showDialog(
+      context: context,
+      builder: (context) => PostReportDialog(
+        post: post,
+        dark: widget.dark,
+      ),
+    );
+  }
+
   DataCell _buildDateTimeCell(DateTime dateTime) {
     return DataCell(
       Container(
@@ -536,7 +627,6 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
   }
 
   DataCell _buildUpdatedAtCell(PostModel post) {
-    // 【修改】检查 updatedAt 是否为 null
     if (post.updatedAt == null) {
       return DataCell(
         Container(
@@ -580,53 +670,101 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
   }
 
   DataCell _buildActionCell(PostModel post) {
+    final hasReports = post.reportCount > 0;
+    final hasHighReports = post.reportCount >= 10;
+
     return DataCell(
       Container(
-        width: 180,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        width: 220,
+        child: Stack(
           children: [
-            IconButton(
-              onPressed: () => Get.to(() => CommunityManagementDetailScreen(post: post)),
-              icon: Icon(
-                Iconsax.eye,
-                color: widget.dark
-                    ? FColors.adminDarkTextSecondary
-                    : FColors.adminLightTextSecondary,
-                size: 18,
-              ),
-              tooltip: 'View Details',
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () => Get.to(() => CommunityManagementDetailScreen(post: post)),
+                  icon: Icon(
+                    Iconsax.eye,
+                    color: widget.dark
+                        ? FColors.adminDarkTextSecondary
+                        : FColors.adminLightTextSecondary,
+                    size: 18,
+                  ),
+                  tooltip: 'View Details',
+                ),
+                IconButton(
+                  onPressed: () => _showActionDialog(post),
+                  icon: Icon(
+                    post.isDisabled ? Iconsax.refresh : Iconsax.close_circle,
+                    color: post.isDisabled
+                        ? (widget.dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess)
+                        : (widget.dark ? FColors.adminDarkError : FColors.adminLightError),
+                    size: 18,
+                  ),
+                  tooltip: post.isDisabled ? 'Recover Post' : 'Disable Post',
+                ),
+                // 🆕 清空 reports 按钮（只在有 reports 时显示）
+                if (hasReports)
+                  IconButton(
+                    onPressed: () => _showClearReportsDialog(post),
+                    icon: Icon(
+                      Iconsax.shield_tick,
+                      color: widget.dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess,
+                      size: 18,
+                    ),
+                    tooltip: 'Clear All Reports',
+                  ),
+              ],
             ),
-            IconButton(
-              onPressed: () => _showActionDialog(post),
-              icon: Icon(
-                post.isDisabled ? Iconsax.refresh : Iconsax.close_circle,
-                color: post.isDisabled
-                    ? (widget.dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess)
-                    : (widget.dark ? FColors.adminDarkError : FColors.adminLightError),
-                size: 18,
+            // 🆕 Overlay 遮罩（reports >= 10 时显示）
+            if (hasHighReports)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: (widget.dark ? FColors.adminDarkError : FColors.adminLightError)
+                        .withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(FSizes.cardRadiusSm),
+                    border: Border.all(
+                      color: widget.dark ? FColors.adminDarkError : FColors.adminLightError,
+                      width: 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Iconsax.danger,
+                          size: 24,
+                          color: widget.dark ? FColors.adminDarkError : FColors.adminLightError,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'High Reports',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: widget.dark ? FColors.adminDarkError : FColors.adminLightError,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Hidden from users',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: widget.dark ? FColors.adminDarkError : FColors.adminLightError,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              tooltip: post.isDisabled ? 'Recover Post' : 'Disable Post',
-            ),
           ],
         ),
       ),
     );
   }
-
-  // void _showActionDialog(PostModel post) {
-  //   if (post.isDisabled) {
-  //     Get.dialog(
-  //       RecoverPostDialog(post: post),
-  //       barrierDismissible: false,
-  //     );
-  //   } else {
-  //     Get.dialog(
-  //       DisablePostDialog(post: post),
-  //       barrierDismissible: false,
-  //     );
-  //   }
-  // }
 
   void _showActionDialog(PostModel post) {
     final controller = CommunityManagementController.instance;
@@ -635,6 +773,16 @@ class _CommunityDataTableState extends State<CommunityDataTable> {
       postContent: post.content.length > 50 ? '${post.content.substring(0, 50)}...' : post.content,
       isDisabled: post.isDisabled,
       onConfirm: () => controller.togglePostStatus(post),
+    );
+  }
+
+  void _showClearReportsDialog(PostModel post) {
+    final controller = CommunityManagementController.instance;
+
+    FAdminLoaders.showClearReportsConfirmationDialog(
+      postContent: post.content.length > 50 ? '${post.content.substring(0, 50)}...' : post.content,
+      reportCount: post.reportCount,
+      onConfirm: () => controller.clearPostReports(post),
     );
   }
 

@@ -8,6 +8,8 @@ import 'package:fyp/utils/validators/validation.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../../utils/constants/colors.dart';
+
 class FLoginForm extends StatelessWidget {
   const FLoginForm({
     super.key,
@@ -37,14 +39,18 @@ class FLoginForm extends StatelessWidget {
             Obx(
               () => TextFormField(
                 controller: controller.password,
-                validator: (value) => FValidator.validateEmptyText('Password', value),
+                validator: (value) =>
+                    FValidator.validateEmptyText('Password', value),
                 obscureText: controller.hidePassword.value,
                 decoration: InputDecoration(
                   labelText: FTexts.password,
                   prefixIcon: const Icon(Iconsax.password_check),
                   suffixIcon: IconButton(
-                    onPressed: () => controller.hidePassword.value = !controller.hidePassword.value,
-                    icon: Icon(controller.hidePassword.value ? Iconsax.eye_slash : Iconsax.eye),
+                    onPressed: () => controller.hidePassword.value =
+                        !controller.hidePassword.value,
+                    icon: Icon(controller.hidePassword.value
+                        ? Iconsax.eye_slash
+                        : Iconsax.eye),
                   ),
                 ),
               ),
@@ -55,29 +61,35 @@ class FLoginForm extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                /// Remember Me
-                // Row(
-                //   children: [
-                //     Obx(() => Checkbox(value: controller.rememberMe.value, onChanged: (value) => controller.rememberMe.value = !controller.rememberMe.value)),
-                //     const Text(FTexts.rememberMe),
-                //   ],
-                // ),
-
                 /// Forget Password
                 TextButton(
                   onPressed: () => Get.to(() => const ForgetPassword()),
-                  child: const Text(FTexts.forgetPassword),
+                  child: const Text(
+                    FTexts.forgetPassword,
+                    style: TextStyle(color: FColors.primary),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: FSizes.spaceBtwSections),
 
             /// Sign In Button
-            SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => controller.emailAndPasswordSignIn(), child: const Text(FTexts.signIn))),
+            SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                    onPressed: () => controller.emailAndPasswordSignIn(),
+                    child: const Text(FTexts.signIn))),
             const SizedBox(height: FSizes.spaceBtwItems),
 
             /// Create Account Button
-            SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Get.to(const SignupScreen()), child: const Text(FTexts.createAccount))),
+            SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                    onPressed: () => Get.to(const SignupScreen()),
+                    child: Text(
+                      FTexts.createAccount,
+                      style: TextStyle(color: FColors.primary),
+                    ))),
           ],
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
+import 'package:fyp/config/emission_config/recycling_waste.dart';
 
 import '../../../utils/helpers/activity_image.dart';
 
@@ -16,6 +17,7 @@ class RecyclingActivityRepository extends GetxController {
 
   final String _activitiesCollection = 'recyclingActivities';
   final String _activityImagesFolder = 'recycling_activities';
+  final String _usersCollection = 'users';
 
   /// Get user's approved activities stream
   Stream<List<RecyclingActivity>> getUserApprovedActivitiesStream(String userId) {
@@ -39,6 +41,21 @@ class RecyclingActivityRepository extends GetxController {
     return _db
         .collection(_activitiesCollection)
         .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => RecyclingActivity.fromSnapshot(doc))
+        .toList())
+        .handleError((error) {
+      print('Error in all activities stream: $error');
+      return <RecyclingActivity>[];
+    });
+  }
+
+  Stream<List<RecyclingActivity>> getStaffActivitiesStream(String centerStaffId) {
+    return _db
+        .collection(_activitiesCollection)
+        .where('centerStaffId', isEqualTo: centerStaffId)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
@@ -190,8 +207,8 @@ class RecyclingActivityRepository extends GetxController {
       final snapshot = await _db
           .collection(_activitiesCollection)
           .where('userId', isEqualTo: userId)
-          .where('createdAt', isGreaterThanOrEqualTo: startDate.toIso8601String())
-          .where('createdAt', isLessThanOrEqualTo: endDate.toIso8601String())
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .orderBy('createdAt', descending: true)
           .get();
 
@@ -200,42 +217,6 @@ class RecyclingActivityRepository extends GetxController {
           .toList();
     } catch (e) {
       throw 'Failed to fetch activities by date range: $e';
-    }
-  }
-
-  /// Get user's total points
-  Future<int> getUserTotalPoints(String userId) async {
-    try {
-      final snapshot = await _db
-          .collection(_activitiesCollection)
-          .where('userId', isEqualTo: userId)
-          .where('status', isEqualTo: 'completed')
-          .get();
-
-      return snapshot.docs.fold<int>(
-        0,
-            (sum, doc) => sum + ((doc.data()['pointsEarned'] ?? 0) as int),
-      );
-    } catch (e) {
-      throw 'Failed to calculate total points: $e';
-    }
-  }
-
-  /// Get user's total recycled weight
-  Future<double> getUserTotalWeight(String userId) async {
-    try {
-      final snapshot = await _db
-          .collection(_activitiesCollection)
-          .where('userId', isEqualTo: userId)
-          .where('status', isEqualTo: 'completed')
-          .get();
-
-      return snapshot.docs.fold<double>(
-        0.0,
-            (sum, doc) => sum + ((doc.data()['weight'] ?? 0.0) as double),
-      );
-    } catch (e) {
-      throw 'Failed to calculate total weight: $e';
     }
   }
 
@@ -278,8 +259,8 @@ class RecyclingActivityRepository extends GetxController {
     });
   }
 
-  /// Submit multiple activities with their images and update user points
-  /// This is used by staff when adding multiple recycling activities for a user
+  /// Submit multiple activities with their images and update user stats
+  /// This method calculates emission before saving and updates all user statistics
   Future<void> submitActivitiesWithImages(
       List<ActivityWithImage> activitiesWithImages,
       String userId,
@@ -307,10 +288,19 @@ class RecyclingActivityRepository extends GetxController {
           finalImageFileName = item.activity.supportImage;
         }
 
-        // Store activity data with uploaded image filename
+        // 🆕 Calculate emission before saving
+        final emissionReduced = RecyclingWasteEmissionConfig.calculateEmissionReduced(
+          item.activity.wasteCategoryId,
+          item.activity.weight,
+        );
+
+        print('  📊 Emission calculated: ${emissionReduced.toStringAsFixed(2)} kg CO2e');
+
+        // Store activity data with uploaded image filename and emission
         activityData.add({
           'activity': item.activity,
           'imageFileName': finalImageFileName,
+          'emissionReduced': emissionReduced,
         });
       }
 
@@ -319,38 +309,59 @@ class RecyclingActivityRepository extends GetxController {
       // Step 2: Create Firestore documents in batch
       print('📝 Step 2: Creating Firestore documents...');
       int totalPoints = 0;
+      double totalWeight = 0.0;
+      double totalEmission = 0.0;
+      int activityCount = activityData.length;
 
       for (int i = 0; i < activityData.length; i++) {
         final data = activityData[i];
         final activity = data['activity'] as RecyclingActivity;
         final imageFileName = data['imageFileName'] as String;
+        final emissionReduced = data['emissionReduced'] as double;
 
         print('Creating document ${i + 1}/${activityData.length}');
 
+        // 🆕 Use Firestore-generated ID
         final docRef = _db.collection(_activitiesCollection).doc();
 
         final updatedActivity = activity.copyWith(
           activityId: docRef.id,
           supportImage: imageFileName,
           status: 'completed',
+          emissionReduced: emissionReduced, // Set calculated emission
         );
 
         batch.set(docRef, updatedActivity.toJson());
+
         totalPoints += updatedActivity.pointsEarned;
+        totalWeight += updatedActivity.weight;
+        totalEmission += emissionReduced;
 
         print('  Document ${i + 1} prepared with ID: ${docRef.id}');
+        print('  Weight: ${updatedActivity.weight} kg, Emission: ${emissionReduced.toStringAsFixed(2)} kg CO2e');
       }
 
       print('✅ All documents prepared');
 
-      // Step 3: Update user points
-      print('💰 Step 3: Updating user points (total: $totalPoints)');
-      final userRef = _db.collection('users').doc(userId);
+      // Step 3: 🆕 Update user statistics (points, weight, activities count, emission)
+      print('💰 Step 3: Updating user statistics...');
+      print('  Total Points: $totalPoints');
+      print('  Total Weight: ${totalWeight.toStringAsFixed(2)} kg');
+      print('  Total Activities: $activityCount');
+      print('  Total Emission: ${totalEmission.toStringAsFixed(2)} kg CO2e');
+
+      final userRef = _db.collection(_usersCollection).doc(userId);
 
       batch.update(userRef, {
+        // Points
         'rewardPoint': FieldValue.increment(totalPoints),
         'monthlyRewardPoint': FieldValue.increment(totalPoints),
         'totalRewardPoint': FieldValue.increment(totalPoints),
+
+        // 🆕 Recycling Statistics
+        'totalWeightRecycled': FieldValue.increment(totalWeight),
+        'totalRecyclingActivities': FieldValue.increment(activityCount),
+        'totalEmissionReduced': FieldValue.increment(totalEmission),
       });
 
       // Step 4: Commit batch
@@ -358,7 +369,11 @@ class RecyclingActivityRepository extends GetxController {
       await batch.commit();
 
       print('✅ Batch committed successfully!');
-      print('🎉 Submission complete: ${activityData.length} activities, $totalPoints points');
+      print('🎉 Submission complete:');
+      print('  - ${activityData.length} activities');
+      print('  - $totalPoints points');
+      print('  - ${totalWeight.toStringAsFixed(2)} kg recycled');
+      print('  - ${totalEmission.toStringAsFixed(2)} kg CO2e reduced');
     } catch (e, stackTrace) {
       print('❌ Error in submitActivitiesWithImages: $e');
       print('Stack trace: $stackTrace');
@@ -386,8 +401,8 @@ class RecyclingActivityRepository extends GetxController {
   Future<List<RecyclingActivity>> getActivitiesByCenterId(String centerId) async {
     try {
       // First get all staff IDs of this center
-      final staffSnapshot = await FirebaseFirestore.instance
-          .collection('users')
+      final staffSnapshot = await _db
+          .collection(_usersCollection)
           .where('centerId', isEqualTo: centerId)
           .where('role', isEqualTo: 'center_staff')
           .get();
@@ -415,8 +430,8 @@ class RecyclingActivityRepository extends GetxController {
   Stream<List<RecyclingActivity>> getActivitiesByCenterIdStream(String centerId) async* {
     try {
       // First get all staff IDs of this center
-      final staffSnapshot = await FirebaseFirestore.instance
-          .collection('users')
+      final staffSnapshot = await _db
+          .collection(_usersCollection)
           .where('centerId', isEqualTo: centerId)
           .where('role', isEqualTo: 'center_staff')
           .get();

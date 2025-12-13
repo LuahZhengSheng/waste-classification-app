@@ -10,7 +10,6 @@ class FPostActions extends StatelessWidget {
   final bool isLiked;
   final VoidCallback? onLikePressed;
   final VoidCallback? onCommentPressed;
-  final VoidCallback? onSharePressed;
 
   const FPostActions({
     super.key,
@@ -18,169 +17,128 @@ class FPostActions extends StatelessWidget {
     required this.isLiked,
     this.onLikePressed,
     this.onCommentPressed,
-    this.onSharePressed,
   });
 
   @override
   Widget build(BuildContext context) {
     final dark = FHelperFunctions.isDarkMode(context);
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
       children: [
-        // Like Button
-        _ActionButton(
-          icon: isLiked ? Iconsax.like_15 : Iconsax.like_1,
-          count: post.likes.length,
-          isActive: isLiked,
-          onPressed: onLikePressed,
-          dark: dark,
-        ),
-        const SizedBox(width: FSizes.md),
+        // ✅ 上半部分：统计数据（87 likes, 10 comments）
+        _buildStatsSection(dark),
 
-        // Comment Button
-        _ActionButton(
-          icon: Iconsax.message,
-          count: post.commentCount,
-          isActive: false,
-          onPressed: onCommentPressed,
-          dark: dark,
+        const SizedBox(height: FSizes.xs),
+
+        // ✅ 分隔线
+        Divider(
+          height: 1,
+          thickness: 0.5,
+          color: dark
+              ? FColors.communityDarkBorder.withOpacity(0.3)
+              : FColors.grey.withOpacity(0.2),
         ),
+
+        // ✅ 下半部分：操作按钮（Like, Comment）
+        _buildActionButtons(dark),
       ],
     );
   }
-}
 
-class _ActionButton extends StatefulWidget {
-  final IconData icon;
-  final int count;
-  final bool isActive;
-  final VoidCallback? onPressed;
-  final bool dark;
+  /// ✅ 统计数据部分
+  Widget _buildStatsSection(bool dark) {
+    final hasLikes = post.likes.isNotEmpty;
+    final hasComments = post.commentCount > 0;
 
-  const _ActionButton({
-    required this.icon,
-    required this.count,
-    required this.isActive,
-    this.onPressed,
-    required this.dark,
-  });
+    // 如果没有任何统计数据，不显示此部分
+    if (!hasLikes && !hasComments) {
+      return const SizedBox.shrink();
+    }
 
-  @override
-  State<_ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<_ActionButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  bool _isPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 100),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  void _handleTapDown(TapDownDetails details) {
-    setState(() => _isPressed = true);
-    _animationController.forward();
-  }
-
-  void _handleTapUp(TapUpDetails details) {
-    setState(() => _isPressed = false);
-    _animationController.reverse();
-  }
-
-  void _handleTapCancel() {
-    setState(() => _isPressed = false);
-    _animationController.reverse();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: _handleTapDown,
-      onTapUp: _handleTapUp,
-      onTapCancel: _handleTapCancel,
-      onTap: widget.onPressed,
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(
-                horizontal: FSizes.sm,
-                vertical: FSizes.xs,
-              ),
-              decoration: BoxDecoration(
-                color: _isPressed
-                    ? (widget.dark
-                    ? FColors.communityDarkBorder
-                    : FColors.grey.withOpacity(0.2))
-                    : (widget.dark
-                    ? FColors.communityDarkSurface
-                    : FColors.lightContainer),
-                borderRadius: BorderRadius.circular(FSizes.borderRadiusSm * 2),
-                // border: Border.all(
-                //   color: widget.isActive
-                //       ? FColors.primary
-                //       : (widget.dark
-                //       ? FColors.communityDarkBorder
-                //       : FColors.grey.withOpacity(0.3)),
-                //   width: widget.isActive ? 1.5 : 1,
-                // ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    widget.icon,
-                    color: widget.isActive
-                        ? FColors.primary
-                        : (widget.dark
-                        ? FColors.darkTextSecondary
-                        : FColors.textSecondary),
-                    size: FSizes.iconSm,
-                  ),
-                  if (widget.count > 0) ...[
-                    const SizedBox(width: FSizes.xs),
-                    Text(
-                      _formatCount(widget.count),
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: widget.isActive
-                            ? FColors.primary
-                            : (widget.dark
-                            ? FColors.darkTextSecondary
-                            : FColors.textSecondary),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        },
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: FSizes.md,
+        vertical: FSizes.sm,
       ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Likes 统计
+          if (hasLikes)
+            Row(
+              children: [
+                // 点赞图标（使用表情符号模仿 Facebook）
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: FColors.primary,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.thumb_up,
+                      size: 10,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _formatCount(post.likes.length),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: dark ? FColors.grey : FColors.darkGrey,
+                  ),
+                ),
+              ],
+            )
+          else
+            const SizedBox.shrink(),
+
+          // Comments 统计
+          if (hasComments)
+            Text(
+              '${_formatCount(post.commentCount)} comment${post.commentCount > 1 ? 's' : ''}',
+              style: TextStyle(
+                fontSize: 13,
+                color: dark ? FColors.grey : FColors.darkGrey,
+              ),
+            )
+          else
+            const SizedBox.shrink(),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ 操作按钮部分
+  Widget _buildActionButtons(bool dark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        // Like Button
+        Expanded(
+          child: _FacebookActionButton(
+            icon: isLiked ? Iconsax.like_15 : Iconsax.like_1,
+            label: 'Like',
+            isActive: isLiked,
+            onPressed: onLikePressed,
+            dark: dark,
+          ),
+        ),
+
+        // Comment Button
+        Expanded(
+          child: _FacebookActionButton(
+            icon: Iconsax.message,
+            label: 'Comment',
+            isActive: false,
+            onPressed: onCommentPressed,
+            dark: dark,
+          ),
+        ),
+      ],
     );
   }
 
@@ -192,5 +150,78 @@ class _ActionButtonState extends State<_ActionButton>
     } else {
       return '${(count / 1000000).toStringAsFixed(1)}M';
     }
+  }
+}
+
+// ✅ Facebook-style Action Button
+class _FacebookActionButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback? onPressed;
+  final bool dark;
+
+  const _FacebookActionButton({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    this.onPressed,
+    required this.dark,
+  });
+
+  @override
+  State<_FacebookActionButton> createState() => _FacebookActionButtonState();
+}
+
+class _FacebookActionButtonState extends State<_FacebookActionButton> {
+  bool isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => isPressed = true),
+      onTapUp: (_) => setState(() => isPressed = false),
+      onTapCancel: () => setState(() => isPressed = false),
+      onTap: widget.onPressed,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(
+          vertical: FSizes.sm,
+          horizontal: FSizes.xs,
+        ),
+        decoration: BoxDecoration(
+          color: isPressed
+              ? (widget.dark
+              ? FColors.grey.withOpacity(0.1)
+              : FColors.grey.withOpacity(0.15))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(FSizes.borderRadiusSm),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              widget.icon,
+              color: widget.isActive
+                  ? FColors.primary
+                  : (widget.dark ? FColors.grey : FColors.darkGrey),
+              size: 20,
+            ),
+            const SizedBox(width: FSizes.xs),
+            Text(
+              widget.label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: widget.isActive
+                    ? FColors.primary
+                    : (widget.dark ? FColors.grey : FColors.darkGrey),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

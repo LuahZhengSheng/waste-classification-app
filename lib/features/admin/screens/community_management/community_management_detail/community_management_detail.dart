@@ -13,6 +13,7 @@ import '../../../../../utils/popups/admin_loaders.dart';
 import '../../../../community/models/post_model.dart';
 import '../../../controllers/community_management/community_management_controller.dart';
 import '../../../controllers/community_management/community_management_detail_controller.dart';
+import '../community_management/widgets/post_report_dialog.dart';
 import '../widgets/admin_media_preview.dart';
 import '../widgets/post_type_badge.dart';
 
@@ -49,6 +50,21 @@ class CommunityManagementDetailScreen extends StatelessWidget {
           ),
         ),
         actions: [
+          // 🆕 清空 reports 按钮（只在有 reports 时显示）
+          Obx(() {
+            final hasReports = controller.currentPost.value.reportCount > 0;
+            if (hasReports) {
+              return IconButton(
+                onPressed: () => _showClearReportsDialog(controller.currentPost.value),
+                icon: Icon(
+                  Iconsax.shield_tick,
+                  color: dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess,
+                ),
+                tooltip: 'Clear All Reports',
+              );
+            }
+            return const SizedBox.shrink();
+          }),
           Obx(
                 () => IconButton(
               onPressed: () =>
@@ -74,13 +90,6 @@ class CommunityManagementDetailScreen extends StatelessWidget {
       body: Obx(
             () => Column(
           children: [
-            // 固定顶部的内容变化提示
-            // if (controller.hasContentChanged.value)
-            //   Padding(
-            //     padding: const EdgeInsets.all(FSizes.lg),
-            //     child: buildContentChangedNotification(controller, dark),
-            //   ),
-
             // 固定顶部的 comments 变化提示
             if (controller.hasCommentsChanged.value)
               Padding(
@@ -97,7 +106,7 @@ class CommunityManagementDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    buildPostCard(controller, dark),
+                    buildPostCard(controller, dark, context), // 🔧 传入 context
                     const SizedBox(height: FSizes.spaceBtwSections),
                     buildCommentsSection(controller, dark),
                   ],
@@ -112,49 +121,6 @@ class CommunityManagementDetailScreen extends StatelessWidget {
 }
 
 // ==================== 通知区组件 ====================
-
-// Widget buildContentChangedNotification(
-//     CommunityManagementDetailController controller, bool dark) {
-//   return Container(
-//     margin: const EdgeInsets.only(bottom: FSizes.spaceBtwItems),
-//     padding: const EdgeInsets.all(FSizes.md),
-//     decoration: BoxDecoration(
-//       color: dark
-//           ? FColors.adminDarkWarning.withOpacity(0.1)
-//           : FColors.adminLightWarning.withOpacity(0.1),
-//       borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-//     ),
-//     child: Row(
-//       children: [
-//         Icon(
-//           Iconsax.info_circle,
-//           color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
-//           size: 20,
-//         ),
-//         const SizedBox(width: FSizes.sm),
-//         Expanded(
-//           child: Text(
-//             'Post content has been updated',
-//             style: TextStyle(
-//               color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
-//               fontWeight: FontWeight.w600,
-//             ),
-//           ),
-//         ),
-//         IconButton(
-//           onPressed: controller.dismissContentChangedNotification,
-//           icon: Icon(
-//             Iconsax.close_circle,
-//             color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
-//             size: 20,
-//           ),
-//           constraints: const BoxConstraints(),
-//           padding: EdgeInsets.zero,
-//         ),
-//       ],
-//     ),
-//   );
-// }
 
 Widget buildCommentsChangedNotification(
     CommunityManagementDetailController controller, bool dark) {
@@ -177,7 +143,7 @@ Widget buildCommentsChangedNotification(
         const SizedBox(width: FSizes.sm),
         const Expanded(
           child: Text(
-            'Comments have changed', // 简化文字
+            'Comments have changed',
             style: TextStyle(
               fontWeight: FontWeight.w600,
             ),
@@ -216,9 +182,20 @@ Widget buildCommentsChangedNotification(
 
 // ==================== Post Card ====================
 
-Widget buildPostCard(CommunityManagementDetailController controller, bool dark) {
+Widget buildPostCard(CommunityManagementDetailController controller, bool dark, BuildContext context) { // 🔧 添加 context 参数
   final post = controller.currentPost.value;
   final poster = controller.usersCache[post.userId];
+
+  // 🔧 修正：移除多余的参数
+  void showReportDetailsDialog(PostModel post) {
+    showDialog(
+      context: context,
+      builder: (context) => PostReportDialog(
+        post: post,
+        dark: dark,
+      ),
+    );
+  }
 
   return Container(
     decoration: BoxDecoration(
@@ -252,10 +229,8 @@ Widget buildPostCard(CommunityManagementDetailController controller, bool dark) 
             children: [
               Row(
                 children: [
-                  // Post Type Badge - 使用 CommonBadge
                   _buildPostTypeBadge(post.postType, dark),
                   const Spacer(),
-                  // Status Badge - 使用 CommonBadge
                   _buildStatusBadge(post.isDisabled, dark),
                 ],
               ),
@@ -363,6 +338,198 @@ Widget buildPostCard(CommunityManagementDetailController controller, bool dark) 
           ),
 
         const Divider(height: 1),
+
+        // Reports Section
+        if (post.reportCount > 0)
+          Container(
+            margin: const EdgeInsets.all(FSizes.lg),
+            padding: const EdgeInsets.all(FSizes.lg),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  dark
+                      ? FColors.adminDarkError.withOpacity(0.08)
+                      : FColors.adminLightError.withOpacity(0.08),
+                  dark
+                      ? FColors.adminDarkError.withOpacity(0.03)
+                      : FColors.adminLightError.withOpacity(0.03),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+              border: Border.all(
+                color: dark
+                    ? FColors.adminDarkError.withOpacity(0.2)
+                    : FColors.adminLightError.withOpacity(0.2),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(FSizes.sm),
+                      decoration: BoxDecoration(
+                        color: dark
+                            ? FColors.adminDarkError.withOpacity(0.15)
+                            : FColors.adminLightError.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (dark
+                                ? FColors.adminDarkError
+                                : FColors.adminLightError)
+                                .withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Iconsax.warning_2,
+                        color: dark
+                            ? FColors.adminDarkError
+                            : FColors.adminLightError,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: FSizes.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Content Reports',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: dark
+                                  ? FColors.adminDarkText
+                                  : FColors.adminLightText,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: FSizes.sm,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: dark
+                                      ? FColors.adminDarkError
+                                      : FColors.adminLightError,
+                                  borderRadius:
+                                  BorderRadius.circular(FSizes.cardRadiusXs),
+                                ),
+                                child: Text(
+                                  '${post.reportCount}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                post.reportCount > 1
+                                    ? 'unique reporters'
+                                    : 'unique reporter',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: dark
+                                      ? FColors.adminDarkTextSecondary
+                                      : FColors.adminLightTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // View Details Button
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => showReportDetailsDialog(post),
+                        borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: FSizes.md,
+                            vertical: FSizes.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: dark
+                                  ? FColors.adminDarkError.withOpacity(0.4)
+                                  : FColors.adminLightError.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Iconsax.eye,
+                                size: 16,
+                                color: dark
+                                    ? FColors.adminDarkError
+                                    : FColors.adminLightError,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'View Details',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: dark
+                                      ? FColors.adminDarkError
+                                      : FColors.adminLightError,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: FSizes.md),
+
+                // Divider
+                Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        (dark ? FColors.adminDarkError : FColors.adminLightError)
+                            .withOpacity(0.1),
+                        (dark ? FColors.adminDarkError : FColors.adminLightError)
+                            .withOpacity(0.3),
+                        (dark ? FColors.adminDarkError : FColors.adminLightError)
+                            .withOpacity(0.1),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: FSizes.md),
+
+                // Reports Summary
+                _buildReportsSummary(post, dark),
+              ],
+            ),
+          ),
+
+        if (post.reportCount > 0) const Divider(height: 1),
 
         // Dates
         Container(
@@ -488,6 +655,161 @@ Widget buildPostCard(CommunityManagementDetailController controller, bool dark) 
   );
 }
 
+Widget _buildReportsSummary(PostModel post, bool dark) {
+  final reportTypeCount = <String, int>{};
+  post.reports.forEach((reportType, userIds) {
+    reportTypeCount[reportType] = userIds.length;
+  });
+
+  if (reportTypeCount.isEmpty) {
+    return Center(
+      child: Text(
+        'No reports',
+        style: TextStyle(
+          fontSize: 12,
+          fontStyle: FontStyle.italic,
+          color: dark
+              ? FColors.adminDarkTextMuted
+              : FColors.adminLightTextMuted,
+        ),
+      ),
+    );
+  }
+
+  // Sort by count descending
+  final sortedEntries = reportTypeCount.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Report Breakdown',
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: dark
+              ? FColors.adminDarkTextSecondary
+              : FColors.adminLightTextSecondary,
+          letterSpacing: 0.5,
+        ),
+      ),
+      const SizedBox(height: FSizes.sm),
+      Wrap(
+        spacing: FSizes.sm,
+        runSpacing: FSizes.sm,
+        children: sortedEntries.map((entry) {
+          // Color intensity based on count
+          final intensity = (entry.value / post.reportCount).clamp(0.3, 1.0);
+          final bgColor = (dark
+              ? FColors.adminDarkError
+              : FColors.adminLightError)
+              .withOpacity(0.1 * intensity);
+          final borderColor = (dark
+              ? FColors.adminDarkError
+              : FColors.adminLightError)
+              .withOpacity(0.4 * intensity);
+          final textColor = dark
+              ? FColors.adminDarkError
+              : FColors.adminLightError;
+
+          return Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: FSizes.md,
+              vertical: FSizes.sm,
+            ),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+              border: Border.all(
+                color: borderColor,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getReportIcon(entry.key),
+                  size: 14,
+                  color: textColor,
+                ),
+                const SizedBox(width: FSizes.xs),
+                Text(
+                  _formatReportType(entry.key),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(width: FSizes.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: textColor,
+                    borderRadius: BorderRadius.circular(FSizes.cardRadiusXs),
+                  ),
+                  child: Text(
+                    '${entry.value}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    ],
+  );
+}
+
+// Helper function to get icon for report type
+IconData _getReportIcon(String type) {
+  switch (type.toLowerCase()) {
+    case 'spam':
+      return Iconsax.message_minus;
+    case 'hatespeech':
+      return Iconsax.danger;
+    case 'inappropriate':
+      return Iconsax.warning_2;
+    case 'harassment':
+      return Iconsax.user_remove;
+    case 'violence':
+      return Iconsax.shield_cross;
+    case 'falseinformation':
+      return Iconsax.info_circle;
+    default:
+      return Iconsax.flag;
+  }
+}
+
+String _formatReportType(String type) {
+  switch (type.toLowerCase()) {
+    case 'spam':
+      return 'Spam';
+    case 'hatespeech':
+      return 'Hate Speech';
+    case 'inappropriate':
+      return 'Inappropriate';
+    case 'harassment':
+      return 'Harassment';
+    case 'violence':
+      return 'Violence';
+    case 'falseinformation':
+      return 'False Info';
+    default:
+      return type.replaceAll('_', ' ').toUpperCase();
+  }
+}
+
 Widget _buildPostTypeBadge(String postType, bool dark) {
   Color color;
   IconData icon;
@@ -504,10 +826,10 @@ Widget _buildPostTypeBadge(String postType, bool dark) {
       icon = Iconsax.messages_3;
       label = 'Discussion';
       break;
-    case 'announcement':
+    case 'tip':
       color = dark ? FColors.adminDarkWarning : FColors.adminLightWarning;
       icon = Iconsax.microphone;
-      label = 'Announcement';
+      label = 'Tip';
       break;
     case 'event':
       color = dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess;
@@ -574,7 +896,6 @@ Widget buildCommentsSection(CommunityManagementDetailController controller, bool
     decoration: BoxDecoration(
       color: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
       borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-
       boxShadow: [
         BoxShadow(
           color: Colors.black.withOpacity(0.05),
@@ -586,7 +907,6 @@ Widget buildCommentsSection(CommunityManagementDetailController controller, bool
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
         Container(
           padding: const EdgeInsets.all(FSizes.lg),
           decoration: BoxDecoration(
@@ -617,25 +937,18 @@ Widget buildCommentsSection(CommunityManagementDetailController controller, bool
             ],
           ),
         ),
-
         const Divider(height: 1),
-
-        // Comments List
         Obx(() {
-          // 【新增】初始加载状态
           if (controller.isInitialLoading.value) {
             return buildLoadingState(dark);
           }
-
           if (controller.isLoadingComments.value &&
               controller.comments.isEmpty) {
             return buildLoadingState(dark);
           }
-
           if (controller.comments.isEmpty) {
             return buildEmptyCommentsState(dark);
           }
-
           return Column(
             children: [
               ListView.separated(
@@ -654,8 +967,6 @@ Widget buildCommentsSection(CommunityManagementDetailController controller, bool
                   return buildCommentItem(comment, controller, dark);
                 },
               ),
-
-              // Load More Button
               if (controller.hasMoreComments.value)
                 Container(
                   padding: const EdgeInsets.all(FSizes.lg),
@@ -750,7 +1061,6 @@ Widget buildInfoRow(String label, String value, IconData icon, bool dark) {
 }
 
 Widget buildDateCard(String label, DateTime? date, IconData icon, bool dark) {
-  // 【新增】如果 date 为 null
   if (date == null) {
     return Container(
       padding: const EdgeInsets.all(FSizes.md),
@@ -804,7 +1114,6 @@ Widget buildDateCard(String label, DateTime? date, IconData icon, bool dark) {
     );
   }
 
-  // 原有的显示逻辑
   return Container(
     padding: const EdgeInsets.all(FSizes.md),
     decoration: BoxDecoration(
@@ -914,13 +1223,7 @@ Widget buildStatCard(String label, String value, IconData icon, bool dark) {
 }
 
 Widget buildMediaGrid(List<String> media, bool dark) {
-  print('========== buildMediaGrid DEBUG START ==========');
-  print('Total media count: ${media.length}');
-  print('Is empty: ${media.isEmpty}');
-
   if (media.isEmpty) {
-    print('Media is empty, showing "No media" message');
-    print('========== buildMediaGrid DEBUG END ==========');
     return Container(
       padding: const EdgeInsets.all(FSizes.xl),
       child: Center(
@@ -937,15 +1240,6 @@ Widget buildMediaGrid(List<String> media, bool dark) {
     );
   }
 
-  print('Media URLs:');
-  for (int i = 0; i < media.length; i++) {
-    print('  [$i]: ${media[i]}');
-    print('       Is Image: ${MediaHelpers.isImageUrl(media[i])}');
-  }
-
-  print('Building Wrap widget with ${media.length} children');
-  print('========== buildMediaGrid DEBUG END ==========');
-
   return Container(
     decoration: BoxDecoration(
       color: dark
@@ -960,7 +1254,6 @@ Widget buildMediaGrid(List<String> media, bool dark) {
       children: List.generate(
         media.length,
             (index) {
-          print('Generating thumbnail $index for: ${media[index]}');
           return buildMediaThumbnail(media[index], index, media, dark);
         },
       ),
@@ -968,17 +1261,12 @@ Widget buildMediaGrid(List<String> media, bool dark) {
   );
 }
 
-Widget buildMediaThumbnail(String mediaUrl, int index, List<String> allMedia, bool dark) {
-  print('buildMediaThumbnail called:');
-  print('  Index: $index');
-  print('  URL: $mediaUrl');
-  print('  Is Image: ${MediaHelpers.isImageUrl(mediaUrl)}');
-
+Widget buildMediaThumbnail(
+    String mediaUrl, int index, List<String> allMedia, bool dark) {
   final bool isImage = MediaHelpers.isImageUrl(mediaUrl);
 
   return GestureDetector(
     onTap: () {
-      print('Thumbnail $index tapped, opening lightbox');
       showMediaDialog(allMedia, index, dark);
     },
     child: Container(
@@ -998,14 +1286,12 @@ Widget buildMediaThumbnail(String mediaUrl, int index, List<String> allMedia, bo
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) {
-              print('Image $index loaded successfully');
               return child;
             }
             final progress = loadingProgress.expectedTotalBytes != null
                 ? loadingProgress.cumulativeBytesLoaded /
                 loadingProgress.expectedTotalBytes!
                 : null;
-            print('Image $index loading: ${progress != null ? (progress * 100).toStringAsFixed(1) : "..."}%');
             return Center(
               child: SizedBox(
                 width: 20,
@@ -1021,7 +1307,6 @@ Widget buildMediaThumbnail(String mediaUrl, int index, List<String> allMedia, bo
             );
           },
           errorBuilder: (context, error, stackTrace) {
-            print('ERROR loading image $index: $error');
             return Icon(
               Iconsax.image,
               color: dark
@@ -1032,12 +1317,17 @@ Widget buildMediaThumbnail(String mediaUrl, int index, List<String> allMedia, bo
           },
         )
             : Container(
-          // 视频缩略图：深色背景 + 播放图标
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                (dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary).withOpacity(0.2),
-                (dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary).withOpacity(0.1),
+                (dark
+                    ? FColors.adminDarkPrimary
+                    : FColors.adminLightPrimary)
+                    .withOpacity(0.2),
+                (dark
+                    ? FColors.adminDarkPrimary
+                    : FColors.adminLightPrimary)
+                    .withOpacity(0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -1134,74 +1424,70 @@ Widget buildCommentItem(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Commenter Info
           if (commenter != null)
             FutureBuilder<String?>(
-              future: commenter.profileImg != null &&
-                  commenter.profileImg!.isNotEmpty
-                  ? UserRepository.instance
-                  .getProfileImageUrl(commenter.profileImg!)
-                  : Future.value(null),
-              builder: (context, snapshot) {
-                final imageUrl = snapshot.data;
-                return Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        if (imageUrl != null && imageUrl.isNotEmpty) {
-                          Get.dialog(
-                            AdminMediaLightbox(
-                              mediaUrls: [imageUrl],
-                              initialIndex: 0,
-                              dark: dark,
-                            ),
-                          );
-                        }
-                      },
-                      child: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: dark
-                            ? FColors.adminDarkPrimary
-                            : FColors.adminLightPrimary,
-                        backgroundImage:
-                        imageUrl != null && imageUrl.isNotEmpty
-                            ? NetworkImage(imageUrl)
-                            : null,
-                        child: imageUrl == null || imageUrl.isEmpty
-                            ? const Icon(
-                          Iconsax.user,
-                          color: Colors.white,
-                          size: 20,
-                        )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: FSizes.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            commenter.username,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              color: dark
-                                  ? FColors.adminDarkText
-                                  : FColors.adminLightText,
-                            ),
+            future: commenter.profileImg != null &&
+                commenter.profileImg!.isNotEmpty
+                ? UserRepository.instance
+                .getProfileImageUrl(commenter.profileImg!)
+                : Future.value(null),
+            builder: (context, snapshot) {
+              final imageUrl = snapshot.data;
+              return Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      if (imageUrl != null && imageUrl.isNotEmpty) {
+                        Get.dialog(
+                          AdminMediaLightbox(
+                            mediaUrls: [imageUrl],
+                            initialIndex: 0,
+                            dark: dark,
                           ),
-                        ],
-                      ),
+                        );
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: dark
+                          ? FColors.adminDarkPrimary
+                          : FColors.adminLightPrimary,
+                      backgroundImage:
+                      imageUrl != null && imageUrl.isNotEmpty
+                          ? NetworkImage(imageUrl)
+                          : null,
+                      child: imageUrl == null || imageUrl.isEmpty
+                          ? const Icon(
+                        Iconsax.user,
+                        color: Colors.white,
+                        size: 20,
+                      )
+                          : null,
                     ),
-                  ],
-                );
-              },
+                  ),
+                  const SizedBox(width: FSizes.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          commenter.username,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: dark
+                                ? FColors.adminDarkText
+                                : FColors.adminLightText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
             ),
-
           const SizedBox(height: FSizes.sm),
-
-          // Comment Content
           Container(
             padding: const EdgeInsets.all(FSizes.md),
             decoration: BoxDecoration(
@@ -1220,10 +1506,7 @@ Widget buildCommentItem(
               ),
             ),
           ),
-
           const SizedBox(height: FSizes.sm),
-
-          // Comment Stats & Actions
           Row(
             children: [
               Icon(
@@ -1291,8 +1574,6 @@ Widget buildCommentItem(
               ],
             ],
           ),
-
-          // Replies Section
           if (isExpanded) ...[
             const SizedBox(height: FSizes.md),
             Obx(() {
@@ -1315,8 +1596,6 @@ Widget buildCommentItem(
                 children: [
                   ...replies.map((reply) =>
                       buildReplyItem(reply, controller, dark)),
-
-                  // Load More Replies Button
                   if (hasMoreReplies)
                     Padding(
                       padding: const EdgeInsets.only(
@@ -1436,7 +1715,6 @@ Widget buildReplyItem(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Replier Info
             if (replier != null)
               Row(
                 children: [
@@ -1499,10 +1777,7 @@ Widget buildReplyItem(
                   ),
                 ],
               ),
-
             const SizedBox(height: FSizes.sm),
-
-            // Reply Content
             Text(
               reply.content,
               style: TextStyle(
@@ -1512,10 +1787,7 @@ Widget buildReplyItem(
                     : FColors.adminLightTextSecondary,
               ),
             ),
-
             const SizedBox(height: FSizes.sm),
-
-            // Reply Stats
             Row(
               children: [
                 Icon(
@@ -1562,9 +1834,28 @@ void showActionDialog(PostModel post) {
   final controller = CommunityManagementController.instance;
 
   FAdminLoaders.showPostDisableRecoverDialog(
-    postContent: post.content.length > 50 ? '${post.content.substring(0, 50)}...' : post.content,
+    postContent: post.content.length > 50
+        ? '${post.content.substring(0, 50)}...'
+        : post.content,
     isDisabled: post.isDisabled,
     onConfirm: () => controller.togglePostStatus(post),
+  );
+}
+
+void _showClearReportsDialog(PostModel post) {
+  final controller = CommunityManagementController.instance;
+
+  FAdminLoaders.showClearReportsConfirmationDialog(
+    postContent: post.content.length > 50
+        ? '${post.content.substring(0, 50)}...'
+        : post.content,
+    reportCount: post.reportCount,
+    onConfirm: () async {
+      await controller.clearPostReports(post);
+      // 刷新 detail controller 的数据
+      final detailController = Get.find<CommunityManagementDetailController>();
+      await detailController.loadInitialData();
+    },
   );
 }
 

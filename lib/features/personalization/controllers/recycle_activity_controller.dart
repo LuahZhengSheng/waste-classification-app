@@ -4,9 +4,12 @@ import 'package:fyp/features/waste_classification/models/waste_category_model.da
 import 'package:fyp/features/community/models/post_enums.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 import 'package:fyp/data/repositories/authentication/authentication_repository.dart';
+import 'package:intl/intl.dart';
 
-import '../../../data/repositories/personalization/recycling_activity_repository.dart';
+import '../../../data/repositories/recycling_center/recycling_activity_repository.dart';
 import '../../../data/repositories/recycling_center/waste_category_repository.dart';
+import '../../../data/repositories/user/user_repository.dart';
+import '../../authentication/models/user_model.dart';
 
 class RecycleActivityController extends GetxController {
   static RecycleActivityController get instance => Get.find();
@@ -15,6 +18,7 @@ class RecycleActivityController extends GetxController {
   final _activityRepo = Get.put(RecyclingActivityRepository());
   final _categoryRepo = Get.put(WasteCategoryRepository());
   final _authRepo = Get.put(AuthenticationRepository());
+  final _userRepo = Get.put(UserRepository());
 
   // Observable variables
   final RxList<RecyclingActivity> activities = <RecyclingActivity>[].obs;
@@ -27,11 +31,15 @@ class RecycleActivityController extends GetxController {
   // Chart category selection
   final Rx<WasteCategory?> selectedCategoryForChart = Rx<WasteCategory?>(null);
 
+  // 🆕 User statistics from User Collection
+  final Rx<UserModel> currentUser = UserModel.empty().obs;
+
   @override
   void onInit() {
     super.onInit();
     _loadWasteCategories();
     _loadActivities();
+    _loadUserData();
   }
 
   /// Load waste categories from repository
@@ -39,6 +47,24 @@ class RecycleActivityController extends GetxController {
     _categoryRepo.getWasteCategoriesStream().listen((categories) {
       wasteCategories.assignAll(categories);
     });
+  }
+
+  /// 🆕 Load user data to get statistics from User Collection
+  void _loadUserData() {
+    try {
+      final userId = _authRepo.authUser?.uid;
+      if (userId == null) return;
+
+      _userRepo.getUserDetailsStream(userId).listen((user) {
+        currentUser.value = user;
+        print('📊 User stats loaded:');
+        print('  Weight: ${user.totalWeightRecycled} kg');
+        print('  Activities: ${user.totalRecyclingActivities}');
+        print('  Emission: ${user.totalEmissionReduced} kg CO2e');
+      });
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
   }
 
   /// Load activities from repository using stream
@@ -153,19 +179,19 @@ class RecycleActivityController extends GetxController {
         selectedCategoryForChart.value != null;
   }
 
-  /// Get total points earned
+  /// 🆕 Get total points earned from User Collection
   int get totalPointsEarned {
-    return filteredActivities.fold(0, (sum, activity) => sum + activity.pointsEarned);
+    return currentUser.value.totalRewardPoint;
   }
 
-  /// Get total weight recycled
+  /// 🆕 Get total weight recycled from User Collection
   double get totalWeightRecycled {
-    return filteredActivities.fold(0.0, (sum, activity) => sum + activity.weight);
+    return currentUser.value.totalWeightRecycled;
   }
 
-  /// Get total CO2 reduced
+  /// 🆕 Get total CO2 reduced from User Collection
   double get totalCO2Reduced {
-    return totalWeightRecycled * 0.5;
+    return currentUser.value.totalEmissionReduced;
   }
 
   /// Get waste category distribution for chart
@@ -225,7 +251,9 @@ class RecycleActivityController extends GetxController {
 
   /// Get category-specific CO2 reduced
   double getCategoryCO2Reduced(WasteCategory category) {
-    return getCategoryWeight(category) * 0.5;
+    return activities
+        .where((activity) => activity.wasteCategoryId == category.categoryId)
+        .fold(0.0, (sum, activity) => sum + activity.emissionReduced);
   }
 
   /// Get waste category by ID
@@ -265,5 +293,59 @@ class RecycleActivityController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// 🆕 Group activities by date
+  Map<String, List<RecyclingActivity>> getActivitiesGroupedByDate() {
+    final Map<String, List<RecyclingActivity>> grouped = {};
+    final dateFormat = DateFormat('yyyy-MM-dd');
+
+    for (final activity in filteredActivities) {
+      final dateKey = dateFormat.format(activity.createdAt);
+
+      if (!grouped.containsKey(dateKey)) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey]!.add(activity);
+    }
+
+    // Sort by date descending
+    final sortedKeys = grouped.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    return Map.fromEntries(
+        sortedKeys.map((key) => MapEntry(key, grouped[key]!))
+    );
+  }
+
+  /// 🆕 Get formatted date for display
+  String getFormattedDateHeader(String dateKey) {
+    final date = DateTime.parse(dateKey);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    if (dateOnly == today) {
+      return 'Today';
+    } else if (dateOnly == yesterday) {
+      return 'Yesterday';
+    } else {
+      return DateFormat('EEEE, d MMM yyyy').format(date);
+    }
+  }
+
+  /// 🆕 Get date summary for a group
+  Map<String, dynamic> getDateSummary(List<RecyclingActivity> activities) {
+    final totalWeight = activities.fold<double>(0.0, (sum, act) => sum + act.weight);
+    final totalPoints = activities.fold<int>(0, (sum, act) => sum + act.pointsEarned);
+    final totalEmission = activities.fold<double>(0.0, (sum, act) => sum + act.emissionReduced);
+
+    return {
+      'count': activities.length,
+      'weight': totalWeight,
+      'points': totalPoints,
+      'emission': totalEmission,
+    };
   }
 }

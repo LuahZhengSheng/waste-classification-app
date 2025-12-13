@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fyp/utils/constants/image_strings.dart';
-import 'package:fyp/utils/helpers/network_manager.dart';
 import 'package:fyp/utils/popups/full_screen_loader.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -14,8 +14,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../data/repositories/authentication/authentication_repository.dart';
 import '../../../data/repositories/user/user_repository.dart';
+import '../../../utils/constants/sizes.dart';
 import '../../authentication/models/user_model.dart';
-import '../../authentication/screens/login/login.dart';
+import '../../recycling_center/screens/profile/widgets/change_password_screen.dart';
 import '../screens/profile/edit_profile/edit_profile.dart';
 import '../screens/profile/edit_profile/image_cropper.dart';
 import '../screens/profile/profile_camera.dart';
@@ -38,6 +39,91 @@ class ProfileController extends GetxController {
   final authRepository = Get.put(AuthenticationRepository());
   final userRepository = Get.put(UserRepository());
   final uuid = const Uuid();
+
+  // Check if user has password provider
+  bool get hasPasswordProvider {
+    try {
+      final user = authRepository.authUser;
+      if (user == null) return false;
+
+      // Check if user has password provider
+      final providerData = user.providerData;
+      final hasPassword = providerData.any(
+              (provider) => provider.providerId == 'password'
+      );
+
+      if (kDebugMode) {
+        print('📋 Checking password provider:');
+        print('   - Has password: $hasPassword');
+        print('   - Providers: ${providerData.map((p) => p.providerId).toList()}');
+      }
+
+      return hasPassword;
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error checking password provider: $e');
+      }
+      return false;
+    }
+  }
+
+  // Get all user providers
+  List<String> get userProviders {
+    try {
+      final user = authRepository.authUser;
+      if (user == null) return [];
+
+      return user.providerData
+          .map((provider) => provider.providerId)
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error getting user providers: $e');
+      }
+      return [];
+    }
+  }
+
+  // Check if user only uses social login (no password)
+  bool get isSocialLoginOnly {
+    return !hasPasswordProvider;
+  }
+
+  // Get user login method display text
+  String get loginMethod {
+    final providers = userProviders;
+
+    if (providers.isEmpty) {
+      return 'Unknown';
+    }
+
+    final providerNames = <String>[];
+
+    for (var provider in providers) {
+      switch (provider) {
+        case 'password':
+          providerNames.add('Email/Password');
+          break;
+        case 'google.com':
+          providerNames.add('Google');
+          break;
+        case 'facebook.com':
+          providerNames.add('Facebook');
+          break;
+        case 'apple.com':
+          providerNames.add('Apple');
+          break;
+        default:
+          providerNames.add(provider);
+      }
+    }
+
+    if (providerNames.length == 1) {
+      return providerNames.first;
+    } else {
+      return providerNames.join(' + ');
+    }
+  }
 
   @override
   void onInit() {
@@ -357,95 +443,278 @@ class ProfileController extends GetxController {
     }
   }
 
-  /// Delete account warning
+  /// Navigate to Change Password Screen (after successful verification)
+  void navigateToChangePasswordScreen() {
+    Get.to(() => const ChangePasswordScreen());
+  }
+
+  /// Delete account warning with confirmation dialog
   void deleteAccountWarningPopup() {
-    Get.defaultDialog(
-      contentPadding: const EdgeInsets.all(16),
-      title: 'Delete Account',
-      middleText: 'Are you sure you want to delete your account permanently? This action is not reversible and all of your data will be removed permanently.',
-      confirm: ElevatedButton(
-        onPressed: () {
-          Get.back();
-          deleteUserAccount();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          side: const BorderSide(color: Colors.red),
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
         ),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text('Delete'),
+        child: Padding(
+          padding: const EdgeInsets.all(FSizes.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Warning Icon
+              Container(
+                padding: const EdgeInsets.all(FSizes.md),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Iconsax.danger,
+                  color: Colors.red,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: FSizes.md),
+
+              // Title
+              Text(
+                'Deactivate Account',
+                style: Get.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: FSizes.sm),
+
+              // Warning Message
+              Text(
+                'Are you sure you want to deactivate your account? Your account will be set to inactive and you will be logged out.',
+                style: Get.textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: FSizes.xs),
+
+              // 🆕 根据是否有密码 provider 显示不同提示
+              if (hasPasswordProvider)
+                Text(
+                  'You will need to verify your password to proceed.',
+                  style: Get.textTheme.bodySmall?.copyWith(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                )
+              else
+                Text(
+                  'This action cannot be undone.',
+                  style: Get.textTheme.bodySmall?.copyWith(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              const SizedBox(height: FSizes.lg),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: FSizes.md),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.back(); // Close dialog
+
+                        // 🆕 根据是否有密码 provider 决定流程
+                        if (hasPasswordProvider) {
+                          // 需要密码验证
+                          Get.to(
+                                () => ReAuthLoginForm(
+                              onVerifySuccess: _proceedToDeactivate,
+                            ),
+                          );
+                        } else {
+                          // 不需要密码验证，直接显示最终确认对话框
+                          _showFinalConfirmation();
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      child: const Text(
+                        'Deactivate',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-      cancel: OutlinedButton(
-        child: const Text('Cancel'),
-        onPressed: () => Get.back(),
       ),
     );
   }
 
-  /// Delete User Account
-  void deleteUserAccount() async {
-    try {
-      FFullScreenLoader.openLoadingDialog('Processing', FImages.docerAnimation);
+  /// 🆕 显示最终确认对话框（用于社交登录用户）
+  void _showFinalConfirmation() {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(FSizes.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Warning Icon
+              Container(
+                padding: const EdgeInsets.all(FSizes.md),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Iconsax.warning_2,
+                  color: Colors.orange,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: FSizes.md),
 
-      final auth = AuthenticationRepository.instance;
-      final provider = auth.authUser!.providerData.map((e) => e.providerId).first;
+              // Title
+              Text(
+                'Final Confirmation',
+                style: Get.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: FSizes.sm),
 
-      if (provider.isNotEmpty) {
-        if (provider == 'google.com') {
-          await auth.signInWithGoogle();
-          await auth.deleteAccount();
-          FFullScreenLoader.stopLoading();
-          Get.offAll(() => const LoginScreen());
-        } else if (provider == 'password') {
-          FFullScreenLoader.stopLoading();
-          Get.to(() => const ReAuthLoginForm());
-        }
-      }
-    } catch (e) {
-      FFullScreenLoader.stopLoading();
-      FLoaders.warningSnackBar(title: 'Error', message: e.toString());
-    }
+              // Warning Message
+              Text(
+                'This will permanently deactivate your account. You will be logged out immediately.',
+                style: Get.textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: FSizes.xs),
+
+              Text(
+                'Are you absolutely sure?',
+                style: Get.textTheme.bodyMedium?.copyWith(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: FSizes.lg),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: FSizes.md),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.back(); // Close confirmation dialog
+                        _proceedToDeactivate(); // Execute deactivation
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      child: const Text(
+                        'Yes, Deactivate',
+                        style: TextStyle(color: Colors.white, fontSize: 15),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  /// Re-authenticate before deleting
-  Future<void> reAuthenticateEmailAndPasswordUser() async {
+  /// Proceed to deactivate account after successful re-authentication
+  Future<void> _proceedToDeactivate() async {
     try {
-      FFullScreenLoader.openLoadingDialog('Processing', FImages.docerAnimation);
-
-      final isConnected = await NetworkManager.instance.isConnected();
-      if (!isConnected) {
-        FFullScreenLoader.stopLoading();
-        return;
-      }
-
-      if (!reAuthFormKey.currentState!.validate()) {
-        FFullScreenLoader.stopLoading();
-        return;
-      }
-
-      await authRepository.reAuthenticateWithEmailAndPassword(
-        verifyEmail.text.trim(),
-        verifyPassword.text.trim(),
+      FFullScreenLoader.openLoadingDialog(
+        'Deactivating account...',
+        FImages.docerAnimation,
       );
 
-      await authRepository.deleteAccount();
-      FFullScreenLoader.stopLoading();
-      Get.offAll(() => const LoginScreen());
+      // Update isActive to false in Firestore
+      final userId = AuthenticationRepository.instance.authUser?.uid;
+      if (userId != null) {
+        await userRepository.updateStringField({'isActive': false});
+
+        FFullScreenLoader.stopLoading();
+
+        // Show success message
+        FLoaders.successSnackBar(
+          title: 'Account Deactivated',
+          message: 'Your account has been deactivated. You will be logged out.',
+        );
+
+        // Wait a bit for user to see the message
+        await Future.delayed(const Duration(seconds: 2));
+
+        // Logout
+        await authRepository.logout();
+      }
     } catch (e) {
       FFullScreenLoader.stopLoading();
-      FLoaders.warningSnackBar(title: 'Error', message: e.toString());
+      FLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to deactivate account: $e',
+      );
     }
   }
 
   void navigateToEditProfile({bool isStaffProfile = false}) {
     Get.to(() => EditProfileScreen(isStaffProfile: isStaffProfile));
-    // Get.to(() => AddWasteCategoryScreen());
   }
 
-  void logout() {
-    authRepository.logout();
+  void logout() async {
+    try {
+      // 显示 loading
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(),
+        ),
+        barrierDismissible: false,
+      );
+
+      // 等待 logout 完成
+      await authRepository.logout();
+
+      // 关闭 loading
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+    } catch (e) {
+      // 关闭 loading
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      FLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to logout: $e',
+      );
+    }
   }
 
   @override

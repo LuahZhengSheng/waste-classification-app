@@ -5,6 +5,7 @@ class RecyclingCenterStaff extends RoleModel {
   final String centerId;
   final String? gender;
   final DateTime joinDate;
+  final DateTime? lastPasswordResetTime;
 
   RecyclingCenterStaff({
     required super.userId,
@@ -19,60 +20,62 @@ class RecyclingCenterStaff extends RoleModel {
     required this.centerId,
     this.gender,
     required this.joinDate,
+    this.lastPasswordResetTime,
   });
 
-  factory RecyclingCenterStaff.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> doc) {
+  /// 用于 UI 显示的性别（为空时显示 N/A）
+  String get displayGender {
+    if (gender == null || gender!.trim().isEmpty) {
+      return 'N/A';
+    }
+    return gender!;
+  }
+
+  factory RecyclingCenterStaff.fromSnapshot(
+      DocumentSnapshot<Map<String, dynamic>> doc,
+      ) {
     final data = doc.data()!;
+
+    // 先用 RoleModel 处理通用字段（包括 phoneNo 的格式逻辑）
+    final roleModel = RoleModel.fromSnapshot(doc);
+
     return RecyclingCenterStaff(
-      userId: doc.id,
-      username: data['username'] ?? '',
-      email: data['email'] ?? '',
-      phoneNo: data['phoneNo'],
-      profileImg: data['profileImg'],
-      role: data['role'] ?? '',
-      isVerified: data['isVerified'] ?? false,
-      isActive: data['isActive'] ?? false,
-      isBanned: data['isBanned'] ?? false,
+      // RoleModel fields
+      userId: roleModel.userId,
+      username: roleModel.username,
+      email: roleModel.email,
+      phoneNo: roleModel.phoneNo,
+      profileImg: roleModel.profileImg,
+      role: roleModel.role,
+      isVerified: roleModel.isVerified,
+      isActive: roleModel.isActive,
+      isBanned: roleModel.isBanned,
+
+      // RecyclingCenterStaff 自己的字段
       centerId: data['centerId'],
       gender: data['gender'],
       joinDate: data['joinDate'] != null
           ? (data['joinDate'] as Timestamp).toDate()
           : DateTime.now(),
-    );
-  }
-
-  factory RecyclingCenterStaff.fromMap(Map<String, dynamic> map) {
-    return RecyclingCenterStaff(
-      userId: map['userId'] ?? '',
-      username: map['username'] ?? '',
-      email: map['email'] ?? '',
-      phoneNo: map['phoneNo'],
-      profileImg: map['profileImg'],
-      role: map['role'] ?? '',
-      isVerified: map['isVerified'] ?? false,
-      isActive: map['isActive'] ?? false,
-      isBanned: map['isBanned'] ?? false,
-      centerId: map['centerId'],
-      gender: map['gender'],
-      joinDate: DateTime.fromMillisecondsSinceEpoch(map['joinDate']),
+      lastPasswordResetTime: data['lastPasswordResetTime'] != null
+          ? (data['lastPasswordResetTime'] as Timestamp).toDate()
+          : null,
     );
   }
 
   @override
   Map<String, dynamic> toJson() {
+    // 先拿父类的 JSON（包含已格式化的 phoneNo）
+    final baseJson = super.toJson();
+
     return {
-      'userId': userId,
-      'username': username,
-      'email': email,
-      'phoneNo': phoneNo,
-      'profileImg': profileImg,
-      'role': role,
-      'isVerified': isVerified,
-      'isActive': isActive,
-      'isBanned': isBanned,
+      ...baseJson,
       'centerId': centerId,
       'gender': gender,
       'joinDate': Timestamp.fromDate(joinDate),
+      'lastPasswordResetTime': lastPasswordResetTime != null
+          ? Timestamp.fromDate(lastPasswordResetTime!)
+          : null,
     };
   }
 
@@ -81,6 +84,7 @@ class RecyclingCenterStaff extends RoleModel {
     String? centerId,
     String? gender,
     DateTime? joinDate,
+    DateTime? lastPasswordResetTime,
     String? email,
     bool? isActive,
     bool? isVerified,
@@ -104,6 +108,8 @@ class RecyclingCenterStaff extends RoleModel {
       centerId: centerId ?? this.centerId,
       gender: gender ?? this.gender,
       joinDate: joinDate ?? this.joinDate,
+      lastPasswordResetTime:
+      lastPasswordResetTime ?? this.lastPasswordResetTime,
     );
   }
 
@@ -118,4 +124,38 @@ class RecyclingCenterStaff extends RoleModel {
     centerId: '',
     joinDate: DateTime.now(),
   );
+
+  /// Check if password reset link can be sent (10 minutes cooldown)
+  bool canSendPasswordResetLink() {
+    if (lastPasswordResetTime == null) return true;
+
+    final now = DateTime.now();
+    final difference = now.difference(lastPasswordResetTime!);
+    return difference.inMinutes >= 10;
+  }
+
+  /// Get remaining time until next password reset link can be sent
+  Duration? getRemainingResetCooldown() {
+    if (lastPasswordResetTime == null) return null;
+
+    final now = DateTime.now();
+    final nextAvailableTime =
+    lastPasswordResetTime!.add(const Duration(minutes: 10));
+
+    if (now.isAfter(nextAvailableTime)) return null;
+
+    return nextAvailableTime.difference(now);
+  }
+
+  /// Get formatted remaining time string
+  String getFormattedRemainingResetTime() {
+    final remaining = getRemainingResetCooldown();
+    if (remaining == null) return '0m';
+
+    if (remaining.inMinutes > 0) {
+      return '${remaining.inMinutes}m';
+    } else {
+      return '${remaining.inSeconds}s';
+    }
+  }
 }

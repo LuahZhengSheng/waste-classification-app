@@ -14,23 +14,33 @@ class SignupController extends GetxController {
 
   /// Variables
   final hidePassword = true.obs;
-  final privacyPolicy = true.obs;
+  final privacyPolicy = false.obs;
   final email = TextEditingController();
   final username = TextEditingController();
   final password = TextEditingController();
   final confirmPassword = TextEditingController();
   GlobalKey<FormState> signupFormKey = GlobalKey<FormState>();
 
+  /// 🆕 Repository instance
+  final _userRepository = Get.put(UserRepository());
+
   /// -- SIGNUP
   void signup() async {
     try {
       // Start Loading
-      FFullScreenLoader.openLoadingDialog('We are processing your information...', FImages.docerAnimation);
+      FFullScreenLoader.openLoadingDialog(
+          'We are processing your information...',
+          FImages.docerAnimation
+      );
 
       // Check Internet Connectivity
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
         FFullScreenLoader.stopLoading();
+        FLoaders.warningSnackBar(
+          title: 'No Internet',
+          message: 'Please check your internet connection.',
+        );
         return;
       }
 
@@ -60,10 +70,23 @@ class SignupController extends GetxController {
         return;
       }
 
-      // Register user in the Firebase Authentication & Save user data in the Firebase
-      final userCredential = await AuthenticationRepository.instance.registerWithEmailAndPassword(
-          email.text.trim(),
-          password.text.trim()
+      // Check if username already exists
+      final isUsernameAvailable = await _checkUsernameAvailability(username.text.trim());
+
+      if (!isUsernameAvailable) {
+        FFullScreenLoader.stopLoading();
+        FLoaders.errorSnackBar(
+          title: 'Username Taken',
+          message: 'This username is already in use. Please choose a different username.',
+        );
+        return;
+      }
+
+      // Register user in the Firebase Authentication
+      final userCredential = await AuthenticationRepository.instance
+          .registerWithEmailAndPassword(
+        email.text.trim(),
+        password.text.trim(),
       );
 
       // Save Authenticated user data in the Firebase Firestore
@@ -75,30 +98,60 @@ class SignupController extends GetxController {
         isVerified: false,
         isActive: true,
         isBanned: false,
-        joinDate: DateTime.now(), // This will be updated with server time in Firestore
+        joinDate: DateTime.now(),
         rewardPoint: 0,
         monthlyRewardPoint: 0,
         totalRewardPoint: 0,
+        totalWeightRecycled: 0.0,
+        totalRecyclingActivities: 0,
+        totalEmissionReduced: 0.0,
         notifications: [],
       );
 
-      final userRepository = Get.put(UserRepository());
-      await userRepository.saveUserRecord(newUser);
+      await _userRepository.saveUserRecord(newUser);
 
       // Show Success Message
       FLoaders.successSnackBar(
-          title: 'Congratulations',
-          message: 'Your account has been created! Verify email to continue.'
+        title: 'Congratulations',
+        message: 'Your account has been created! Verify email to continue.',
       );
 
       FFullScreenLoader.stopLoading();
 
       // Move to Verify Email Screen
       Get.to(() => VerifyEmailScreen(email: email.text.trim()));
+
     } catch (e) {
       FFullScreenLoader.stopLoading();
-      // Show some Generic Error to the user
-      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      FLoaders.errorSnackBar(title: 'Signup Failed', message: e.toString());
+    }
+  }
+
+  /// Check if username is available
+  Future<bool> _checkUsernameAvailability(String username) async {
+    try {
+      // Use empty string as currentUserId since this is a new user
+      final isUnique = await _userRepository.isUsernameAvailable(username);
+      return isUnique;
+    } catch (e) {
+      print('Error checking username availability: $e');
+      // If check fails, assume username is available to not block signup
+      return true;
+    }
+  }
+
+  /// Check username availability in real-time (for UI feedback)
+  Future<bool> checkUsernameAvailabilityRealtime(String username) async {
+    if (username.isEmpty || username.length < 3) {
+      return true; // Don't check if username is too short
+    }
+
+    try {
+      final isUnique = await _userRepository.isUsernameUnique(username, '');
+      return isUnique;
+    } catch (e) {
+      print('Error checking username availability: $e');
+      return true;
     }
   }
 }

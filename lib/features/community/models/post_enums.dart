@@ -45,3 +45,35 @@ enum TimeFilter {
 
   const TimeFilter(this.displayName);
 }
+
+/// Report options enumeration
+enum ReportOption {
+  spam('Spam', 'Irrelevant or repetitive content'),
+  harassment('Harassment', 'Bullying or threatening behavior'),
+  hateSpeech('Hate Speech', 'Discriminatory or offensive content'),
+  falseInformation('False Information', 'Misleading or fake content'),
+  inappropriateContent('Inappropriate Content', 'Offensive or explicit material'),
+  violence('Violence', 'Violent or graphic content'),
+  other('Other', 'Other concerns');
+
+  final String displayName;
+  final String description;
+
+  const ReportOption(this.displayName, this.description);
+
+  /// Get report option from string value
+  static ReportOption? fromString(String value) {
+    try {
+      return ReportOption.values.firstWhere(
+            (option) => option.name == value,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get all report option names as list
+  static List<String> get allOptionNames {
+    return ReportOption.values.map((option) => option.name).toList();
+  }
+}

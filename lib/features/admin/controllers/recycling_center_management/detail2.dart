@@ -27,7 +27,7 @@
 //         elevation: 0,
 //         leading: IconButton(
 //           onPressed: () => Get.back(),
-//           icon: Icon(Iconsax.arrow_left, color: dark ? FColors.adminDarkText : FColors.adminLightText),
+//           icon: Icon(Iconsax.arrow_left_2, color: dark ? FColors.adminDarkText : FColors.adminLightText),
 //         ),
 //         title: Text(
 //           'Center Details',

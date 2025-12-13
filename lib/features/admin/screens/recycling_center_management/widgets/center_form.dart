@@ -675,7 +675,7 @@ class OpeningHoursSelector extends StatelessWidget {
       Get.snackbar(
         'Hours Updated',
         'Applied ${isOpening ? 'opening' : 'closing'} time to all open days',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor:
         dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess,
         colorText: Colors.white,

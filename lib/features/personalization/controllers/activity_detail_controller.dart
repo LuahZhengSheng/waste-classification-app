@@ -3,12 +3,12 @@ import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart
 import 'package:fyp/features/waste_classification/models/waste_category_model.dart';
 import 'package:fyp/features/recycling_center/models/partner_recycling_center_model.dart';
 import 'package:fyp/data/repositories/recycling_center/recycling_center_repository.dart';
-import 'package:fyp/data/repositories/user/user_repository.dart';
 import 'package:fyp/utils/popups/loaders.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../../data/repositories/personalization/recycling_activity_repository.dart';
+import '../../../data/repositories/recycling_center/recycling_activity_repository.dart';
 import '../../../data/repositories/recycling_center/waste_category_repository.dart';
-import '../../../data/repositories/recycling_center/recycling_center_staff_repository.dart';
+import '../../../data/repositories/user/center_staff_repository.dart';
 import '../../recycling_center/models/recycling_center_staff_model.dart';
 
 class ActivityDetailController extends GetxController {
@@ -23,7 +23,6 @@ class ActivityDetailController extends GetxController {
   final _activityRepo = Get.put(RecyclingActivityRepository());
   final _categoryRepo = Get.put(WasteCategoryRepository());
   final _centerRepo = Get.put(RecyclingCenterRepository());
-  final _userRepo = Get.put(UserRepository());
   final _staffRepo = Get.put(RecyclingCenterStaffRepository());
 
   @override
@@ -52,7 +51,6 @@ class ActivityDetailController extends GetxController {
         _loadStaffUser(),
       ]);
 
-      // 检查数据是否成功加载
       print('=== Activity Data Load Status ===');
       print('Waste Category: ${wasteCategory.value != null ? "Loaded" : "Failed"}');
       print('Recycling Center: ${recyclingCenter.value != null ? "Loaded" : "Failed"}');
@@ -60,7 +58,7 @@ class ActivityDetailController extends GetxController {
       print('Activity ID: ${activity.value?.activityId}');
       print('Center Staff ID: ${activity.value?.centerStaffId}');
       print('Waste Category ID: ${activity.value?.wasteCategoryId}');
-      print('center image: ${recyclingCenter.value?.image}');
+      print('Center image: ${recyclingCenter.value?.image}');
 
     } catch (e) {
       FLoaders.errorSnackBar(
@@ -100,14 +98,13 @@ class ActivityDetailController extends GetxController {
     }
   }
 
-  /// Load staff user information using RecyclingCenterStaffRepository
+  /// Load staff user information
   Future<void> _loadStaffUser() async {
     if (activity.value == null) return;
 
     try {
       print('🔄 Loading staff user with ID: ${activity.value!.centerStaffId}');
 
-      // 使用 RecyclingCenterStaffRepository 获取员工数据
       final staff = await _staffRepo.getStaffById(activity.value!.centerStaffId);
 
       if (staff != null && staff.userId.isNotEmpty) {
@@ -117,46 +114,10 @@ class ActivityDetailController extends GetxController {
       } else {
         print('❌ Staff user data is empty or invalid');
         staffUser.value = null;
-
-        // 如果无法获取员工数据，尝试使用普通用户数据作为备选
-        await _loadStaffUserFallback();
       }
     } catch (e) {
       print('❌ Failed to load staff user: $e');
       staffUser.value = null;
-
-      // 如果主要方法失败，尝试备选方法
-      await _loadStaffUserFallback();
-    }
-  }
-
-  /// Fallback method to load staff user using UserRepository
-  Future<void> _loadStaffUserFallback() async {
-    try {
-      print('🔄 Trying fallback method to load staff user...');
-      final user = await _userRepo.fetchOtherUserDetails(activity.value!.centerStaffId);
-
-      if (user.userId.isNotEmpty) {
-        // 创建基本的 RecyclingCenterStaff 使用用户数据
-        staffUser.value = RecyclingCenterStaff(
-          userId: user.userId,
-          username: user.username,
-          email: user.email,
-          phoneNo: user.phoneNo ?? '',
-          profileImg: user.profileImg ?? '',
-          role: user.role,
-          isVerified: user.isVerified,
-          isActive: user.isActive,
-          centerId: '', // 无法从用户数据获取
-          joinDate: user.joinDate,
-          isBanned: user.isActive
-        );
-        print('✅ Fallback staff user loaded: ${user.username}');
-      } else {
-        print('❌ Fallback method also failed - user data is empty');
-      }
-    } catch (e) {
-      print('❌ Fallback method failed: $e');
     }
   }
 
@@ -165,13 +126,39 @@ class ActivityDetailController extends GetxController {
     return wasteCategory.value;
   }
 
+  /// Open navigation
+  Future<void> openGoogleMapsNavigation(PartnerRecyclingCenter center) async {
+    try {
+      await FLoaders.showMapNavigationDialog(
+        onConfirm: () async {
+          final url = 'https://www.google.com/maps/dir/?api=1&destination=${center.centerLocation.geoPoint.latitude},${center.centerLocation.geoPoint.longitude}&travelmode=driving';
+          if (await canLaunchUrl(Uri.parse(url))) {
+            await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+          } else {
+            FLoaders.errorSnackBar(
+              title: 'Error',
+              message: 'Could not open Google Maps',
+            );
+          }
+        },
+      );
+    } catch (e) {
+      print('❌ Error opening navigation: $e');
+    }
+  }
+
   /// Get activity age text
   String get activityAgeText {
     if (activity.value == null) return '';
 
     final age = activity.value!.ageInHours;
     if (age < 1) {
-      return 'Less than an hour ago';
+      // ✅ 计算分钟数
+      final minutes = (age * 60).floor();
+      if (minutes < 1) {
+        return 'Just now'; // 刚刚
+      }
+      return '$minutes minute${minutes > 1 ? 's' : ''} ago';
     } else if (age < 24) {
       return '$age hour${age > 1 ? 's' : ''} ago';
     } else {
@@ -210,17 +197,5 @@ class ActivityDetailController extends GetxController {
     return wasteCategory.value != null &&
         recyclingCenter.value != null &&
         staffUser.value != null;
-  }
-
-  /// Get loading status for debugging
-  void printLoadingStatus() {
-    print('=== Current Loading Status ===');
-    print('isLoading: ${isLoading.value}');
-    print('Activity: ${activity.value != null ? "Loaded" : "Null"}');
-    print('Waste Category: ${wasteCategory.value != null ? "Loaded" : "Null"}');
-    print('Recycling Center: ${recyclingCenter.value != null ? "Loaded" : "Null"}');
-    print('Staff User: ${staffUser.value != null ? "Loaded" : "Null"}');
-    print('center image: ${recyclingCenter.value?.image}');
-    print('==============================');
   }
 }

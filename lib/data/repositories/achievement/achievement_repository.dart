@@ -80,14 +80,16 @@ class AchievementRepository extends GetxController {
     });
   }
 
-  /// Get achievement by ID stream
-  Stream<Achievement> getAchievementStream(String achievementId) {
+  /// Get achievement by ID stream (返回 nullable)
+  Stream<Achievement?> getAchievementStream(String achievementId) {
     return _db
         .collection(_achievementsCollection)
         .doc(achievementId)
         .snapshots()
         .asyncMap((doc) async {
-      if (!doc.exists) return Achievement.empty();
+      if (!doc.exists) {
+        return null; // 🆕 返回 null 而不是 Achievement.empty()
+      }
       return await getAchievementWithLevels(doc);
     });
   }
@@ -151,6 +153,12 @@ class AchievementRepository extends GetxController {
 
       if (!doc.exists) {
         throw 'Achievement not found';
+      }
+
+      // 检查 status 是否为 'active'
+      final data = doc.data();
+      if (data != null && data['status'] != 'active') {
+        throw 'Achievement is not active';
       }
 
       return await getAchievementWithLevels(doc);
@@ -269,6 +277,7 @@ class AchievementRepository extends GetxController {
           'title': level.title,
           'description': level.description,
           'badgeImage': level.badgeImage,
+          'rewardPoints': level.rewardPoints, // 🆕
         });
       }
 

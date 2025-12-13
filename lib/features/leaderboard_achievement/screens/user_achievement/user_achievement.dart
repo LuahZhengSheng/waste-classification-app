@@ -5,7 +5,6 @@ import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/common/widgets/appbar/appbar.dart';
 
-import '../../../recycling_center/screens/center_test.dart';
 import '../../controllers/user_achievement_controller.dart';
 import '../leaderboard/leaderboard.dart';
 import 'widgets/achievement_card.dart';
@@ -19,6 +18,7 @@ class MyAchievementsScreen extends StatelessWidget {
     final dark = FHelperFunctions.isDarkMode(context);
 
     return Scaffold(
+      backgroundColor: dark ? FColors.communityDarkBackground : FColors.white,
       appBar: FAppBar(
         showBackArrow: true,
         title: const Text('My Achievements'),
@@ -97,13 +97,13 @@ class MyAchievementsScreen extends StatelessWidget {
         gradient: LinearGradient(
           colors: dark
               ? [
-                  FColors.primary.withOpacity(0.2),
-                  FColors.accent.withOpacity(0.1)
-                ]
+            FColors.primary.withOpacity(0.2),
+            FColors.accent.withOpacity(0.1)
+          ]
               : [
-                  FColors.primary.withOpacity(0.1),
-                  FColors.accent.withOpacity(0.05)
-                ],
+            FColors.primary.withOpacity(0.1),
+            FColors.accent.withOpacity(0.05)
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -140,7 +140,7 @@ class MyAchievementsScreen extends StatelessWidget {
               const SizedBox(width: FSizes.md),
               InkWell(
                 onTap: () => Get.to(() => const LeaderboardScreen()),
-                // onTap: () => Get.to(() => const RecyclingCenterManagementScreen()),
+                // onTap: () => Get.to(() => AddWasteCategoryScreen()),
                 borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
                 child: Container(
                   padding: const EdgeInsets.all(FSizes.md),
@@ -196,7 +196,7 @@ class MyAchievementsScreen extends StatelessWidget {
                         ? FColors.darkGrey.withOpacity(0.3)
                         : FColors.grey.withOpacity(0.3),
                     valueColor:
-                        const AlwaysStoppedAnimation<Color>(FColors.primary),
+                    const AlwaysStoppedAnimation<Color>(FColors.primary),
                     minHeight: 8,
                   ),
                 ),
@@ -291,7 +291,7 @@ class MyAchievementsScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: FColors.primary.withOpacity(0.1),
                         borderRadius:
-                            BorderRadius.circular(FSizes.borderRadiusLg),
+                        BorderRadius.circular(FSizes.borderRadiusLg),
                       ),
                       child: Text(
                         '${achievements.length}',
@@ -328,7 +328,7 @@ class MyAchievementsScreen extends StatelessWidget {
                     final achievementId =
                         userAchievement.achievement.achievementId;
                     final hasLevelUp =
-                        controller.hasRecentLevelUp(achievementId);
+                    controller.hasRecentLevelUp(achievementId);
 
                     return AchievementCard(
                       userAchievement: userAchievement,

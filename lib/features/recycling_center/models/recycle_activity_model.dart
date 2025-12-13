@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
 
+import '../../../config/emission_config/recycling_waste.dart';
+
 class RecyclingActivity {
   String activityId;
   String userId;
@@ -11,6 +13,7 @@ class RecyclingActivity {
   double weight;
   String supportImage; // Only stores the filename
   int pointsEarned;
+  double emissionReduced;
   DateTime createdAt;
   String status;
 
@@ -24,27 +27,30 @@ class RecyclingActivity {
     required this.weight,
     required this.supportImage,
     required this.pointsEarned,
+    required this.emissionReduced,
     required this.createdAt,
     this.status = 'completed', // Changed default to completed
   });
 
   /// Static function to create empty activity model
   static RecyclingActivity empty() => RecyclingActivity(
-    activityId: '',
-    userId: '',
-    centerStaffId: '',
-    wasteObject: '',
-    wasteCategoryId: '',
-    weight: 0.0,
-    supportImage: '',
-    pointsEarned: 0,
-    createdAt: DateTime.now(),
-    status: 'completed',
-  );
+        activityId: '',
+        userId: '',
+        centerStaffId: '',
+        wasteObject: '',
+        wasteCategoryId: '',
+        weight: 0.0,
+        supportImage: '',
+        pointsEarned: 0,
+        emissionReduced: 0.0,
+        createdAt: DateTime.now(),
+        status: 'completed',
+      );
 
   /// Convert model to JSON structure for storing data in Firebase
   Map<String, dynamic> toJson() {
     return {
+      'activityId': activityId,
       'userId': userId,
       'centerStaffId': centerStaffId,
       'wasteObject': wasteObject,
@@ -52,13 +58,15 @@ class RecyclingActivity {
       'weight': weight,
       'supportImage': supportImage,
       'pointsEarned': pointsEarned,
-      'createdAt': Timestamp.fromDate(createdAt), // 改为 Timestamp
+      'emissionReduced': emissionReduced,
+      'createdAt': Timestamp.fromDate(createdAt),
       'status': status,
     };
   }
 
   /// Factory method to create from a Firebase document snapshot
-  factory RecyclingActivity.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> document) {
+  factory RecyclingActivity.fromSnapshot(
+      DocumentSnapshot<Map<String, dynamic>> document) {
     if (document.data() != null) {
       final data = document.data()!;
 
@@ -68,11 +76,15 @@ class RecyclingActivity {
         createdAt = (data['createdAt'] as Timestamp).toDate();
       } else if (data['createdAt'] is String) {
         // 向后兼容：如果还是字符串格式，尝试解析
-        createdAt = DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String());
+        createdAt = DateTime.parse(
+            data['createdAt'] ?? DateTime.now().toIso8601String());
       } else {
         // 默认值
         createdAt = DateTime.now();
       }
+
+      // 统一加上 8 小时（UTC+8）
+      createdAt = createdAt.add(const Duration(hours: 8));
 
       return RecyclingActivity(
         activityId: document.id,
@@ -83,40 +95,13 @@ class RecyclingActivity {
         weight: (data['weight'] ?? 0.0).toDouble(),
         supportImage: data['supportImage'] ?? '',
         pointsEarned: (data['pointsEarned'] ?? 0).toInt(),
+        emissionReduced: (data['emissionReduced'] ?? 0.0).toDouble(),
         createdAt: createdAt,
         status: data['status'] ?? 'completed',
       );
     } else {
       return RecyclingActivity.empty();
     }
-  }
-
-  /// Factory method to create from a JSON map
-  factory RecyclingActivity.fromJson(Map<String, dynamic> json) {
-    // 处理 Timestamp 类型的 createdAt
-    DateTime createdAt;
-    if (json['createdAt'] is Timestamp) {
-      createdAt = (json['createdAt'] as Timestamp).toDate();
-    } else if (json['createdAt'] is String) {
-      createdAt = DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String());
-    } else if (json['createdAt'] is int) {
-      createdAt = DateTime.fromMillisecondsSinceEpoch(json['createdAt']);
-    } else {
-      createdAt = DateTime.now();
-    }
-
-    return RecyclingActivity(
-      activityId: json['activityId'] ?? '',
-      userId: json['userId'] ?? '',
-      centerStaffId: json['centerStaffId'] ?? '',
-      wasteObject: json['wasteObject'] ?? '',
-      wasteCategoryId: json['wasteCategoryId'] ?? '',
-      weight: (json['weight'] ?? 0.0).toDouble(),
-      supportImage: json['supportImage'] ?? '',
-      pointsEarned: (json['pointsEarned'] ?? 0).toInt(),
-      createdAt: createdAt,
-      status: json['status'] ?? 'completed',
-    );
   }
 
   /// Factory method to create a new recycling activity (without activityId)
@@ -130,6 +115,9 @@ class RecyclingActivity {
     int? customPoints,
   }) {
     final points = customPoints ?? _calculatePoints(weight, wasteCategoryId);
+    // 🆕 计算 emission reduced
+    final emission = RecyclingWasteEmissionConfig.calculateEmissionReduced(
+        wasteCategoryId, weight);
 
     return RecyclingActivity(
       activityId: '', // Will be set by Firestore
@@ -140,6 +128,7 @@ class RecyclingActivity {
       weight: weight,
       supportImage: supportImage,
       pointsEarned: points,
+      emissionReduced: emission, // 🆕
       createdAt: DateTime.now(),
       status: 'completed', // Set as completed by default
     );
@@ -222,18 +211,8 @@ class RecyclingActivity {
 
   @override
   String toString() {
-    return 'RecyclingActivity(activityId: $activityId, userId: $userId, centerStaffId: $centerStaffId, wasteObject: $wasteObject, weight: $weight, points: $pointsEarned, status: $status, createdAt: $createdAt)';
+    return 'RecyclingActivity(activityId: $activityId, userId: $userId, centerStaffId: $centerStaffId, wasteObject: $wasteObject, weight: $weight, points: $pointsEarned, emission: $emissionReduced kg CO2, status: $status, createdAt: $createdAt)';
   }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is RecyclingActivity &&
-              runtimeType == other.runtimeType &&
-              activityId == other.activityId;
-
-  @override
-  int get hashCode => activityId.hashCode;
 
   RecyclingActivity copyWith({
     String? activityId,
@@ -244,6 +223,7 @@ class RecyclingActivity {
     double? weight,
     String? supportImage,
     int? pointsEarned,
+    double? emissionReduced,
     DateTime? createdAt,
     String? status,
   }) {
@@ -256,6 +236,7 @@ class RecyclingActivity {
       weight: weight ?? this.weight,
       supportImage: supportImage ?? this.supportImage,
       pointsEarned: pointsEarned ?? this.pointsEarned,
+      emissionReduced: emissionReduced ?? this.emissionReduced,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
     );
@@ -266,6 +247,12 @@ class RecyclingActivity {
 
   void recalculatePoints() {
     pointsEarned = _calculatePoints(weight, wasteCategoryId);
+  }
+
+  // 🆕 重新计算 emission
+  void recalculateEmission() {
+    emissionReduced = RecyclingWasteEmissionConfig.calculateEmissionReduced(
+        wasteCategoryId, weight);
   }
 
   bool get canEdit => isPending;

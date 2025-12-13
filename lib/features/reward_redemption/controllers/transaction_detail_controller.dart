@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 
-import '../../../data/repositories/personalization/recycling_activity_repository.dart';
+import '../../../data/repositories/recycling_center/recycling_activity_repository.dart';
 import '../../../data/repositories/recycling_center/recycling_center_repository.dart';
 import '../../../data/repositories/recycling_center/waste_category_repository.dart';
 import '../../../data/repositories/reward_redemption/redemption_repository.dart';

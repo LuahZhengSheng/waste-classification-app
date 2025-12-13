@@ -375,9 +375,9 @@ class EmissionsScreen extends StatelessWidget {
             children: [
               Icon(
                 controller.comparisonPercentage.value > 0
-                    ? Iconsax.arrow_up_1
+                    ? Iconsax.arrow_up_2
                     : controller.comparisonPercentage.value < 0
-                        ? Iconsax.arrow_down
+                        ? Iconsax.arrow_down_1
                         : Iconsax.minus,
                 color: controller.getComparisonColor(dark),
                 size: 32,

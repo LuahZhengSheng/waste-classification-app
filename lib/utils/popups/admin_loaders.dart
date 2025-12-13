@@ -738,6 +738,308 @@ class FAdminLoaders {
     );
   }
 
+  /// 显示清空 reports 确认对话框
+  ///
+  /// [postContent] - 帖子内容预览
+  /// [reportCount] - 举报数量
+  /// [onConfirm] - 确认回调函数
+  static void showClearReportsConfirmationDialog({
+    required String postContent,
+    required int reportCount,
+    required VoidCallback onConfirm,
+  }) {
+    final dark = _isDark();
+
+    Get.dialog(
+      Dialog(
+        backgroundColor: dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: 400,
+            maxWidth: 600,
+            minHeight: 300,
+            maxHeight: 700,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(FSizes.defaultSpace),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: (dark
+                        ? FColors.adminDarkSuccess
+                        : FColors.adminLightSuccess)
+                        .withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Iconsax.shield_tick,
+                    size: 40,
+                    color: dark
+                        ? FColors.adminDarkSuccess
+                        : FColors.adminLightSuccess,
+                  ),
+                ),
+                const SizedBox(height: FSizes.spaceBtwItems),
+
+                // Title
+                Text(
+                  'Clear All Reports?',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: FSizes.sm),
+
+                // Message
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        Text(
+                          'You are about to clear all reports for this post. This action indicates that you have reviewed the post and found no violations.',
+                          style: TextStyle(
+                            color: dark
+                                ? FColors.adminDarkTextSecondary
+                                : FColors.adminLightTextSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: FSizes.md),
+
+                        // Post Content Preview
+                        Container(
+                          padding: const EdgeInsets.all(FSizes.md),
+                          decoration: BoxDecoration(
+                            color: dark
+                                ? FColors.adminDarkBackground
+                                : FColors.adminLightBackground,
+                            borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                            border: Border.all(
+                              color: dark
+                                  ? FColors.adminDarkBorder
+                                  : FColors.adminLightBorder,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Iconsax.document_text,
+                                    size: 16,
+                                    color: dark
+                                        ? FColors.adminDarkTextMuted
+                                        : FColors.adminLightTextMuted,
+                                  ),
+                                  const SizedBox(width: FSizes.xs),
+                                  Text(
+                                    'Post Content:',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: dark
+                                          ? FColors.adminDarkTextMuted
+                                          : FColors.adminLightTextMuted,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: FSizes.xs),
+                              Text(
+                                postContent,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: dark
+                                      ? FColors.adminDarkTextSecondary
+                                      : FColors.adminLightTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: FSizes.md),
+
+                        // Report Count Info
+                        Container(
+                          padding: const EdgeInsets.all(FSizes.md),
+                          decoration: BoxDecoration(
+                            color: (dark
+                                ? FColors.adminDarkInfo
+                                : FColors.adminLightInfo)
+                                .withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                            border: Border.all(
+                              color: dark
+                                  ? FColors.adminDarkInfo
+                                  : FColors.adminLightInfo,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Iconsax.warning_2,
+                                size: 20,
+                                color: dark
+                                    ? FColors.adminDarkInfo
+                                    : FColors.adminLightInfo,
+                              ),
+                              const SizedBox(width: FSizes.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Total Reports: $reportCount',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: dark
+                                            ? FColors.adminDarkInfo
+                                            : FColors.adminLightInfo,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'All report records will be permanently removed',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: dark
+                                            ? FColors.adminDarkInfo
+                                            : FColors.adminLightInfo,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: FSizes.spaceBtwItems),
+
+                // Warning
+                Container(
+                  padding: const EdgeInsets.all(FSizes.md),
+                  decoration: BoxDecoration(
+                    color: (dark
+                        ? FColors.adminDarkWarning
+                        : FColors.adminLightWarning)
+                        .withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                    border: Border.all(
+                      color: dark
+                          ? FColors.adminDarkWarning
+                          : FColors.adminLightWarning,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Iconsax.info_circle,
+                        size: 20,
+                        color: dark
+                            ? FColors.adminDarkWarning
+                            : FColors.adminLightWarning,
+                      ),
+                      const SizedBox(width: FSizes.sm),
+                      Expanded(
+                        child: Text(
+                          'This action cannot be undone. Users may report this post again in the future.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: dark
+                                ? FColors.adminDarkWarning
+                                : FColors.adminLightWarning,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: FSizes.spaceBtwItems),
+
+                // Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Get.back(),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: dark
+                                ? FColors.adminDarkBorder
+                                : FColors.adminLightBorder,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                            BorderRadius.circular(FSizes.cardRadiusMd),
+                          ),
+                          padding:
+                          const EdgeInsets.symmetric(vertical: FSizes.md),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: dark
+                                ? FColors.adminDarkTextSecondary
+                                : FColors.adminLightTextSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: FSizes.md),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Get.back();
+                          onConfirm();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: dark
+                              ? FColors.adminDarkSuccess
+                              : FColors.adminLightSuccess,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                            BorderRadius.circular(FSizes.cardRadiusMd),
+                          ),
+                          padding:
+                          const EdgeInsets.symmetric(vertical: FSizes.md),
+                        ),
+                        child: const Text(
+                          'Clear Reports',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+  }
+
   static bool _isDark() {
     return Get.isDarkMode;
   }

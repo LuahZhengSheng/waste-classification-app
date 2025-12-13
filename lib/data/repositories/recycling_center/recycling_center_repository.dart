@@ -5,6 +5,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
 import 'package:fyp/features/recycling_center/models/partner_recycling_center_model.dart';
 
+import '../../../features/recycling_center/models/recycling_center_staff_model.dart';
+
 class RecyclingCenterRepository extends GetxController {
   static RecyclingCenterRepository get instance => Get.find();
 
@@ -18,7 +20,7 @@ class RecyclingCenterRepository extends GetxController {
   Future<PartnerRecyclingCenter> getCenterById(String centerId) async {
     try {
       final snapshot =
-      await _db.collection(_recyclingCentersCollection).doc(centerId).get();
+          await _db.collection(_recyclingCentersCollection).doc(centerId).get();
       if (!snapshot.exists) {
         throw 'Center not found';
       }
@@ -130,10 +132,12 @@ class RecyclingCenterRepository extends GetxController {
       print('🔄 Searching for center with staff ID: $staffId');
 
       // 方法1: 先从 users 集合获取员工数据
-      final staffDoc = await _db.collection(_usersCollection).doc(staffId).get();
+      final staffDoc =
+          await _db.collection(_usersCollection).doc(staffId).get();
 
       if (!staffDoc.exists) {
-        print('❌ Staff document not found in users collection for ID: $staffId');
+        print(
+            '❌ Staff document not found in users collection for ID: $staffId');
         return null;
       }
 
@@ -148,7 +152,8 @@ class RecyclingCenterRepository extends GetxController {
       print('✅ Found centerId: $centerId for staff: $staffId');
 
       // 通过 centerId 查找回收中心
-      final centerDoc = await _db.collection(_recyclingCentersCollection).doc(centerId).get();
+      final centerDoc =
+          await _db.collection(_recyclingCentersCollection).doc(centerId).get();
 
       if (!centerDoc.exists) {
         print('❌ Recycling center not found for centerId: $centerId');
@@ -161,7 +166,6 @@ class RecyclingCenterRepository extends GetxController {
       print('✅ Recycling center loaded: ${centerWithImageUrl.name}');
       print('✅ Center image URL: ${centerWithImageUrl.image}');
       return centerWithImageUrl;
-
     } catch (e) {
       print('❌ Error in getCenterByStaffId: $e');
       return null;
@@ -169,7 +173,8 @@ class RecyclingCenterRepository extends GetxController {
   }
 
   /// 备选方法: 直接查询包含该staffId的中心
-  Future<PartnerRecyclingCenter?> getCenterByStaffIdAlternative(String staffId) async {
+  Future<PartnerRecyclingCenter?> getCenterByStaffIdAlternative(
+      String staffId) async {
     try {
       print('🔄 Using alternative method to find center for staff: $staffId');
 
@@ -185,12 +190,13 @@ class RecyclingCenterRepository extends GetxController {
         return null;
       }
 
-      final center = PartnerRecyclingCenter.fromSnapshot(querySnapshot.docs.first as DocumentSnapshot<Map<String, dynamic>>);
+      final center = PartnerRecyclingCenter.fromSnapshot(
+          querySnapshot.docs.first as DocumentSnapshot<Map<String, dynamic>>);
       // 转换图片URL
       final centerWithImageUrl = await convertImageToDownloadUrl(center);
-      print('✅ Center found via alternative method: ${centerWithImageUrl.name}');
+      print(
+          '✅ Center found via alternative method: ${centerWithImageUrl.name}');
       return centerWithImageUrl;
-
     } catch (e) {
       print('❌ Error in alternative method: $e');
       return null;
@@ -214,7 +220,7 @@ class RecyclingCenterRepository extends GetxController {
       }
 
       final centerSnapshot =
-      await _db.collection(_recyclingCentersCollection).doc(centerId).get();
+          await _db.collection(_recyclingCentersCollection).doc(centerId).get();
       if (!centerSnapshot.exists) {
         return null;
       }
@@ -225,7 +231,8 @@ class RecyclingCenterRepository extends GetxController {
   }
 
   /// 将单个回收中心的图片文件名转换为下载URL
-  Future<PartnerRecyclingCenter> convertImageToDownloadUrl(PartnerRecyclingCenter center) async {
+  Future<PartnerRecyclingCenter> convertImageToDownloadUrl(
+      PartnerRecyclingCenter center) async {
     try {
       // 如果已经是完整URL，直接返回
       if (center.image.startsWith('http')) {
@@ -240,15 +247,16 @@ class RecyclingCenterRepository extends GetxController {
       // 从文件名构建完整下载URL
       final downloadUrl = await _getImageDownloadUrl(center.image);
       return center.copyWith(image: downloadUrl);
-
     } catch (e) {
-      print('❌ Failed to convert image to download URL for center ${center.name}: $e');
+      print(
+          '❌ Failed to convert image to download URL for center ${center.name}: $e');
       return center; // 返回原对象，保持原有图片字段
     }
   }
 
   /// 批量转换回收中心图片URL
-  Future<List<PartnerRecyclingCenter>> _convertImagesToDownloadUrls(List<PartnerRecyclingCenter> centers) async {
+  Future<List<PartnerRecyclingCenter>> _convertImagesToDownloadUrls(
+      List<PartnerRecyclingCenter> centers) async {
     final List<PartnerRecyclingCenter> result = [];
 
     for (final center in centers) {
@@ -314,10 +322,7 @@ class RecyclingCenterRepository extends GetxController {
   /// Update center status
   Future<void> updateCenterStatus(String centerId, String status) async {
     try {
-      await _db
-          .collection(_recyclingCentersCollection)
-          .doc(centerId)
-          .update({
+      await _db.collection(_recyclingCentersCollection).doc(centerId).update({
         'status': status,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -354,7 +359,8 @@ class RecyclingCenterRepository extends GetxController {
   }
 
   /// Upload center image to Firebase Storage
-  Future<String> uploadCenterImage(Uint8List imageBytes, String fileName) async {
+  Future<String> uploadCenterImage(
+      Uint8List imageBytes, String fileName) async {
     try {
       print('Storage - Starting upload: $_centerImagesFolder/$fileName');
       print('Storage - File size: ${imageBytes.length} bytes');
@@ -368,7 +374,8 @@ class RecyclingCenterRepository extends GetxController {
       );
 
       uploadTask.snapshotEvents.listen((taskSnapshot) {
-        print('Storage - Upload progress: ${taskSnapshot.bytesTransferred}/${taskSnapshot.totalBytes}');
+        print(
+            'Storage - Upload progress: ${taskSnapshot.bytesTransferred}/${taskSnapshot.totalBytes}');
       });
 
       final taskSnapshot = await uploadTask;
@@ -406,7 +413,8 @@ class RecyclingCenterRepository extends GetxController {
       print('📁 getCenterImageUrl called with: "$fileName"');
       print('📁 File name length: ${fileName.length}');
       print('📁 File name contains spaces: ${fileName.contains(' ')}');
-      print('📁 File name contains special chars: ${fileName.contains(RegExp(r'[^a-zA-Z0-9._-]'))}');
+      print(
+          '📁 File name contains special chars: ${fileName.contains(RegExp(r'[^a-zA-Z0-9._-]'))}');
 
       if (fileName.isEmpty) {
         print('📁 File name is empty');
@@ -426,7 +434,6 @@ class RecyclingCenterRepository extends GetxController {
       final downloadUrl = await ref.getDownloadURL();
       print('📁 ✅ Successfully retrieved download URL: $downloadUrl');
       return downloadUrl;
-
     } on FirebaseException catch (e) {
       print('📁 ❌ FirebaseException: ${e.code} - ${e.message}');
       print('📁 Stack trace: ${e.stackTrace}');

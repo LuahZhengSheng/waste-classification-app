@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fyp/features/leaderboard_achievement/models/achievement_model.dart';
 
-import '../../../../data/repositories/achievement/achievement_repostory.dart';
+import '../../../../data/repositories/achievement/achievement_repository.dart';
 import '../../../../utils/helpers/helper_functions.dart';
 import '../../../../utils/popups/admin_loaders.dart';
 import '../../../../utils/popups/loaders.dart';
@@ -218,7 +218,7 @@ class AchievementManagementController extends GetxController {
 
     Get.dialog(
       EditAchievementDialog(dark: dark),
-      arguments: achievement,
+      arguments: achievement.achievementId,
       barrierDismissible: false,
     ).then((_) {
       // No need to reload achievements manually - stream will update automatically

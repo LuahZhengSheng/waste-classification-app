@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/constants/enums.dart';
+import 'package:iconsax/iconsax.dart';
 
 import '../../../models/achievement_enums.dart';
 import '../../../models/user_achievement_model.dart';
@@ -21,159 +22,180 @@ class AchievementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final achievement = userAchievement.achievement;
-    final displayLevelInfo = userAchievement.displayLevelInfo; // 使用 displayLevelInfo
+    final displayLevelInfo = userAchievement.displayLevelInfo;
     final isCompleted = userAchievement.isCompleted();
     final isLocked = userAchievement.status == AchievementStatus.locked;
     final progress = userAchievement.progress;
     final targetCriteria = userAchievement.targetCriteria;
     final progressPercentage = userAchievement.progressPercentage();
+    final rewardPoints = displayLevelInfo?.rewardPoints ?? 0;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.only(bottom: FSizes.md),
-      padding: const EdgeInsets.all(FSizes.md),
-      decoration: BoxDecoration(
-        color: isCompleted
-            ? (dark ? FColors.primary.withOpacity(0.15) : FColors.primary.withOpacity(0.08))
-            : (dark ? FColors.darkContainer : FColors.white),
-        borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-        border: hasLevelUp
-            ? Border.all(
-          color: FColors.primary,
-          width: 2,
-        )
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: hasLevelUp
-                ? FColors.primary.withOpacity(0.3)
-                : (dark ? Colors.black26 : Colors.black.withOpacity(0.05)),
-            blurRadius: hasLevelUp ? 12 : 8,
-            offset: const Offset(0, 2),
+    return Stack( // 使用 Stack
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.only(bottom: FSizes.md),
+          padding: const EdgeInsets.all(FSizes.md),
+          decoration: BoxDecoration(
+            color: isCompleted
+                ? (dark ? FColors.primary.withOpacity(0.15) : FColors.primary.withOpacity(0.08))
+                : (dark ? FColors.darkContainer : FColors.white),
+            borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+            border: hasLevelUp
+                ? Border.all(
+              color: FColors.primary,
+              width: 2,
+            )
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: hasLevelUp
+                    ? FColors.primary.withOpacity(0.3)
+                    : (dark ? Colors.black26 : Colors.black.withOpacity(0.05)),
+                blurRadius: hasLevelUp ? 12 : 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Badge Icon
-          _buildBadgeIcon(displayLevelInfo?.badgeImage, isCompleted, isLocked),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Badge Icon
+              _buildBadgeIcon(displayLevelInfo?.badgeImage, isCompleted, isLocked),
 
-          const SizedBox(width: FSizes.md),
+              const SizedBox(width: FSizes.md),
 
-          // Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title and Status
-                Row(
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            achievement.title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: dark ? FColors.white : FColors.textPrimary,
-                            ),
-                          ),
-                          if (displayLevelInfo != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              displayLevelInfo.title, // 使用 displayLevelInfo 的 title
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: FColors.primary,
+                    // Title and Status
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                achievement.title,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: dark ? FColors.white : FColors.textPrimary,
+                                ),
                               ),
-                            ),
-                          ],
-                        ],
+                              if (displayLevelInfo != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  displayLevelInfo.title,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: FColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        // 移除这里的 completed badge
+                        if (hasLevelUp) _buildLevelUpBadge(),
+                      ],
+                    ),
+
+                    const SizedBox(height: FSizes.xs),
+
+                    // Description
+                    Text(
+                      displayLevelInfo?.description ??
+                          'Complete this achievement to earn rewards.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: dark ? FColors.grey : FColors.textSecondary,
                       ),
                     ),
-                    if (isCompleted) _buildCompletedBadge(),
-                    if (hasLevelUp) _buildLevelUpBadge(),
+
+                    const SizedBox(height: FSizes.xs),
+
+                    // Reward Points Display
+                    _buildRewardPointsBadge(rewardPoints, isCompleted),
+
+                    if (!isCompleted) ...[
+                      const SizedBox(height: FSizes.md),
+
+                      // Progress Bar
+                      Stack(
+                        children: [
+                          Container(
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: dark
+                                  ? FColors.darkGrey.withOpacity(0.3)
+                                  : FColors.grey.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
+                            ),
+                          ),
+                          AnimatedFractionallySizedBox(
+                            duration: const Duration(milliseconds: 500),
+                            curve: Curves.easeInOut,
+                            widthFactor: progressPercentage.clamp(0.0, 1.0),
+                            child: Container(
+                              height: 8,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [FColors.primary, FColors.lightGreen],
+                                ),
+                                borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: FSizes.xs),
+
+                      // Progress Text
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '$progress/$targetCriteria',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: dark ? FColors.grey : FColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            'Level ${userAchievement.currentLevel}/${achievement.maxLevel}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: FColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
+              ),
+            ],
+          ),
+        ),
 
-                const SizedBox(height: FSizes.xs),
-
-                // Description
-                Text(
-                  displayLevelInfo?.description ?? // 使用 displayLevelInfo 的 description
-                      'Complete this achievement to earn rewards.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: dark ? FColors.grey : FColors.textSecondary,
-                  ),
-                ),
-
-                if (!isCompleted) ...[
-                  const SizedBox(height: FSizes.md),
-
-                  // Progress Bar
-                  Stack(
-                    children: [
-                      Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: dark
-                              ? FColors.darkGrey.withOpacity(0.3)
-                              : FColors.grey.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
-                        ),
-                      ),
-                      AnimatedFractionallySizedBox(
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeInOut,
-                        widthFactor: progressPercentage.clamp(0.0, 1.0),
-                        child: Container(
-                          height: 8,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [FColors.primary, FColors.lightGreen],
-                            ),
-                            borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: FSizes.xs),
-
-                  // Progress Text
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '$progress/$targetCriteria',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: dark ? FColors.grey : FColors.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        'Level ${userAchievement.currentLevel}/${achievement.maxLevel}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: FColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+        // Completed Badge - 右边中间位置
+        if (isCompleted)
+          Positioned(
+            right: FSizes.md,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: _buildCompletedBadge(),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -224,43 +246,60 @@ class AchievementCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCompletedBadge() {
+  Widget _buildRewardPointsBadge(int rewardPoints, bool isCompleted) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: FSizes.sm,
-        vertical: FSizes.xs - 2,
+        vertical: 4,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [FColors.primary, FColors.success],
+          colors: isCompleted
+              ? [FColors.warning, FColors.secondary.withOpacity(0.8)]
+              : [FColors.primary.withOpacity(0.2), FColors.lightGreen.withOpacity(0.2)],
         ),
         borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: FColors.primary.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(
+          color: isCompleted
+              ? FColors.warning.withOpacity(0.5)
+              : FColors.primary.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.check_circle,
+          Icon(
+            Iconsax.medal_star5,
             size: 14,
-            color: Colors.white,
+            color: isCompleted ? Colors.white : FColors.primary,
           ),
           const SizedBox(width: 4),
-          const Text(
-            'Completed',
+          Text(
+            isCompleted ? '+$rewardPoints pts' : '$rewardPoints pts',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: isCompleted ? Colors.white : FColors.primary,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Completed Badge - 斜印章风格
+  Widget _buildCompletedBadge() {
+    return Transform.rotate(
+      angle: -0.4, // 斜角度（弧度），负数 = 逆时针旋转
+      child: const Text(
+        'Completed',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: FColors.primary,
+          letterSpacing: 0.5, // 增加字间距，更像印章
+        ),
       ),
     );
   }

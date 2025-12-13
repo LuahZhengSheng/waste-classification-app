@@ -7,15 +7,22 @@ import 'package:fyp/utils/validators/validation.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../utils/constants/colors.dart';
+import '../../../../utils/helpers/helper_functions.dart';
+
 class ForgetPassword extends StatelessWidget {
   const ForgetPassword({super.key});
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(ForgetPasswordController());
+    final dark = FHelperFunctions.isDarkMode(context);
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: FAppBar(
+        showBackArrow: true,
+        backgroundColor: dark ? FColors.dark : FColors.light,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(FSizes.defaultSpace),
         child: Column(
@@ -44,11 +51,11 @@ class ForgetPassword extends StatelessWidget {
 
             /// Submit Button
             SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                    onPressed: () => controller.sendPasswordResetEmail(),
-                    child: const Text(FTexts.submit)
-                ),
+              width: double.infinity,
+              child: ElevatedButton(
+                  onPressed: () => controller.sendPasswordResetEmail(),
+                  child: const Text(FTexts.submit)
+              ),
             ),
           ],
         ),

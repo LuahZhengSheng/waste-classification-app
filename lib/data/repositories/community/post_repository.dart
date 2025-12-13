@@ -367,6 +367,23 @@ class PostRepository extends GetxController {
     }
   }
 
+  /// Update post reports
+  Future<void> updatePostReports(String postId, Map<String, List<String>> reports) async {
+    try {
+      await _db.collection("posts").doc(postId).update({
+        'reports': reports,
+      });
+    } on FirebaseException catch (e) {
+      throw FFirebaseException(e.code).message;
+    } on FormatException catch (_) {
+      throw const FFormatException();
+    } on PlatformException catch (e) {
+      throw FPlatformException(e.code).message;
+    } catch (e) {
+      throw 'Something went wrong. Please try again.';
+    }
+  }
+
   /// Update post comment count
   Future<void> increaseCommentCount(String postId) async {
     try {

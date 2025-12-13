@@ -8,24 +8,20 @@ import 'package:fyp/utils/popups/loaders.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
+import '../../../../common/widgets/dialogs/email_verification_dialog.dart';
+import '../../../../data/repositories/user/user_repository.dart';
+
 class LoginController extends GetxController {
   static LoginController get instance => Get.find();
 
   /// Variables
-  final rememberMe = false.obs;
-  final hidePassword = true.obs; // Observable for hiding/showing password
+  final hidePassword = true.obs;
   final localStorage = GetStorage();
-  final email = TextEditingController(); // Controller for email input
-  final password = TextEditingController(); // Controller for password input
-  GlobalKey<FormState> loginFormKey = GlobalKey<FormState>();  // Form key for form validation
+  final email = TextEditingController();
+  final password = TextEditingController();
+  GlobalKey<FormState> loginFormKey = GlobalKey<FormState>();
   final userController = Get.put(UserController());
-
-  @override
-  void onInit() {
-    email.text = localStorage.read('REMEMBER_ME_EMAIL') ?? ''; // 默认空字符串
-    password.text = localStorage.read('REMEMBER_ME_PASSWORD') ?? ''; // 默认空字符串
-    super.onInit();
-  }
+  final _userRepository = Get.put(UserRepository());
 
   /// -- Email and Password SignIn
   Future<void> emailAndPasswordSignIn() async {
@@ -37,6 +33,10 @@ class LoginController extends GetxController {
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
         FFullScreenLoader.stopLoading();
+        FLoaders.warningSnackBar(
+          title: 'No Internet',
+          message: 'Please check your internet connection.',
+        );
         return;
       }
 
@@ -46,24 +46,87 @@ class LoginController extends GetxController {
         return;
       }
 
-      // Save data if Remember Me is selected
-      if (rememberMe.value) {
-        localStorage.write('REMEMBER_ME_EMAIL', email.text.trim());
-        localStorage.write('REMEMBER_ME_PASSWORD', password.text.trim());
+      // Check user status (banned/inactive) BEFORE login
+      final statusCheck = await AuthenticationRepository.instance.checkUserStatus(email.text.trim());
+
+      if (!statusCheck['canLogin']) {
+        FFullScreenLoader.stopLoading();
+
+        String title = 'Login Failed';
+        if (statusCheck['reason'] == 'banned') {
+          title = 'Account Suspended';
+        } else if (statusCheck['reason'] == 'inactive') {
+          title = 'Account Inactive';
+        }
+
+        FLoaders.errorSnackBar(
+          title: title,
+          message: statusCheck['message'],
+        );
+        return;
       }
 
       // Login user using Email & Password Authentication
-      final userCredentials = await AuthenticationRepository.instance.loginWithEmailAndPassword(email.text.trim(), password.text.trim());
+      final userCredentials = await AuthenticationRepository.instance
+          .loginWithEmailAndPassword(email.text.trim(), password.text.trim());
+
+      // Check email verification using Firebase Auth
+      final isVerified = userCredentials.user?.emailVerified ?? false;
+
+      if (!isVerified) {
+        FFullScreenLoader.stopLoading();
+
+        // Show verification warning with option to resend
+        await EmailVerificationDialog.show(
+          context: Get.context!,
+          onResend: () async {
+            try {
+              await AuthenticationRepository.instance.sendEmailVerification();
+              FLoaders.successSnackBar(
+                title: 'Email Sent',
+                message: 'Verification email has been sent. Please check your inbox.',
+              );
+            } catch (e) {
+              FLoaders.errorSnackBar(
+                title: 'Error',
+                message: 'Failed to send verification email: ${e.toString()}',
+              );
+            }
+          },
+        );
+
+        // Logout user since they can't proceed
+        await AuthenticationRepository.instance.logout();
+        return;
+      }
+
+      // Update Firestore isVerified field if email is verified
+      if (isVerified && userCredentials.user != null) {
+        try {
+          await _userRepository.updateEmailVerificationStatus(
+            userCredentials.user!.uid,
+            true,
+          );
+        } catch (e) {
+          // Don't block login if Firestore update fails
+          print('⚠️ Warning: Failed to update Firestore verification status: $e');
+        }
+      }
 
       // Remove Loader
       FFullScreenLoader.stopLoading();
 
-      // Redirect
+      // Redirect to appropriate screen
       AuthenticationRepository.instance.screenRedirect();
+
+      FLoaders.successSnackBar(
+        title: 'Welcome Back!',
+        message: 'You have successfully logged in.',
+      );
+
     } catch (e) {
       FFullScreenLoader.stopLoading();
-      // Show some Generic Error to the user
-      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      FLoaders.errorSnackBar(title: 'Login Failed', message: e.toString());
     }
   }
 
@@ -77,70 +140,174 @@ class LoginController extends GetxController {
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
         FFullScreenLoader.stopLoading();
+        FLoaders.warningSnackBar(
+          title: 'No Internet',
+          message: 'Please check your internet connection.',
+        );
         return;
       }
 
       // Google Authentication
       final userCredentials = await AuthenticationRepository.instance.signInWithGoogle();
 
-      final user = userCredentials!.user!;
-      final providerData = user.providerData;
-
-      // 检查用户的登录方式
-      bool hasEmailProvider = providerData.any((element) => element.providerId == 'password');
-
-      // 如果是通过 email/password 注册的用户，不更新其用户数据
-      if (!hasEmailProvider) {
-        // 只有完全新的用户才保存 Google 信息
-        await userController.saveUserRecord(userCredentials);
+      if (userCredentials == null) {
+        FFullScreenLoader.stopLoading();
+        return;
       }
+
+      final user = userCredentials.user!;
+
+      // Check if user exists in Firestore
+      final userExists = await _userRepository.userExists(user.uid);
+
+      print('userExist1: $userExists');
+
+      if (!userExists) {
+        // New user - Save user record to Firestore directly (no status check needed)
+        await userController.saveUserRecord(userCredentials);
+        print('userExist2: $userExists');
+      } else {
+        print('🔍 Existing Google user, checking status...');
+
+        // Existing user - Check status first
+        final statusCheck = await AuthenticationRepository.instance.checkUserStatus(user.email!);
+
+        print('🔍 Existing Google user, checking status...2');
+
+        if (!statusCheck['canLogin']) {
+          // Logout immediately if banned/inactive
+          await AuthenticationRepository.instance.logout();
+
+          FFullScreenLoader.stopLoading();
+
+          String title = 'Login Failed';
+          if (statusCheck['reason'] == 'banned') {
+            title = 'Account Suspended';
+          } else if (statusCheck['reason'] == 'inactive') {
+            title = 'Account Inactive';
+          }
+
+          FLoaders.errorSnackBar(
+            title: title,
+            message: statusCheck['message'],
+          );
+          return;
+        }
+
+        // Update isVerified if needed
+        try {
+          await _userRepository.updateEmailVerificationStatus(user.uid, true);
+        } catch (e) {
+          print('⚠️ Warning: Failed to update Firestore verification status: $e');
+        }
+      }
+
+      FFullScreenLoader.stopLoading();
 
       // Redirect
       AuthenticationRepository.instance.screenRedirect();
 
+      FLoaders.successSnackBar(
+        title: !userExists ? 'Welcome!' : 'Welcome Back!',
+        message: !userExists
+            ? 'Your account has been created! Welcome to our app.'
+            : 'You have successfully logged in with Google.',
+      );
+
     } catch (e) {
-      // Remove Loader
       FFullScreenLoader.stopLoading();
-      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      FLoaders.errorSnackBar(title: 'Google Sign-In Failed', message: e.toString());
     }
   }
 
   /// -- Facebook SignIn Authentication
   Future<void> facebookSignIn() async {
     try {
-      // Start Loading
+      print('🔵 Starting Facebook Sign-In...');
+
       FFullScreenLoader.openLoadingDialog('Logging you in...', FImages.docerAnimation);
 
-      // Check Internet Connectivity
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
         FFullScreenLoader.stopLoading();
+        print('🔴 No internet connection');
+        FLoaders.warningSnackBar(
+          title: 'No Internet',
+          message: 'Please check your internet connection.',
+        );
         return;
       }
 
-      // Facebook Authentication
       final userCredentials = await AuthenticationRepository.instance.signInWithFacebook();
 
-      final user = userCredentials!.user!;
-      final providerData = user.providerData;
-
-      // Check if user has already signed up with email/password
-      bool hasEmailProvider = providerData.any((element) => element.providerId == 'password');
-
-      // If the user registered with email/password, do not update their data
-      if (!hasEmailProvider) {
-        // Only save Facebook login data for completely new users
-        await userController.saveUserRecord(userCredentials);
+      if (userCredentials == null) {
+        FFullScreenLoader.stopLoading();
+        print('🔴 Facebook sign-in returned null');
+        FLoaders.warningSnackBar(
+          title: 'Login Cancelled',
+          message: 'Facebook sign-in was cancelled.',
+        );
+        return;
       }
 
-      // Redirect after login
+      print('✅ Facebook Sign-In successful!');
+
+      final user = userCredentials.user!;
+
+      // Check if user exists in Firestore
+      final userExists = await _userRepository.userExists(user.uid);
+
+      if (!userExists) {
+        // New user - Save user record to Firestore directly (no status check needed)
+        await userController.saveUserRecord(userCredentials);
+
+      } else {
+        // Existing user - Check status first
+        final statusCheck = await AuthenticationRepository.instance.checkUserStatus(user.email!);
+
+        if (!statusCheck['canLogin']) {
+          // Logout immediately if banned/inactive
+          await AuthenticationRepository.instance.logout();
+
+          FFullScreenLoader.stopLoading();
+
+          String title = 'Login Failed';
+          if (statusCheck['reason'] == 'banned') {
+            title = 'Account Suspended';
+          } else if (statusCheck['reason'] == 'inactive') {
+            title = 'Account Inactive';
+          }
+
+          FLoaders.errorSnackBar(
+            title: title,
+            message: statusCheck['message'],
+          );
+          return;
+        }
+
+        // Update isVerified if needed
+        try {
+          await _userRepository.updateEmailVerificationStatus(user.uid, true);
+        } catch (e) {
+          print('⚠️ Warning: Failed to update Firestore verification status: $e');
+        }
+      }
+
+      FFullScreenLoader.stopLoading();
+
       AuthenticationRepository.instance.screenRedirect();
 
+      FLoaders.successSnackBar(
+        title: !userExists ? 'Welcome!' : 'Welcome Back!',
+        message: !userExists
+            ? 'Your account has been created! Welcome to our app.'
+            : 'You have successfully logged in with Facebook.',
+      );
+
     } catch (e) {
-      // Stop Loading & Show Error
       FFullScreenLoader.stopLoading();
-      FLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      print('🔴 Error: $e');
+      FLoaders.errorSnackBar(title: 'Facebook Sign-In Failed', message: e.toString());
     }
   }
-
 }

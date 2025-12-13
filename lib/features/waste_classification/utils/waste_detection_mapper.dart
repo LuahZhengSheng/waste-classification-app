@@ -82,7 +82,7 @@ class WasteDetectionMapper {
 
     // Metal - Recyclable
     'Aluminium Can': CategorySearchCriteria(
-      categoryName: 'Metal',
+      categoryName: 'Aluminium',
       isRecyclable: true,
       keywords: ['aluminium', 'aluminum', 'can'],
     ),
@@ -103,37 +103,37 @@ class WasteDetectionMapper {
 
     // E-waste - Recyclable (e-waste category)
     'Charger': CategorySearchCriteria(
-      categoryName: 'Electronics',
+      categoryName: 'Electronic Waste',
       isRecyclable: true,
       keywords: ['charger', 'adapter'],
     ),
     'Smartphone': CategorySearchCriteria(
-      categoryName: 'Electronics',
+      categoryName: 'Electronic Waste',
       isRecyclable: true,
       keywords: ['phone', 'smartphone', 'mobile'],
     ),
     'Laptop': CategorySearchCriteria(
-      categoryName: 'Electronics',
+      categoryName: 'Electronic Waste',
       isRecyclable: true,
       keywords: ['laptop', 'computer'],
     ),
     'Monitor': CategorySearchCriteria(
-      categoryName: 'Electronics',
+      categoryName: 'Electronic Waste',
       isRecyclable: true,
       keywords: ['monitor', 'screen', 'display'],
     ),
     'Printer': CategorySearchCriteria(
-      categoryName: 'Electronics',
+      categoryName: 'Electronic Waste',
       isRecyclable: true,
       keywords: ['printer'],
     ),
     'Computer Mouse': CategorySearchCriteria(
-      categoryName: 'Electronics',
+      categoryName: 'Electronic Waste',
       isRecyclable: true,
       keywords: ['mouse'],
     ),
     'Computer Keyboard': CategorySearchCriteria(
-      categoryName: 'Electronics',
+      categoryName: 'Electronic Waste',
       isRecyclable: true,
       keywords: ['keyboard'],
     ),

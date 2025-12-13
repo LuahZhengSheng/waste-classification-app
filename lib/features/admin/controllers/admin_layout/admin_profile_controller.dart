@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'package:get/get.dart';
-import 'package:fyp/data/repositories/authentication/authentication_repository.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
 import 'package:fyp/data/services/profile_image/profile_image_service.dart';
 import 'package:fyp/features/authentication/models/user_model.dart';
@@ -24,6 +23,7 @@ class AdminProfileController extends GetxController {
       FLoaders.showLoading('Updating profile...');
 
       UserModel updatedUser = user;
+      print('new phone number0: ${updatedUser.phoneNo}');
 
       // Handle image deletion
       if (pendingDeleteImage && user.profileImg != null && user.profileImg!.isNotEmpty) {
@@ -31,7 +31,9 @@ class AdminProfileController extends GetxController {
           userId: user.userId,
           profileImg: user.profileImg,
         );
+        print('new phone number1: ${updatedUser.phoneNo}');
         updatedUser = user.copyWith(profileImg: '');
+        print('new phone number2: ${updatedUser.phoneNo}');
       }
       // Handle image upload
       else if (pendingImageBytes != null) {
@@ -45,6 +47,8 @@ class AdminProfileController extends GetxController {
           updatedUser = user.copyWith(profileImg: fileName);
         }
       }
+
+      print('new phone number5: ${updatedUser.phoneNo}');
 
       // Update user profile
       await _userRepository.updateUserDetails(updatedUser);

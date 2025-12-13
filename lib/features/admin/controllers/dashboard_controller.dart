@@ -1,231 +1,124 @@
-import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
+// dashboard_controller.dart
 import 'package:get/get.dart';
-import '../../../utils/constants/colors.dart';
 
-class AdminDashboardController extends GetxController {
-  static AdminDashboardController get instance => Get.find();
+import '../../../data/repositories/dashboard/dashboard_repository.dart';
 
-  // Observable variables for dashboard data
-  final _isLoading = false.obs;
-  final _totalUsers = 0.obs;
-  final _totalEvents = 0.obs;
-  final _totalPosts = 0.obs;
-  final _activeUsers = 0.obs;
-  final _registeredEvents = 0.obs;
-  final _monthlyGrowth = 0.0.obs;
+class DashboardController extends GetxController {
+  final _dashboardRepo = Get.put(DashboardRepository());
 
-  // Chart data - Fixed initialization
-  final RxList<FlSpot> _userGrowthData = <FlSpot>[].obs;
-  final RxList<PieChartSectionData> _eventParticipationData = <PieChartSectionData>[].obs;
-  final RxList<FlSpot> _monthlyActivityData = <FlSpot>[].obs;
+  // Observables for stats
+  final RxInt totalUsers = 0.obs;
+  final RxDouble totalWeightRecycled = 0.0.obs;
+  final RxInt activeCenters = 0.obs;
+  final RxInt totalPointsIssued = 0.obs;
 
-  // Recent activity data - Fixed initialization
-  final RxList<Map<String, dynamic>> _recentUsers = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> _recentEvents = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> _recentPosts = <Map<String, dynamic>>[].obs;
+  // Trends
+  final RxString userTrend = '+0%'.obs;
+  final RxString weightTrend = '+0%'.obs;
+  final RxString centerTrend = '+0'.obs;
+  final RxString pointsTrend = '+0%'.obs;
 
-  // Getters
-  bool get isLoading => _isLoading.value;
-  int get totalUsers => _totalUsers.value;
-  int get totalEvents => _totalEvents.value;
-  int get totalPosts => _totalPosts.value;
-  int get activeUsers => _activeUsers.value;
-  int get registeredEvents => _registeredEvents.value;
-  double get monthlyGrowth => _monthlyGrowth.value;
+  // 🆕 Chart data - 改为直接用 Rx 包装，不用 RxMap
+  final Rx<Map<String, double>> recyclingTrend = Rx<Map<String, double>>({});
+  final Rx<Map<String, double>> wasteCategoryDistribution = Rx<Map<String, double>>({});
+  final Rx<Map<String, int>> userGrowth = Rx<Map<String, int>>({});
+  final Rx<List<Map<String, dynamic>>> topCenters = Rx<List<Map<String, dynamic>>>([]);
 
-  RxList<FlSpot> get userGrowthData => _userGrowthData;
-  RxList<PieChartSectionData> get eventParticipationData => _eventParticipationData;
-  RxList<FlSpot> get monthlyActivityData => _monthlyActivityData;
-
-  RxList<Map<String, dynamic>> get recentUsers => _recentUsers;
-  RxList<Map<String, dynamic>> get recentEvents => _recentEvents;
-  RxList<Map<String, dynamic>> get recentPosts => _recentPosts;
+  final RxBool isLoading = true.obs;
 
   @override
   void onInit() {
     super.onInit();
-    loadDashboardData();
+    _setupStreams();
+    _calculateTrends();
   }
 
-  /// Load all dashboard data
-  Future<void> loadDashboardData() async {
-    try {
-      _isLoading.value = true;
+  /// Setup all data streams
+  void _setupStreams() {
+    // Total users stream
+    _dashboardRepo.getTotalUsersStream().listen((count) {
+      totalUsers.value = count;
+    });
 
-      await Future.wait([
-        _loadStatistics(),
-        _loadChartData(),
-        _loadRecentActivity(),
-      ]);
+    // Total weight recycled stream
+    _dashboardRepo.getTotalWeightRecycledStream().listen((weight) {
+      totalWeightRecycled.value = weight;
+      isLoading.value = false;
+    });
+
+    // Active centers stream
+    _dashboardRepo.getActiveCentersStream().listen((count) {
+      activeCenters.value = count;
+    });
+
+    // Total points issued stream
+    _dashboardRepo.getTotalPointsIssuedStream().listen((points) {
+      totalPointsIssued.value = points;
+    });
+
+    // 🆕 Recycling trend stream - 更新整个对象
+    _dashboardRepo.getRecyclingTrendStream().listen((data) {
+      recyclingTrend.value = Map<String, double>.from(data);
+    });
+
+    // 🆕 Waste category distribution stream
+    _dashboardRepo.getWasteCategoryDistributionStream().listen((data) {
+      wasteCategoryDistribution.value = Map<String, double>.from(data);
+    });
+
+    // 🆕 User growth stream
+    _dashboardRepo.getUserGrowthStream().listen((data) {
+      userGrowth.value = Map<String, int>.from(data);
+    });
+
+    // 🆕 Top centers stream
+    _dashboardRepo.getTopCentersStream().listen((data) {
+      topCenters.value = List<Map<String, dynamic>>.from(data);
+    });
+  }
+
+  /// Calculate trends compared to previous month
+  Future<void> _calculateTrends() async {
+    try {
+      final prevStats = await _dashboardRepo.getPreviousMonthStats();
+      final prevUsers = prevStats['prevUsers'] as int;
+      final prevWeight = prevStats['prevWeight'] as double;
+
+      // Calculate user trend
+      if (prevUsers > 0) {
+        final userGrowthPercent = ((totalUsers.value - prevUsers) / prevUsers * 100);
+        userTrend.value = '${userGrowthPercent >= 0 ? '+' : ''}${userGrowthPercent.toStringAsFixed(1)}%';
+      }
+
+      // Calculate weight trend
+      if (prevWeight > 0) {
+        final weightGrowthPercent = ((totalWeightRecycled.value - prevWeight) / prevWeight * 100);
+        weightTrend.value = '${weightGrowthPercent >= 0 ? '+' : ''}${weightGrowthPercent.toStringAsFixed(1)}%';
+      }
     } catch (e) {
-      // Handle error - could use your FLoaders here
-      print('Error loading dashboard data: $e');
-    } finally {
-      _isLoading.value = false;
+      print('Error calculating trends: $e');
     }
   }
 
-  /// Load basic statistics
-  Future<void> _loadStatistics() async {
-    // Simulate API call - replace with actual Firebase queries
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    _totalUsers.value = 1250;
-    _totalEvents.value = 45;
-    _totalPosts.value = 320;
-    _activeUsers.value = 890;
-    _registeredEvents.value = 230;
-    _monthlyGrowth.value = 15.3;
+  /// Format large numbers
+  String formatNumber(int number) {
+    if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    }
+    return number.toString();
   }
 
-  /// Load chart data
-  Future<void> _loadChartData() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    // User growth data (last 7 days) - Fixed initialization
-    _userGrowthData.assignAll([
-      const FlSpot(0, 100),
-      const FlSpot(1, 120),
-      const FlSpot(2, 140),
-      const FlSpot(3, 160),
-      const FlSpot(4, 180),
-      const FlSpot(5, 200),
-      const FlSpot(6, 220),
-    ]);
-
-    // Event participation pie chart data - Fixed initialization
-    _eventParticipationData.assignAll([
-      PieChartSectionData(
-        color: FColors.adminLightPrimary,
-        value: 40,
-        title: 'Registered',
-        radius: 80,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-      ),
-      PieChartSectionData(
-        color: FColors.adminLightSecondary,
-        value: 30,
-        title: 'Attended',
-        radius: 80,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-      ),
-      PieChartSectionData(
-        color: FColors.adminLightWarning,
-        value: 20,
-        title: 'No Show',
-        radius: 80,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-      ),
-      PieChartSectionData(
-        color: FColors.adminLightError,
-        value: 10,
-        title: 'Cancelled',
-        radius: 80,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-      ),
-    ]);
-
-    // Monthly activity data - Fixed initialization
-    _monthlyActivityData.assignAll([
-      const FlSpot(1, 30),
-      const FlSpot(2, 50),
-      const FlSpot(3, 40),
-      const FlSpot(4, 70),
-      const FlSpot(5, 60),
-      const FlSpot(6, 80),
-      const FlSpot(7, 90),
-      const FlSpot(8, 85),
-      const FlSpot(9, 100),
-      const FlSpot(10, 110),
-      const FlSpot(11, 95),
-      const FlSpot(12, 120),
-    ]);
-  }
-
-  /// Load recent activity data
-  Future<void> _loadRecentActivity() async {
-    await Future.delayed(const Duration(milliseconds: 200));
-
-    _recentUsers.assignAll([
-      {'name': 'John Doe', 'email': 'john@example.com', 'joinDate': '2024-01-15', 'status': 'Active'},
-      {'name': 'Jane Smith', 'email': 'jane@example.com', 'joinDate': '2024-01-14', 'status': 'Active'},
-      {'name': 'Bob Johnson', 'email': 'bob@example.com', 'joinDate': '2024-01-13', 'status': 'Inactive'},
-      {'name': 'Alice Brown', 'email': 'alice@example.com', 'joinDate': '2024-01-12', 'status': 'Active'},
-      {'name': 'Charlie Wilson', 'email': 'charlie@example.com', 'joinDate': '2024-01-11', 'status': 'Active'},
-    ]);
-
-    _recentEvents.assignAll([
-      {'title': 'Beach Cleanup Drive', 'date': '2024-01-20', 'participants': 45, 'status': 'Upcoming'},
-      {'title': 'Recycling Workshop', 'date': '2024-01-18', 'participants': 32, 'status': 'Completed'},
-      {'title': 'Tree Planting Event', 'date': '2024-01-15', 'participants': 28, 'status': 'Completed'},
-      {'title': 'Waste Sorting Training', 'date': '2024-01-22', 'participants': 15, 'status': 'Upcoming'},
-    ]);
-
-    _recentPosts.assignAll([
-      {'title': 'How to Reduce Plastic Waste', 'author': 'Sarah Connor', 'likes': 124, 'comments': 23, 'date': '2024-01-15'},
-      {'title': 'DIY Compost Bin Tutorial', 'author': 'Mike Johnson', 'likes': 98, 'comments': 17, 'date': '2024-01-14'},
-      {'title': 'Top 10 Eco-Friendly Products', 'author': 'Emma Davis', 'likes': 156, 'comments': 31, 'date': '2024-01-13'},
-      {'title': 'Ocean Conservation Tips', 'author': 'David Lee', 'likes': 87, 'comments': 12, 'date': '2024-01-12'},
-    ]);
-  }
-
-  /// Refresh dashboard data
-  Future<void> refreshDashboard() async {
-    await loadDashboardData();
-  }
-
-  /// Get statistics card data
-  List<Map<String, dynamic>> getStatisticsCards() {
-    return [
-      {
-        'title': 'Total Users',
-        'value': totalUsers.toString(),
-        'change': '+${monthlyGrowth.toStringAsFixed(1)}%',
-        'isPositive': true,
-        'icon': 'users',
-        'color': FColors.adminLightPrimary,
-      },
-      {
-        'title': 'Active Users',
-        'value': activeUsers.toString(),
-        'change': '+12.5%',
-        'isPositive': true,
-        'icon': 'user_check',
-        'color': FColors.adminLightSecondary,
-      },
-      {
-        'title': 'Total Events',
-        'value': totalEvents.toString(),
-        'change': '+8.3%',
-        'isPositive': true,
-        'icon': 'calendar',
-        'color': FColors.adminLightInfo,
-      },
-      {
-        'title': 'Community Posts',
-        'value': totalPosts.toString(),
-        'change': '+18.7%',
-        'isPositive': true,
-        'icon': 'message',
-        'color': FColors.adminLightWarning,
-      },
-    ];
-  }
-
-  /// Calculate user engagement rate
-  double get userEngagementRate {
-    if (totalUsers == 0) return 0.0;
-    return (activeUsers / totalUsers) * 100;
-  }
-
-  /// Get quick actions for admin
-  List<Map<String, dynamic>> getQuickActions() {
-    return [
-      {'title': 'Add New Event', 'icon': 'calendar_plus', 'route': '/admin/events/create'},
-      {'title': 'Manage Users', 'icon': 'users_manage', 'route': '/admin/users'},
-      {'title': 'View Reports', 'icon': 'chart', 'route': '/admin/reports'},
-      {'title': 'System Settings', 'icon': 'settings', 'route': '/admin/settings'},
-    ];
+  /// Get waste category name
+  String getCategoryName(String categoryId) {
+    final categoryMap = {
+      'paper': 'Paper',
+      'plastic': 'Plastic',
+      'glass': 'Glass',
+      'aluminium': 'Aluminium',
+      'ewaste': 'E-waste',
+    };
+    return categoryMap[categoryId.toLowerCase()] ?? categoryId;
   }
 }

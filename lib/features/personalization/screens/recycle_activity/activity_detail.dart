@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:fyp/common/widgets/appbar/appbar.dart';
 import 'package:fyp/features/personalization/controllers/activity_detail_controller.dart';
@@ -11,8 +12,10 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../utils/formatters/formatter.dart';
 import '../../../../utils/popups/loaders.dart';
 import '../../../community/screens/create_post/widgets/media_lightbox.dart';
+import '../../../waste_classification/screens/waste_category_guideline/waste_category_guide_detail.dart';
 
 class ActivityDetailScreen extends StatelessWidget {
   const ActivityDetailScreen({super.key});
@@ -61,7 +64,6 @@ class ActivityDetailScreen extends StatelessWidget {
         ],
       ),
       body: Obx(() {
-        // Show loading indicator while data is being loaded
         if (controller.isLoading.value) {
           return const Center(
             child: CircularProgressIndicator(color: FColors.primary),
@@ -94,12 +96,12 @@ class ActivityDetailScreen extends StatelessWidget {
                     _buildBasicInfoCard(activity, category, dark, controller),
                     const SizedBox(height: FSizes.spaceBtwSections),
 
-                    // Metrics Cards
+                    // 🆕 Metrics Cards - Now includes Emission
                     _buildMetricsSection(activity, dark),
                     const SizedBox(height: FSizes.spaceBtwSections),
 
-                    // Category Details Card
-                    _buildCategoryDetailsCard(category, dark),
+                    // 🆕 Category Details Card - Click to navigate to detail
+                    _buildCategoryDetailsCard(category, dark, context),
                     const SizedBox(height: FSizes.spaceBtwSections),
 
                     // Staff and Center Info Tabs
@@ -286,7 +288,7 @@ class ActivityDetailScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // Tap to enlarge hint (only show if we have a valid image)
+                  // Tap to enlarge hint
                   if (hasValidImage && !isLoading)
                     Positioned(
                       top: 16,
@@ -443,27 +445,43 @@ class ActivityDetailScreen extends StatelessWidget {
     );
   }
 
+  /// 🆕 Updated Metrics Section - Now includes Emission card
   Widget _buildMetricsSection(RecyclingActivity activity, bool dark) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildMetricCard(
-            'Weight',
-            activity.formattedWeight,
-            Iconsax.weight,
-            FColors.info,
-            dark,
-          ),
+        // First Row: Weight and Points
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCard(
+                'Weight',
+                activity.formattedWeight,
+                Iconsax.weight,
+                FColors.info,
+                dark,
+              ),
+            ),
+            const SizedBox(width: FSizes.md),
+            Expanded(
+              child: _buildMetricCard(
+                'Points',
+                '${activity.pointsEarned}',
+                Iconsax.medal_star5,
+                FColors.warning,
+                dark,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: FSizes.md),
-        Expanded(
-          child: _buildMetricCard(
-            'Points',
-            '${activity.pointsEarned}',
-            Iconsax.star1,
-            FColors.warning,
-            dark,
-          ),
+        const SizedBox(height: FSizes.md),
+        // 🆕 Second Row: Emission card (full width)
+        _buildMetricCard(
+          'CO₂ Emission Reduced',
+          '${activity.emissionReduced.toStringAsFixed(2)} kg',
+          Iconsax.tree,
+          FColors.success,
+          dark,
+          isFullWidth: true,
         ),
       ],
     );
@@ -474,8 +492,9 @@ class ActivityDetailScreen extends StatelessWidget {
       String value,
       IconData icon,
       Color color,
-      bool dark,
-      ) {
+      bool dark, {
+        bool isFullWidth = false,
+      }) {
     return Container(
       padding: const EdgeInsets.all(FSizes.lg),
       decoration: BoxDecoration(
@@ -486,7 +505,42 @@ class ActivityDetailScreen extends StatelessWidget {
           width: 1,
         ),
       ),
-      child: Column(
+      child: isFullWidth
+          ? Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(width: FSizes.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
+                    color: dark ? FColors.darkGrey : FColors.grey,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      )
+          : Column(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
@@ -517,89 +571,141 @@ class ActivityDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryDetailsCard(WasteCategory category, bool dark) {
-    return Container(
-      padding: const EdgeInsets.all(FSizes.lg),
-      decoration: BoxDecoration(
-        color: dark ? FColors.darkContainer : FColors.white,
-        borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: (dark ? Colors.black : Colors.grey).withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: category.color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  category.icon,
-                  color: category.color,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Category Information',
-                  style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+  /// 🆕 Updated Category Details Card - Now clickable to navigate to detail
+  Widget _buildCategoryDetailsCard(WasteCategory category, bool dark, BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to waste category detail screen
+        Get.to(() => WasteCategoryDetailScreen(category: category));
+      },
+      child: Container(
+        padding: const EdgeInsets.all(FSizes.lg),
+        decoration: BoxDecoration(
+          color: dark ? FColors.darkContainer : FColors.white,
+          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+          boxShadow: [
+            BoxShadow(
+              color: (dark ? Colors.black : Colors.grey).withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: category.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    category.icon,
+                    color: category.color,
+                    size: 20,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: FSizes.spaceBtwItems),
-          Text(
-            category.description,
-            style: Theme.of(Get.context!).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: FSizes.md),
-          Container(
-            padding: const EdgeInsets.all(FSizes.md),
-            decoration: BoxDecoration(
-              color: category.color.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Iconsax.star1,
-                      size: 16,
-                      color: category.color,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    category.name,
+                    style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Base Points: ${category.formattedPoints}',
-                      style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
-                        color: category.color,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: FSizes.sm),
-                Text(
-                  'Examples: ${category.formattedExamples}',
-                  style: Theme.of(Get.context!).textTheme.bodySmall,
+                Icon(
+                  Iconsax.arrow_right_3,
+                  color: dark ? FColors.darkGrey : FColors.grey,
+                  size: 20,
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: FSizes.spaceBtwItems),
+
+            // 🆕 Description from waste category
+            Text(
+              category.description,
+              style: Theme.of(Get.context!).textTheme.bodyMedium,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: FSizes.md),
+
+            // 🆕 Info cards with base points and examples
+            Container(
+              padding: const EdgeInsets.all(FSizes.md),
+              decoration: BoxDecoration(
+                color: category.color.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Base Points
+                  if (category.basePoints != null)
+                    Row(
+                      children: [
+                        Icon(
+                          Iconsax.star1,
+                          size: 16,
+                          color: category.color,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Base Points: ${category.basePoints!.toStringAsFixed(1)} pts/kg',
+                          style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
+                            color: category.color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  if (category.basePoints != null && category.examples.isNotEmpty)
+                    const SizedBox(height: FSizes.sm),
+
+                  // Examples
+                  if (category.examples.isNotEmpty)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Iconsax.category,
+                          size: 16,
+                          color: category.color,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Examples: ${category.examples.take(3).join(', ')}${category.examples.length > 3 ? '...' : ''}',
+                            style: Theme.of(Get.context!).textTheme.bodySmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: FSizes.sm),
+
+            // Tap to view more hint
+            Center(
+              child: Text(
+                'Tap to view full details',
+                style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
+                  color: FColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -729,22 +835,6 @@ class ActivityDetailScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                // const SizedBox(height: 4),
-                // Container(
-                //   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                //   decoration: BoxDecoration(
-                //     color: FColors.success.withOpacity(0.1),
-                //     borderRadius: BorderRadius.circular(20),
-                //   ),
-                //   child: Text(
-                //     'Center Staff',
-                //     style: TextStyle(
-                //       color: FColors.success,
-                //       fontSize: 12,
-                //       fontWeight: FontWeight.w600,
-                //     ),
-                //   ),
-                // ),
                 const SizedBox(height: FSizes.md),
                 Text(
                   staff.username,
@@ -942,7 +1032,7 @@ class ActivityDetailScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => _showDirectionConfirmation(center, context),
+              onPressed: () => controller.openGoogleMapsNavigation(center),
               icon: const Icon(Iconsax.routing),
               label: const Text('Get Directions'),
               style: ElevatedButton.styleFrom(
@@ -979,81 +1069,81 @@ class ActivityDetailScreen extends StatelessWidget {
     );
   }
 
-  void _showDirectionConfirmation(dynamic center, BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-        ),
-        backgroundColor: FHelperFunctions.isDarkMode(context) ? FColors.darkContainer : FColors.white,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: FColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Iconsax.routing, color: FColors.primary, size: 20),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Open Google Maps')),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Would you like to navigate to this recycling center?',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: FSizes.md),
-            Container(
-              padding: const EdgeInsets.all(FSizes.sm),
-              decoration: BoxDecoration(
-                color: FColors.info.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Iconsax.location, color: FColors.info, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      center.name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: FColors.info,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _openGoogleMaps(center);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: FColors.primary,
-              foregroundColor: FColors.white,
-            ),
-            child: const Text('Open Maps'),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showDirectionConfirmation(dynamic center, BuildContext context) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       shape: RoundedRectangleBorder(
+  //         borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+  //       ),
+  //       backgroundColor: FHelperFunctions.isDarkMode(context) ? FColors.darkContainer : FColors.white,
+  //       title: Row(
+  //         children: [
+  //           Container(
+  //             padding: const EdgeInsets.all(8),
+  //             decoration: BoxDecoration(
+  //               color: FColors.primary.withOpacity(0.1),
+  //               shape: BoxShape.circle,
+  //             ),
+  //             child: Icon(Iconsax.routing, color: FColors.primary, size: 20),
+  //           ),
+  //           const SizedBox(width: 12),
+  //           const Expanded(child: Text('Open Google Maps')),
+  //         ],
+  //       ),
+  //       content: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Text(
+  //             'Would you like to navigate to this recycling center?',
+  //             style: Theme.of(context).textTheme.bodyLarge,
+  //           ),
+  //           const SizedBox(height: FSizes.md),
+  //           Container(
+  //             padding: const EdgeInsets.all(FSizes.sm),
+  //             decoration: BoxDecoration(
+  //               color: FColors.info.withOpacity(0.1),
+  //               borderRadius: BorderRadius.circular(8),
+  //             ),
+  //             child: Row(
+  //               children: [
+  //                 Icon(Iconsax.location, color: FColors.info, size: 16),
+  //                 const SizedBox(width: 8),
+  //                 Expanded(
+  //                   child: Text(
+  //                     center.name,
+  //                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+  //                       color: FColors.info,
+  //                       fontWeight: FontWeight.w600,
+  //                     ),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(context),
+  //           child: const Text('Cancel'),
+  //         ),
+  //         ElevatedButton(
+  //           onPressed: () {
+  //             Navigator.pop(context);
+  //             _openGoogleMaps(center);
+  //           },
+  //           style: ElevatedButton.styleFrom(
+  //             backgroundColor: FColors.primary,
+  //             foregroundColor: FColors.white,
+  //           ),
+  //           child: const Text('Open Maps'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   void _openGoogleMaps(dynamic center) async {
     final lat = center.centerLocation.geoPoint.latitude;
@@ -1078,7 +1168,6 @@ class ActivityDetailScreen extends StatelessWidget {
     }
   }
 
-  // 新增方法：处理图片查看
   void _showImageLightbox(RecyclingActivity activity, BuildContext context) {
     Future<String> imageUrlFuture = activity.getSupportImageUrl(activity.userId);
 

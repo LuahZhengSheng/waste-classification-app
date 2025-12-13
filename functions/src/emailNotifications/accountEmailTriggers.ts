@@ -52,12 +52,14 @@ async function handleUserBanned(userData: UserData) {
     // 2. 撤销刷新令牌
     await getAuth().revokeRefreshTokens(userData.uid);
 
-    // 3. ✨ 新增：写入元数据通知前端
+    // 3. ✨ 写入元数据通知前端
     const firestore = getFirestore();
     const metadataRef = firestore.collection('metadata').doc(userData.uid);
     await metadataRef.set({
       refreshTime: Date.now(),
       banned: true,
+      forceLogout: true,
+      reason: 'banned',
       updatedAt: new Date()
     });
 
@@ -97,7 +99,9 @@ async function handleUserRecovered(userData: UserData) {
     const metadataRef = firestore.collection('metadata').doc(userData.uid);
     await metadataRef.set({
       refreshTime: Date.now(),
-      banned: false,  // 重要：设置为 false
+      banned: false,
+      forceLogout: false,
+      reason: 'recovered',
       updatedAt: new Date()
     });
 
@@ -117,6 +121,46 @@ async function handleUserRecovered(userData: UserData) {
 
   if (!emailResult.success) {
     console.error('❌ Failed to send recovery notification:', emailResult.error);
+  }
+}
+
+// ✨ 新增：处理角色变更
+async function handleRoleChanged(userData: UserData, oldRole: string, newRole: string) {
+  console.log(`🔄 Role changed for ${userData.username}: ${oldRole} → ${newRole}`);
+
+  try {
+    // 1. 撤销刷新令牌，强制重新登录
+    await getAuth().revokeRefreshTokens(userData.uid);
+
+    // 2. 写入元数据通知前端强制登出
+    const firestore = getFirestore();
+    const metadataRef = firestore.collection('metadata').doc(userData.uid);
+    await metadataRef.set({
+      refreshTime: Date.now(),
+      forceLogout: true,
+      reason: 'role_changed',
+      oldRole: oldRole,
+      newRole: newRole,
+      updatedAt: new Date()
+    });
+
+    console.log(`✅ User ${userData.uid} will be forced to logout due to role change`);
+
+  } catch (error) {
+    console.error('❌ Failed to handle role change:', error);
+  }
+
+  // 发送邮件通知角色变更
+  const emailResult = await sendEmail(
+    userData.email,
+    'Role Update Notice - SaveEarth',
+    SystemEmailTemplates.getRoleChangeNotification(userData.username, oldRole, newRole),
+    userData.username,
+    'role_changed'
+  );
+
+  if (!emailResult.success) {
+    console.error('❌ Failed to send role change notification:', emailResult.error);
   }
 }
 
@@ -159,6 +203,8 @@ export const onUserStatusChanged = onDocumentUpdated('users/{userId}', async (ev
   const wasBanned = !beforeData.isBanned && afterData.isBanned;
   // 检查恢复操作
   const wasRecovered = beforeData.isBanned && !afterData.isBanned;
+  // ✨ 检查角色变更
+  const roleChanged = beforeData.role !== afterData.role;
 
   if (wasBanned) {
     // 确保 afterData 包含 uid
@@ -168,6 +214,10 @@ export const onUserStatusChanged = onDocumentUpdated('users/{userId}', async (ev
     // 确保 afterData 包含 uid
     const userDataWithUid = { ...afterData, uid: userId };
     await handleUserRecovered(userDataWithUid);
+  } else if (roleChanged) {
+    // ✨ 处理角色变更
+    const userDataWithUid = { ...afterData, uid: userId };
+    await handleRoleChanged(userDataWithUid, beforeData.role, afterData.role);
   }
 });
 
@@ -189,12 +239,13 @@ export const onUserUpdated = onDocumentUpdated('users/{userId}', async (event) =
     return;
   }
 
-  // 检查是否有重要字段被修改（排除封禁状态变化）
+  // 检查是否有重要字段被修改（排除封禁状态变化和角色变更）
   const wasBanned = !beforeData.isBanned && afterData.isBanned;
   const wasRecovered = beforeData.isBanned && !afterData.isBanned;
+  const roleChanged = beforeData.role !== afterData.role;
 
-  if (wasBanned || wasRecovered) {
-    return; // 封禁/恢复操作由专门的触发器处理
+  if (wasBanned || wasRecovered || roleChanged) {
+    return; // 封禁/恢复/角色变更操作由专门的触发器处理
   }
 
   const changes = getChangedFields(beforeData, afterData);

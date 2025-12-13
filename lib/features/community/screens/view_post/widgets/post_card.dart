@@ -7,6 +7,7 @@ import 'package:fyp/features/community/screens/view_post/widgets/post_action.dar
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
+import 'package:fyp/utils/popups/loaders.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:video_player/video_player.dart';
@@ -100,21 +101,11 @@ class FPostCard extends StatelessWidget {
                     Opacity(
                       opacity: 0.5,
                       child: IgnorePointer(
-                        child: Row(
-                          children: [
-                            const Spacer(),
-                            _buildPostActions(),
-                          ],
-                        ),
+                        child: _buildPostActions(),  // ✅ 直接调用，不包裹在 Row 中
                       ),
                     )
                   else
-                    Row(
-                      children: [
-                        const Spacer(),
-                        _buildPostActions(),
-                      ],
-                    ),
+                    _buildPostActions(),  // ✅ 直接调用
                 ],
               ),
             ),
@@ -199,37 +190,65 @@ class FPostCard extends StatelessWidget {
       bool dark,
       PostType postType,
       ) {
-    // 【修改】优先使用 updatedAt，如果为 null 则用 createdAt
     final displayDate = post.updatedAt ?? post.createdAt;
     final wasEdited = post.updatedAt != null;
 
     if (isInDetailScreen) {
       final controller = Get.find<PostDetailsController>();
-      final isUserPost = post.userId == controller.getCurrentUserId();
+      final currentUserId = controller.getCurrentUserId();
+      final isUserPost = post.userId == currentUserId;
 
-      return FUserInfo(
-        userId: post.userId,
-        timeAgo: FFormatter.formatTimeAgo(displayDate),
-        postType: postType,
-        showMenuButton: isUserPost,
-        onMenuPressed: () => _showPostOptions(context, post),
-        wasEdited: wasEdited, // 【新增】传递编辑状态
+      return Row(
+        children: [
+          Expanded(
+            child: FUserInfo(
+              userId: post.userId,
+              timeAgo: FFormatter.formatTimeAgo(displayDate),
+              postType: postType,
+              showMenuButton: false,
+              wasEdited: wasEdited,
+            ),
+          ),
+          // Menu button for both own posts and other users' posts
+          _buildMenuButton(context, dark, isUserPost),
+        ],
       );
     } else {
       final controller = Get.find<PostsController>();
-      final isUserPost = controller.isUserPost(post);
+      final currentUserId = controller.getCurrentUserId();
+      final isUserPost = post.userId == currentUserId;
 
-      return FUserInfo(
-        userId: post.userId,
-        timeAgo: FFormatter.formatTimeAgo(displayDate),
-        postType: postType,
-        showMenuButton: isUserPost,
-        onMenuPressed: () => _showPostOptions(context, post),
-        wasEdited: wasEdited, // 【新增】传递编辑状态
+      return Row(
+        children: [
+          Expanded(
+            child: FUserInfo(
+              userId: post.userId,
+              timeAgo: FFormatter.formatTimeAgo(displayDate),
+              postType: postType,
+              showMenuButton: false,
+              wasEdited: wasEdited,
+            ),
+          ),
+          // Menu button for both own posts and other users' posts
+          _buildMenuButton(context, dark, isUserPost),
+        ],
       );
     }
   }
 
+  // Unified menu button
+  Widget _buildMenuButton(BuildContext context, bool dark, bool isUserPost) {
+    return IconButton(
+      onPressed: () => _showPostOptionsMenu(context, isUserPost),
+      icon: Icon(
+        Icons.more_vert,
+        color: dark ? FColors.darkGrey : FColors.grey,
+        size: 20,
+      ),
+      padding: const EdgeInsets.all(8),
+      constraints: const BoxConstraints(),
+    );
+  }
 
   Widget _buildPostActions() {
     if (isInDetailScreen) {
@@ -263,8 +282,8 @@ class FPostCard extends StatelessWidget {
     }
   }
 
-  void _showPostOptions(BuildContext context, PostModel post) {
-    final controller = Get.find<PostsController>();
+  // Show bottom sheet menu with appropriate options
+  void _showPostOptionsMenu(BuildContext context, bool isUserPost) {
     final dark = FHelperFunctions.isDarkMode(context);
 
     showModalBottomSheet(
@@ -279,38 +298,61 @@ class FPostCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: Icon(
-                Iconsax.edit,
-                color: FColors.primary,
-              ),
-              title: Text(
-                'Edit Post',
-                style: TextStyle(
-                  color: dark ? FColors.white : FColors.black,
+            // Show Edit & Delete for user's own posts
+            if (isUserPost) ...[
+              ListTile(
+                leading: Icon(
+                  Iconsax.edit,
+                  color: FColors.primary,
                 ),
+                title: Text(
+                  'Edit Post',
+                  style: TextStyle(
+                    color: dark ? FColors.white : FColors.black,
+                  ),
+                ),
+                onTap: () {
+                  Get.back();
+                  final controller = Get.find<PostsController>();
+                  controller.navigateToEditPost(post);
+                },
               ),
-              onTap: () {
-                Get.back();
-                controller.navigateToEditPost(post);
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Iconsax.trash,
-                color: FColors.error,
-              ),
-              title: Text(
-                'Delete Post',
-                style: TextStyle(
+              ListTile(
+                leading: const Icon(
+                  Iconsax.trash,
                   color: FColors.error,
                 ),
+                title: Text(
+                  'Delete Post',
+                  style: TextStyle(
+                    color: FColors.error,
+                  ),
+                ),
+                onTap: () {
+                  Get.back();
+                  _showDeleteConfirmation(context, post);
+                },
               ),
-              onTap: () {
-                Get.back();
-                _showDeleteConfirmation(context, post);
-              },
-            ),
+            ]
+            // Show Report for other users' posts
+            else ...[
+              ListTile(
+                leading: Icon(
+                  Iconsax.warning_2,
+                  color: FColors.error,
+                ),
+                title: Text(
+                  'Report Post',
+                  style: TextStyle(
+                    color: dark ? FColors.white : FColors.black,
+                  ),
+                ),
+                onTap: () {
+                  Get.back();
+                  _showReportDialog(context);
+                },
+              ),
+            ],
           ],
         ),
       ),
@@ -381,20 +423,94 @@ class FPostCard extends StatelessWidget {
   }
 
   void _confirmDelete(PostModel post) async {
-    // 1. 先关闭 confirmation dialog
     Get.back();
 
     if (isInDetailScreen) {
-      // 2. 在 detail screen 中，先返回到 community 页面
       Get.back();
-
-      // 3. 然后再删除 post
       final controller = Get.find<PostsController>();
       await controller.deletePost(post.postId);
     } else {
-      // 在 community 页面，直接删除
       final controller = Get.find<PostsController>();
       await controller.deletePost(post.postId);
+    }
+  }
+
+  // Show report dialog
+  void _showReportDialog(BuildContext context) async {
+    final currentUserId = isInDetailScreen
+        ? Get.find<PostDetailsController>().getCurrentUserId()
+        : Get.find<PostsController>().getCurrentUserId();
+
+    // Get already reported options by this user
+    final alreadyReported = post.getUserReportedOptions(currentUserId);
+
+    // Show report dialog
+    final selectedOptions = await FLoaders.showReportDialog(
+      alreadyReportedOptions: alreadyReported,
+    );
+
+    // If user selected options, submit report
+    if (selectedOptions != null && selectedOptions.isNotEmpty) {
+      await _submitReport(selectedOptions, currentUserId);
+    }
+  }
+
+  // Submit report
+  Future<void> _submitReport(List<String> selectedOptions, String userId) async {
+    try {
+      FLoaders.showLoading('Submitting report...');
+
+      // Create updated reports map
+      final updatedReports = Map<String, List<String>>.from(post.reports);
+
+      // Process each selected option
+      for (final option in selectedOptions) {
+        if (updatedReports.containsKey(option)) {
+          // Add user to existing list (using Set to avoid duplicates)
+          final userSet = Set<String>.from(updatedReports[option]!);
+          userSet.add(userId);
+          updatedReports[option] = userSet.toList();
+        } else {
+          // Create new list with this user
+          updatedReports[option] = [userId];
+        }
+      }
+
+      // Remove options that user deselected
+      final allOptions = ReportOption.allOptionNames;
+      for (final option in allOptions) {
+        if (!selectedOptions.contains(option) && updatedReports.containsKey(option)) {
+          final userList = List<String>.from(updatedReports[option]!);
+          userList.remove(userId);
+
+          if (userList.isEmpty) {
+            updatedReports.remove(option);
+          } else {
+            updatedReports[option] = userList;
+          }
+        }
+      }
+
+      // Update in repository
+      if (isInDetailScreen) {
+        final controller = Get.find<PostDetailsController>();
+        await controller.updatePostReports(post.postId, updatedReports);
+      } else {
+        final controller = Get.find<PostsController>();
+        await controller.updatePostReports(post.postId, updatedReports);
+      }
+
+      FLoaders.stopLoading();
+      FLoaders.successSnackBar(
+        title: 'Report Submitted',
+        message: 'Thank you for helping keep our community safe',
+      );
+    } catch (e) {
+      FLoaders.stopLoading();
+      FLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to submit report: $e',
+      );
     }
   }
 }
@@ -414,167 +530,356 @@ class _PostMediaPreview extends StatelessWidget {
     if (mediaUrls.isEmpty) return const SizedBox();
 
     final count = mediaUrls.length;
-    final layout = _calculateMediaLayout(count);
 
-    return _buildMediaGrid(layout);
+    // 移除外层的 ClipRRect，让每个媒体项自己处理圆角
+    return _buildMediaLayout(count);
   }
 
-  /// 计算媒体布局
-  _MediaLayout _calculateMediaLayout(int count) {
+  Widget _buildMediaLayout(int count) {
     switch (count) {
       case 1:
-        return _MediaLayout(
-          rows: [
-            _MediaRow(items: [_MediaLayoutItem(index: 0, span: 2)]),
-          ],
-          itemHeight: null, // 使用 AspectRatio
-        );
+        return _buildSingleMedia();
       case 2:
-        return _MediaLayout(
-          rows: [
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 0, span: 1),
-              _MediaLayoutItem(index: 1, span: 1),
-            ]),
-          ],
-          itemHeight: 200,
-        );
+        return _buildTwoMedia();
       case 3:
-        return _MediaLayout(
-          rows: [
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 0, span: 1),
-              _MediaLayoutItem(index: 1, span: 1),
-            ]),
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 2, span: 2),
-            ]),
-          ],
-          itemHeight: 150,
-        );
+        return _buildThreeMedia();
       case 4:
-        return _MediaLayout(
-          rows: [
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 0, span: 1),
-              _MediaLayoutItem(index: 1, span: 1),
-            ]),
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 2, span: 1),
-              _MediaLayoutItem(index: 3, span: 1),
-            ]),
-          ],
-          itemHeight: 150,
-        );
-      case 5:
-        return _MediaLayout(
-          rows: [
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 0, span: 1),
-              _MediaLayoutItem(index: 1, span: 1),
-            ]),
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 2, span: 1),
-              _MediaLayoutItem(index: 3, span: 1),
-              _MediaLayoutItem(index: 4, span: 1),
-            ]),
-          ],
-          itemHeight: 150,
-        );
-      default: // 6+
-        final remaining = count - 5;
-        return _MediaLayout(
-          rows: [
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 0, span: 1),
-              _MediaLayoutItem(index: 1, span: 1),
-            ]),
-            _MediaRow(items: [
-              _MediaLayoutItem(index: 2, span: 1),
-              _MediaLayoutItem(index: 3, span: 1),
-              _MediaLayoutItem(index: 4, span: 1, overlayCount: remaining),
-            ]),
-          ],
-          itemHeight: 150,
-        );
+        return _buildFourMedia();
+      default:
+        return _buildFiveOrMoreMedia();
     }
   }
 
-  Widget _buildMediaGrid(_MediaLayout layout) {
-    if (layout.itemHeight == null) {
-      // 单张图片使用 AspectRatio
-      return GestureDetector(
-        onTap: () => onTap(0),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: _MediaItem(
-              mediaUrl: mediaUrls[0],
-              showPlayIcon: _isVideo(mediaUrls[0]),
-            ),
+  /// 1张图片 - 全宽，保持比例
+  Widget _buildSingleMedia() {
+    return GestureDetector(
+      onTap: () => onTap(0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: _MediaItem(
+            mediaUrl: mediaUrls[0],
+            showPlayIcon: _isVideo(mediaUrls[0]),
           ),
-        ),
-      );
-    }
-
-    return Column(
-      children: layout.rows.map((row) => _buildMediaRow(row, layout.itemHeight!)).toList(),
-    );
-  }
-
-  Widget _buildMediaRow(_MediaRow row, double itemHeight) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: SizedBox(
-        height: itemHeight,
-        child: Row(
-          children: row.items.map((item) {
-            return Expanded(
-              flex: item.span,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  right: item == row.items.last ? 0 : 4,
-                ),
-                child: GestureDetector(
-                  onTap: () => onTap(item.index),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
-                    child: item.overlayCount != null
-                        ? _buildOverlayMedia(item)
-                        : _MediaItem(
-                      mediaUrl: mediaUrls[item.index],
-                      showPlayIcon: _isVideo(mediaUrls[item.index]),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
         ),
       ),
     );
   }
 
-  Widget _buildOverlayMedia(_MediaLayoutItem item) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        _MediaItem(
-          mediaUrl: mediaUrls[item.index],
-          showPlayIcon: _isVideo(mediaUrls[item.index]),
-        ),
-        Container(
-          color: Colors.black.withOpacity(0.6),
-          child: Center(
-            child: Text(
-              '+${item.overlayCount}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+  /// 2张图片 - 左右各50%
+  Widget _buildTwoMedia() {
+    return SizedBox(
+      height: 200,
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onTap(0),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 2),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(FSizes.borderRadiusLg),
+                    bottomLeft: Radius.circular(FSizes.borderRadiusLg),
+                  ),
+                  child: _MediaItem(
+                    mediaUrl: mediaUrls[0],
+                    showPlayIcon: _isVideo(mediaUrls[0]),
+                  ),
+                ),
               ),
             ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onTap(1),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 2),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(FSizes.borderRadiusLg),
+                    bottomRight: Radius.circular(FSizes.borderRadiusLg),
+                  ),
+                  child: _MediaItem(
+                    mediaUrl: mediaUrls[1],
+                    showPlayIcon: _isVideo(mediaUrls[1]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 3张图片 - 第1张全宽，第2、3张各50%（修复对齐）
+  Widget _buildThreeMedia() {
+    return Column(
+      children: [
+        // 第1张 - 全宽
+        GestureDetector(
+          onTap: () => onTap(0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(FSizes.borderRadiusLg),
+              topRight: Radius.circular(FSizes.borderRadiusLg),
+            ),
+            child: SizedBox(
+              height: 200,
+              width: double.infinity,
+              child: _MediaItem(
+                mediaUrl: mediaUrls[0],
+                showPlayIcon: _isVideo(mediaUrls[0]),
+              ),
+            ),
+          ),
+        ),
+
+        // 固定间距
+        const SizedBox(height: 4),
+
+        // 第2、3张 - 各50%
+        SizedBox(
+          height: 150,
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(1),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(FSizes.borderRadiusLg),
+                    ),
+                    child: _MediaItem(
+                      mediaUrl: mediaUrls[1],
+                      showPlayIcon: _isVideo(mediaUrls[1]),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 固定间距
+              const SizedBox(width: 4),
+
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(2),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      bottomRight: Radius.circular(FSizes.borderRadiusLg),
+                    ),
+                    child: _MediaItem(
+                      mediaUrl: mediaUrls[2],
+                      showPlayIcon: _isVideo(mediaUrls[2]),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 4张图片 - 2x2 网格
+  Widget _buildFourMedia() {
+    return Column(
+      children: [
+        SizedBox(
+          height: 150,
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(0),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 2, bottom: 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(FSizes.borderRadiusLg),
+                      ),
+                      child: _MediaItem(
+                        mediaUrl: mediaUrls[0],
+                        showPlayIcon: _isVideo(mediaUrls[0]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(1),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 2, bottom: 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(FSizes.borderRadiusLg),
+                      ),
+                      child: _MediaItem(
+                        mediaUrl: mediaUrls[1],
+                        showPlayIcon: _isVideo(mediaUrls[1]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 150,
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(2),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 2, top: 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(FSizes.borderRadiusLg),
+                      ),
+                      child: _MediaItem(
+                        mediaUrl: mediaUrls[2],
+                        showPlayIcon: _isVideo(mediaUrls[2]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(3),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 2, top: 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        bottomRight: Radius.circular(FSizes.borderRadiusLg),
+                      ),
+                      child: _MediaItem(
+                        mediaUrl: mediaUrls[3],
+                        showPlayIcon: _isVideo(mediaUrls[3]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 5张或更多图片 - 2x2 网格 + 最后一张显示 overlay
+  Widget _buildFiveOrMoreMedia() {
+    final remaining = mediaUrls.length - 4;
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 150,
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(0),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 2, bottom: 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(FSizes.borderRadiusLg),
+                      ),
+                      child: _MediaItem(
+                        mediaUrl: mediaUrls[0],
+                        showPlayIcon: _isVideo(mediaUrls[0]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(1),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 2, bottom: 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(FSizes.borderRadiusLg),
+                      ),
+                      child: _MediaItem(
+                        mediaUrl: mediaUrls[1],
+                        showPlayIcon: _isVideo(mediaUrls[1]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 150,
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(2),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 2, top: 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(FSizes.borderRadiusLg),
+                      ),
+                      child: _MediaItem(
+                        mediaUrl: mediaUrls[2],
+                        showPlayIcon: _isVideo(mediaUrls[2]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(3),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 2, top: 2),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        bottomRight: Radius.circular(FSizes.borderRadiusLg),
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _MediaItem(
+                            mediaUrl: mediaUrls[3],
+                            showPlayIcon: _isVideo(mediaUrls[3]),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '+$remaining',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -631,15 +936,15 @@ class _MediaItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (showPlayIcon) {
-      // 如果是视频，使用 VideoThumbnail 组件
       return _VideoThumbnail(
         videoUrl: mediaUrl,
       );
     } else {
-      // 如果是图片，正常显示
       return Image.network(
         mediaUrl,
-        fit: BoxFit.cover,
+        fit: BoxFit.cover, // ✅ 保持 cover 但确保容器有正确的约束
+        width: double.infinity, // ✅ 强制宽度填满
+        height: double.infinity, // ✅ 强制高度填满
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return Container(
@@ -748,13 +1053,10 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 视频第一帧作为缩略图
         VideoPlayer(_controller),
-        // 半透明遮罩
         Container(
           color: Colors.black.withOpacity(0.3),
         ),
-        // 播放按钮
         const Center(
           child: Icon(
             Iconsax.play_circle,

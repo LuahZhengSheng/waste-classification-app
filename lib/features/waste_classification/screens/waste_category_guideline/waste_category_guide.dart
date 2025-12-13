@@ -44,33 +44,35 @@ class WasteCategoryGuideScreen extends StatelessWidget {
                 ],
               ),
               child: Obx(() => TextField(
-                controller: controller.searchController,
-                onChanged: controller.searchCategories,
-                decoration: InputDecoration(
-                  hintText: 'Search by name or examples...',
-                  hintStyle: TextStyle(
-                    color: dark ? FColors.darkGrey : FColors.textSecondary,
-                  ),
-                  prefixIcon: Icon(
-                    Iconsax.search_normal,
-                    color: dark ? FColors.darkGrey : FColors.textSecondary,
-                  ),
-                  suffixIcon: controller.searchText.value.isNotEmpty
-                      ? IconButton(
-                    icon: Icon(
-                      Iconsax.close_circle,
-                      color: dark ? FColors.darkGrey : FColors.textSecondary,
+                    controller: controller.searchController,
+                    onChanged: controller.searchCategories,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or examples...',
+                      hintStyle: TextStyle(
+                        color: dark ? FColors.darkGrey : FColors.textSecondary,
+                      ),
+                      prefixIcon: Icon(
+                        Iconsax.search_normal,
+                        color: dark ? FColors.darkGrey : FColors.textSecondary,
+                      ),
+                      suffixIcon: controller.searchText.value.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(
+                                Iconsax.close_circle,
+                                color: dark
+                                    ? FColors.darkGrey
+                                    : FColors.textSecondary,
+                              ),
+                              onPressed: controller.clearSearch,
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: FSizes.md,
+                        vertical: FSizes.md,
+                      ),
                     ),
-                    onPressed: controller.clearSearch,
-                  )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: FSizes.md,
-                    vertical: FSizes.md,
-                  ),
-                ),
-              )),
+                  )),
             ),
           ),
 
@@ -142,7 +144,8 @@ class WasteCategoryGuideScreen extends StatelessWidget {
     });
   }
 
-  Widget _buildFilterTabs(BuildContext context, WasteCategoryController controller, bool dark) {
+  Widget _buildFilterTabs(
+      BuildContext context, WasteCategoryController controller, bool dark) {
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: FSizes.defaultSpace,
@@ -153,51 +156,51 @@ class WasteCategoryGuideScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
       ),
       child: Obx(() => Row(
-        children: [
-          Expanded(
-            child: _buildTabButton(
-              context,
-              'Recyclable',
-              controller.selectedFilter.value == 'recyclable',
+            children: [
+              Expanded(
+                child: _buildTabButton(
+                  context,
+                  'Recyclable',
+                  controller.selectedFilter.value == 'recyclable',
                   () {
-                controller.switchFilter('recyclable');
-                controller.pageController.animateToPage(
-                  0,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              },
-              dark,
-            ),
-          ),
-          Expanded(
-            child: _buildTabButton(
-              context,
-              'Not Recyclable',
-              controller.selectedFilter.value == 'not_recyclable',
+                    controller.switchFilter('recyclable');
+                    controller.pageController.animateToPage(
+                      0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  dark,
+                ),
+              ),
+              Expanded(
+                child: _buildTabButton(
+                  context,
+                  'Not Recyclable',
+                  controller.selectedFilter.value == 'not_recyclable',
                   () {
-                controller.switchFilter('not_recyclable');
-                controller.pageController.animateToPage(
-                  1,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              },
-              dark,
-            ),
-          ),
-        ],
-      )),
+                    controller.switchFilter('not_recyclable');
+                    controller.pageController.animateToPage(
+                      1,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  dark,
+                ),
+              ),
+            ],
+          )),
     );
   }
 
   Widget _buildTabButton(
-      BuildContext context,
-      String label,
-      bool isSelected,
-      VoidCallback onTap,
-      bool dark,
-      ) {
+    BuildContext context,
+    String label,
+    bool isSelected,
+    VoidCallback onTap,
+    bool dark,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -211,12 +214,12 @@ class WasteCategoryGuideScreen extends StatelessWidget {
           label,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            color: isSelected
-                ? FColors.white
-                : (dark ? FColors.textSecondary : FColors.darkGrey),
-          ),
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: isSelected
+                    ? FColors.white
+                    : (dark ? FColors.textSecondary : FColors.darkGrey),
+              ),
         ),
       ),
     );
@@ -313,7 +316,7 @@ class _CategoryCard extends StatelessWidget {
 
   Widget _buildAdaptiveCategoryName(BuildContext context, bool dark) {
     // 计算名称长度来决定字体大小
-    final bool isLongName = category.name.length > 12;
+    final bool isLongName = category.name.length > 13;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -337,7 +340,7 @@ class _CategoryCard extends StatelessWidget {
             textPainter.width > constraints.maxWidth;
 
         // 最终字体大小决策
-        final double fontSize = (isLongName || needsSmallerFont) ? 13 : 16;
+        final double fontSize = (isLongName || needsSmallerFont) ? 12.5 : 12;
 
         return Text(
           category.name,

@@ -672,12 +672,32 @@ class AchievementDetailsScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Unlock Criteria: ${level.unlockCriteria}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Unlock Criteria: ${level.unlockCriteria}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: FSizes.lg),
+                      Icon(
+                        Iconsax.medal_star5,
+                        size: 14,
+                        color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+                      ),
+                      const SizedBox(width: FSizes.xs),
+                      Text(
+                        '${level.rewardPoints}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                        ),
+                      ),
+                    ],
                   ),
                   Text(
                     '${(percentage * 100).toStringAsFixed(1)}%',
@@ -689,7 +709,7 @@ class AchievementDetailsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: FSizes.md),
+              const SizedBox(height: FSizes.sm),
               Container(
                 height: 8,
                 decoration: BoxDecoration(
@@ -928,7 +948,20 @@ class AchievementDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUserCard(AchievementDetailsController controller, UserModel user, int rank, int level, bool dark) {
+  Widget _buildUserCard(
+      AchievementDetailsController controller,
+      UserModel user,
+      int rank,
+      int level,
+      bool dark,
+      ) {
+    // 获取该用户在这个 achievement 的 progress
+    final userAchievement = controller.getUserAchievementForUser(user.userId);
+    final progress = userAchievement?.progress ?? 0;
+
+    // 🆕 获取单位
+    final unit = _getProgressUnit(controller.achievement.value?.title ?? '');
+
     return Container(
       padding: const EdgeInsets.all(FSizes.md),
       decoration: BoxDecoration(
@@ -969,7 +1002,7 @@ class AchievementDetailsScreen extends StatelessWidget {
           ),
           const SizedBox(width: FSizes.md),
 
-          // User Avatar - Clickable
+          // User Avatar
           GestureDetector(
             onTap: () {
               final imageUrl = controller.getCachedProfileImageUrl(user.profileImg);
@@ -1016,7 +1049,9 @@ class AchievementDetailsScreen extends StatelessWidget {
                   user.email,
                   style: TextStyle(
                     fontSize: 14,
-                    color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                    color: dark
+                        ? FColors.adminDarkTextSecondary
+                        : FColors.adminLightTextSecondary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1024,12 +1059,15 @@ class AchievementDetailsScreen extends StatelessWidget {
             ),
           ),
 
-          // Level Badge & Reward Points
+          // Level Badge & Progress
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FSizes.sm,
+                  vertical: FSizes.xs,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -1049,21 +1087,26 @@ class AchievementDetailsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: FSizes.xs),
+              // 🆕 显示 progress + 单位
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Iconsax.coin,
+                    Iconsax.chart,
                     size: 14,
-                    color: dark ? FColors.adminDarkWarning : FColors.adminLightWarning,
+                    color: dark
+                        ? FColors.adminDarkPrimary
+                        : FColors.adminLightPrimary,
                   ),
                   const SizedBox(width: FSizes.xs),
                   Text(
-                    '${user.totalRewardPoint} pts',
+                    unit.isEmpty ? '$progress' : '$progress $unit', // 🆕 加上单位
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                      color: dark
+                          ? FColors.adminDarkTextSecondary
+                          : FColors.adminLightTextSecondary,
                     ),
                   ),
                 ],
@@ -1203,5 +1246,32 @@ class AchievementDetailsScreen extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${date.day} ${months[date.month - 1]}, ${date.year}';
+  }
+
+  /// Get progress unit based on achievement title
+  String _getProgressUnit(String achievementTitle) {
+    final title = achievementTitle.toLowerCase();
+
+    // Weight-based achievements (kg)
+    if (title.contains('paper collector') ||
+        title.contains('plastic collector') ||
+        title.contains('glass collector') ||
+        title.contains('aluminium collector') ||
+        title.contains('e-waste collector')) {
+      return 'kg';
+    }
+
+    // Frequency-based achievements (times)
+    if (title.contains('eco warrior')) {
+      return 'times';
+    }
+
+    // Points-based achievements (pts)
+    if (title.contains('recycling points collector')) {
+      return 'pts';
+    }
+
+    // Default fallback
+    return '';
   }
 }

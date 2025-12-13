@@ -17,7 +17,7 @@ class PartnerRecyclingCenter {
   final String status;
   final double? rating;
   final int? userRatingsTotal;
-  final double? drivingDistance; // 新增：实际驾驶距离（km）
+  final double? drivingDistance; // 实际驾驶距离（km）
 
   PartnerRecyclingCenter({
     required this.centerId,

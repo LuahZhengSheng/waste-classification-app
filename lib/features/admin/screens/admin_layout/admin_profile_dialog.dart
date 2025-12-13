@@ -160,7 +160,7 @@ class _AdminProfileDialogState extends State<AdminProfileDialog> {
                       const SizedBox(height: FSizes.spaceBtwItems),
 
                       // Username (Editable for managers, read-only for admin)
-                      if (_isEditMode && !isAdmin)
+                      if (_isEditMode)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -253,7 +253,7 @@ class _AdminProfileDialogState extends State<AdminProfileDialog> {
                       else
                         Column(
                           children: [
-                            _buildInfoRow('Phone Number', widget.user.phoneNo ?? 'N/A', dark),
+                            _buildInfoRow('Phone Number', widget.user.displayPhoneNo, dark),
                             const SizedBox(height: FSizes.spaceBtwItems),
                           ],
                         ),
@@ -333,9 +333,8 @@ class _AdminProfileDialogState extends State<AdminProfileDialog> {
   }
 
   void _updateHasChanges() {
-    final isAdmin = widget.user.role == 'admin';
     setState(() {
-      _hasChanges = (!isAdmin && _usernameController.text.trim() != widget.user.username) ||
+      _hasChanges = _usernameController.text.trim() != widget.user.username ||
           _phoneController.text.trim() != (widget.user.phoneNo ?? '') ||
           _pendingImageBytes != null ||
           _pendingDeleteImage;
@@ -462,10 +461,8 @@ class _AdminProfileDialogState extends State<AdminProfileDialog> {
 
   void _showUpdateDialog(BuildContext context, bool dark) async {
     if (_formKey.currentState!.validate()) {
-      final isAdmin = widget.user.role == 'admin';
-
-      // Check username uniqueness (only if username changed and not admin)
-      if (!isAdmin && _usernameController.text.trim() != widget.user.username) {
+      // Check username uniqueness (if username changed)
+      if (_usernameController.text.trim() != widget.user.username) {
         final isUsernameUnique = await _userRepo.isUsernameUnique(
           _usernameController.text.trim(),
           widget.user.userId,
@@ -480,20 +477,27 @@ class _AdminProfileDialogState extends State<AdminProfileDialog> {
         }
       }
 
-      // Check phone number uniqueness (if changed)
-      if (_phoneController.text.trim() != (widget.user.phoneNo ?? '')) {
-        final isPhoneUnique = await _userRepo.isPhoneNumberUnique(
-          _phoneController.text.trim(),
-          widget.user.userId,
-        );
+      // 🆕 Check phone number uniqueness (只在有输入时检查)
+      final newPhoneNo = _phoneController.text.trim();
+      final oldPhoneNo = widget.user.phoneNo ?? '';
 
-        if (!isPhoneUnique) {
-          FLoaders.errorSnackBar(
-            title: 'Error',
-            message: 'Phone number is already in use',
+      if (newPhoneNo != oldPhoneNo) {
+        // 🆕 只有当新号码不为空时才检查唯一性
+        if (newPhoneNo.isNotEmpty) {
+          final isPhoneUnique = await _userRepo.isPhoneNumberUnique(
+            newPhoneNo,
+            widget.user.userId,
           );
-          return;
+
+          if (!isPhoneUnique) {
+            FLoaders.errorSnackBar(
+              title: 'Error',
+              message: 'Phone number is already in use',
+            );
+            return;
+          }
         }
+        // 如果 newPhoneNo 为空，表示用户想删除电话号码，允许通过
       }
 
       final confirmed = await Get.dialog<bool>(
@@ -536,17 +540,17 @@ class _AdminProfileDialogState extends State<AdminProfileDialog> {
         final controller = Get.put(AdminProfileController());
 
         UserModel updatedUser = widget.user.copyWith(
-          username: isAdmin ? widget.user.username : _usernameController.text.trim(),
-          phoneNo: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+          username: _usernameController.text.trim(),
+          phoneNo: newPhoneNo.trim(),  // 🆕 空字符串转为 null
         );
+
+        print('new phone number: $newPhoneNo');
 
         await controller.updateProfile(
           updatedUser,
           _pendingImageBytes,
           _pendingDeleteImage,
         );
-
-        Get.back();
       }
     }
   }

@@ -6,8 +6,6 @@ import 'package:fyp/utils/popups/loaders.dart';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-import 'utils/constants/colors.dart';
-
 class AuthStateListener {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -39,7 +37,7 @@ class AuthStateListener {
 
         if (metadata != null && metadata['refreshTime'] != null) {
           print('🔄 [AuthStateListener] Token refresh requested by server');
-          _checkUserBanStatus(metadata);
+          _handleMetadataUpdate(metadata);
         }
       } else {
         print('ℹ️ [AuthStateListener] No metadata document found');
@@ -51,8 +49,8 @@ class AuthStateListener {
     print('✅ [AuthStateListener] Firestore metadata listener setup completed');
   }
 
-  Future<void> _checkUserBanStatus(Map<String, dynamic> metadata) async {
-    print('🔍 [AuthStateListener] Starting ban status check...');
+  Future<void> _handleMetadataUpdate(Map<String, dynamic> metadata) async {
+    print('🔍 [AuthStateListener] Handling metadata update...');
 
     try {
       final user = _auth.currentUser;
@@ -63,28 +61,82 @@ class AuthStateListener {
 
       print('👤 [AuthStateListener] Current user: ${user.uid}');
 
-      // 直接从 metadata 获取封禁状态，避免刷新 token
-      final isBanned = metadata['banned'] == true;
-      print('🚫 [AuthStateListener] Banned status from metadata: $isBanned');
+      // 检查是否需要强制登出
+      final forceLogout = metadata['forceLogout'] == true;
+      final reason = metadata['reason'] as String?;
 
-      if (isBanned) {
-        print('🚫 [AuthStateListener] Account is BANNED! Logging out...');
+      if (forceLogout) {
+        print('🚫 [AuthStateListener] Force logout detected! Reason: $reason');
 
-        // 先显示消息，再登出
-        _showBanMessageAndNavigate();
-
-        // 延迟一下再登出，确保消息显示
-        await Future.delayed(Duration(seconds: 1));
-        await _auth.signOut();
-        print('✅ [AuthStateListener] User signed out successfully');
+        // 根据不同原因显示不同消息
+        if (reason == 'banned') {
+          await _handleBanned();
+        } else if (reason == 'role_changed') {
+          await _handleRoleChanged(metadata);
+        } else {
+          await _handleGenericLogout(reason ?? 'unknown');
+        }
       } else {
-        print('✅ [AuthStateListener] User is NOT banned, forcing token refresh to sync claims');
-        // 如果不是封禁状态，才强制刷新 token 来同步 claims
-        await _forceTokenRefresh();
+        // 检查是否只是解除封禁
+        final isBanned = metadata['banned'] == true;
+        if (!isBanned && reason == 'recovered') {
+          print('✅ [AuthStateListener] User recovered, forcing token refresh');
+          await _forceTokenRefresh();
+        }
       }
     } catch (error) {
-      print('❌ [AuthStateListener] Failed to check ban status: $error');
+      print('❌ [AuthStateListener] Failed to handle metadata update: $error');
     }
+  }
+
+  Future<void> _handleBanned() async {
+    print('🚫 [AuthStateListener] Handling banned account...');
+
+    await _auth.signOut();
+
+    FLoaders.errorSnackBar(
+      title: 'Account Suspended',
+      message: 'Your account has been suspended. Please contact administrator.',
+    );
+
+    _navigateToLogin(3);
+  }
+
+  Future<void> _handleRoleChanged(Map<String, dynamic> metadata) async {
+    print('🔄 [AuthStateListener] Handling role change...');
+
+    final oldRole = metadata['oldRole'] as String? ?? 'Unknown';
+    final newRole = metadata['newRole'] as String? ?? 'Unknown';
+
+    print('📋 [AuthStateListener] Role changed: $oldRole → $newRole');
+
+    // ✅ 先清除 metadata 标记，避免循环触发
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _clearForceLogoutFlag(user.uid);
+    }
+
+    await _auth.signOut();
+
+    FLoaders.warningSnackBar(
+      title: 'Role Updated',
+      message: 'Your role has been changed from $oldRole to $newRole. Please log in again.',
+    );
+
+    _navigateToLogin(3);
+  }
+
+  Future<void> _handleGenericLogout(String reason) async {
+    print('🚪 [AuthStateListener] Handling generic logout. Reason: $reason');
+
+    await _auth.signOut();
+
+    FLoaders.infoSnackBar(
+      title: 'Logged Out',
+      message: 'You have been logged out. Please log in again.',
+    );
+
+    _navigateToLogin(2);
   }
 
   Future<void> _forceTokenRefresh() async {
@@ -104,24 +156,10 @@ class AuthStateListener {
     }
   }
 
-  void _showBanMessageAndNavigate() {
-    print('🎯 [AuthStateListener] Showing ban message and navigating...');
+  void _navigateToLogin(int delaySeconds) {
+    print('📢 [AuthStateListener] Snackbar shown, waiting $delaySeconds seconds...');
 
-    FLoaders.errorSnackBar(title: 'Account Suspended', message: 'Your account has been suspended. Please contact administrator.');
-    // 使用 GetX 显示提示
-    // Get.snackbar(
-    //   'Account Suspended',
-    //   'Your account has been suspended. Please contact administrator.',
-    //   duration: Duration(seconds: 5),
-    //   snackPosition: SnackPosition.BOTTOM,
-    //   backgroundColor: FColors.error,
-    //   colorText: FColors.white,
-    // );
-
-    print('📢 [AuthStateListener] Snackbar shown, waiting 3 seconds...');
-
-    // 根据平台导航到不同的登录页面
-    Future.delayed(Duration(seconds: 3), () {
+    Future.delayed(Duration(seconds: delaySeconds), () {
       print('🔄 [AuthStateListener] Starting navigation...');
 
       if (kIsWeb) {
@@ -132,5 +170,24 @@ class AuthStateListener {
         Get.offAll(() => LoginScreen());
       }
     });
+  }
+
+  // 清除强制登出标记
+  Future<void> _clearForceLogoutFlag(String uid) async {
+    try {
+      print('🧹 [AuthStateListener] Clearing forceLogout flag for user: $uid');
+
+      await _firestore.collection('metadata').doc(uid).update({
+        'forceLogout': FieldValue.delete(),
+        'reason': FieldValue.delete(),
+        'oldRole': FieldValue.delete(),
+        'newRole': FieldValue.delete(),
+        'refreshTime': FieldValue.serverTimestamp(), // 更新时间戳
+      });
+
+      print('✅ [AuthStateListener] ForceLogout flag cleared successfully');
+    } catch (error) {
+      print('❌ [AuthStateListener] Failed to clear forceLogout flag: $error');
+    }
   }
 }

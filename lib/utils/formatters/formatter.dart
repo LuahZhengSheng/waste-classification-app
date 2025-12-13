@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 class FFormatter {
   static String formatDate(DateTime? date) {
     date ??= DateTime.now();
-    return DateFormat('dd MMM yyyy').format(date);  // Customize the date format as needed
+    return DateFormat('dd MMMM yyyy').format(date);  // Customize the date format as needed
   }
 
   static String formatCurrency(double amount) {
@@ -57,4 +57,22 @@ class FFormatter {
     }
   }
 
+  // 格式化为国际格式的静态方法
+  static String formatPhoneToInternational(String phoneNumber) {
+    // 移除所有空格、连字符和加号
+    String cleaned = phoneNumber.replaceAll(RegExp(r'[\s\-\+]'), '');
+
+    // 如果已经以60开头，直接返回
+    if (cleaned.startsWith('60')) {
+      return '+$cleaned';
+    }
+
+    // 如果以0开头（马来西亚本地格式），移除0并添加60
+    if (cleaned.startsWith('0')) {
+      return '+60${cleaned.substring(1)}';
+    }
+
+    // 如果没有任何前缀，假设是本地号码，添加60
+    return '+60$cleaned';
+  }
 }

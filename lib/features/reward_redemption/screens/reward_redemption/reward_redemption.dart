@@ -180,7 +180,7 @@ class RewardRedemptionScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
-                    Iconsax.medal,
+                    Iconsax.medal_star5,
                     color: FColors.white,
                     size: 24,
                   ),

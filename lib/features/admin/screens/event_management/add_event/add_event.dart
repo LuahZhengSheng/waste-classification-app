@@ -26,7 +26,7 @@ class AddEventScreen extends StatelessWidget {
         leading: IconButton(
           onPressed: () => Get.back(),
           icon: Icon(
-            Iconsax.arrow_left,
+            Iconsax.arrow_left_2,
             color: dark ? FColors.adminDarkText : FColors.adminLightText,
           ),
         ),

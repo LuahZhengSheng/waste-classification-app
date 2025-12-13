@@ -64,7 +64,7 @@ class MyRewardPointsScreen extends StatelessWidget {
               // Date Filter Row
               _buildDateFilterRow(controller, dark, context),
 
-              // Tab Bar View (移除 Stack 和 loading overlay)
+              // Tab Bar View
               Expanded(
                 child: _buildTabBarView(controller, dark),
               ),
@@ -150,7 +150,7 @@ class MyRewardPointsScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              Iconsax.medal,
+              Iconsax.medal_star5,
               color: FColors.white,
               size: 28,
             ),
@@ -275,19 +275,76 @@ class MyRewardPointsScreen extends StatelessWidget {
     return TabBarView(
       controller: controller.tabController,
       children: [
-        _buildTransactionsList(controller, dark),
-        _buildTransactionsList(controller, dark),
-        _buildTransactionsList(controller, dark),
+        // Tab 0: All - 混合显示
+        _buildAllTab(controller, dark),
+        // Tab 1: Earning - 只显示earning
+        _buildEarningTab(controller, dark),
+        // Tab 2: Spending - 只显示spending
+        _buildSpendingTab(controller, dark),
       ],
     );
   }
 
-  Widget _buildTransactionsList(
-      RewardPointsController controller,
-      bool dark,
-      ) {
+  // All Tab - 混合transactions
+  Widget _buildAllTab(RewardPointsController controller, bool dark) {
     return Obx(() {
-      final items = controller.currentTabItems;
+      // 直接在这里组合数据，不依赖controller.currentTabItems
+      final combined = <Map<String, dynamic>>[];
+
+      for (var activity in controller.filteredEarningActivities) {
+        combined.add({
+          'type': 'earning',
+          'data': activity,
+          'date': activity.createdAt,
+        });
+      }
+
+      for (var redemption in controller.filteredSpendingRedemptions) {
+        combined.add({
+          'type': 'spending',
+          'data': redemption,
+          'date': redemption.createdAt,
+        });
+      }
+
+      combined.sort(
+              (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+
+      if (combined.isEmpty) {
+        return _buildEmptyState(dark);
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: FSizes.defaultSpace),
+        itemCount: combined.length,
+        itemBuilder: (context, index) {
+          final item = combined[index];
+          final type = item['type'] as String;
+
+          if (type == 'earning') {
+            return _buildEarningCard(
+              item['data'] as RecyclingActivity,
+              dark,
+              index,
+              controller,
+            );
+          } else {
+            return _buildSpendingCard(
+              item['data'] as RedemptionModel,
+              dark,
+              index,
+              controller,
+            );
+          }
+        },
+      );
+    });
+  }
+
+  // Earning Tab - 只显示earning
+  Widget _buildEarningTab(RewardPointsController controller, bool dark) {
+    return Obx(() {
+      final items = controller.filteredEarningActivities;
 
       if (items.isEmpty) {
         return _buildEmptyState(dark);
@@ -297,44 +354,36 @@ class MyRewardPointsScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: FSizes.defaultSpace),
         itemCount: items.length,
         itemBuilder: (context, index) {
-          final item = items[index];
+          return _buildEarningCard(
+            items[index],
+            dark,
+            index,
+            controller,
+          );
+        },
+      );
+    });
+  }
 
-          // Handle different tab views
-          if (controller.tabController.index == 0) {
-            // All tab - mixed items
-            final type = item['type'] as String;
-            if (type == 'earning') {
-              return _buildEarningCard(
-                item['data'] as RecyclingActivity,
-                dark,
-                index,
-                controller,
-              );
-            } else {
-              return _buildSpendingCard(
-                item['data'] as RedemptionModel,
-                dark,
-                index,
-                controller,
-              );
-            }
-          } else if (controller.tabController.index == 1) {
-            // Earning tab
-            return _buildEarningCard(
-              item as RecyclingActivity,
-              dark,
-              index,
-              controller,
-            );
-          } else {
-            // Spending tab
-            return _buildSpendingCard(
-              item as RedemptionModel,
-              dark,
-              index,
-              controller,
-            );
-          }
+  // Spending Tab - 只显示spending
+  Widget _buildSpendingTab(RewardPointsController controller, bool dark) {
+    return Obx(() {
+      final items = controller.filteredSpendingRedemptions;
+
+      if (items.isEmpty) {
+        return _buildEmptyState(dark);
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: FSizes.defaultSpace),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          return _buildSpendingCard(
+            items[index],
+            dark,
+            index,
+            controller,
+          );
         },
       );
     });

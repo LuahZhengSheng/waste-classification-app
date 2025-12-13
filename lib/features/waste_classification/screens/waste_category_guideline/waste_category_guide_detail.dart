@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fyp/utils/constants/colors.dart';
-import 'package:fyp/utils/constants/sizes.dart';
-import 'package:fyp/utils/helpers/helper_functions.dart';
+
+import '../../../../utils/constants/colors.dart';
+import '../../../../utils/constants/sizes.dart';
+import '../../../../utils/helpers/helper_functions.dart';
+import '../../../carbon_footprint_calculator/utils/emission_info_dialog.dart';
+import '../../controllers/waste_category_detail_controller.dart';
 
 class WasteCategoryDetailScreen extends StatelessWidget {
   final dynamic category;
@@ -16,6 +19,8 @@ class WasteCategoryDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = FHelperFunctions.isDarkMode(context);
+    final controller =
+    Get.put(WasteCategoryDetailController(category)); // 新增 controller
 
     return Scaffold(
       backgroundColor: dark ? FColors.dark : FColors.light,
@@ -28,7 +33,7 @@ class WasteCategoryDetailScreen extends StatelessWidget {
             pinned: true,
             backgroundColor: category.color,
             leading: IconButton(
-              icon: const Icon(Iconsax.arrow_left, color: FColors.white),
+              icon: const Icon(Iconsax.arrow_left_2, color: FColors.white),
               onPressed: () => Get.back(),
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -86,7 +91,7 @@ class WasteCategoryDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Quick Info Cards Row
-                  _buildQuickInfoCards(dark),
+                  _buildQuickInfoCards(context, dark, controller),
 
                   const SizedBox(height: FSizes.spaceBtwSections),
 
@@ -105,7 +110,9 @@ class WasteCategoryDetailScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
                       boxShadow: [
                         BoxShadow(
-                          color: dark ? Colors.black26 : Colors.grey.withOpacity(0.08),
+                          color: dark
+                              ? Colors.black26
+                              : Colors.grey.withOpacity(0.08),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -113,6 +120,7 @@ class WasteCategoryDetailScreen extends StatelessWidget {
                     ),
                     child: Text(
                       category.description,
+                      textAlign: TextAlign.justify,
                       style: TextStyle(
                         fontSize: 16,
                         height: 1.5,
@@ -142,20 +150,21 @@ class WasteCategoryDetailScreen extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: dark ? Colors.black26 : Colors.grey.withOpacity(0.08),
+                          color: dark
+                              ? Colors.black26
+                              : Colors.grey.withOpacity(0.08),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: Expanded(
-                      child: Text(
-                        category.disposalMethod,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: dark ? FColors.white : FColors.textPrimary,
-                        ),
+                    child: Text(
+                      category.disposalMethod,
+                      textAlign: TextAlign.justify,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: dark ? FColors.white : FColors.textPrimary,
                       ),
                     ),
                   ),
@@ -186,13 +195,21 @@ class WasteCategoryDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickInfoCards(bool dark) {
+  Widget _buildQuickInfoCards(
+      BuildContext context,
+      bool dark,
+      WasteCategoryDetailController controller,
+      ) {
+    final hasEmission = controller.hasEmission;
+    final efPerKg = controller.efPerKg;
+    final metadata = controller.emissionMetadata;
+
     // 计算需要显示的卡片数量
     int cardCount = 1; // Recyclable status always shown
     if (category.basePoints != null) cardCount++;
-    if (category.emissionFactor != null) cardCount++;
+    if (hasEmission) cardCount++;
 
-    // 如果有三个卡片，让第三个卡片占据整行
+    // 如果有三个卡片，使用 Column 布局
     if (cardCount == 3) {
       return Column(
         children: [
@@ -202,9 +219,13 @@ class WasteCategoryDetailScreen extends StatelessWidget {
               // Recyclable card
               Expanded(
                 child: _InfoCard(
-                  icon: category.isRecyclable ? Iconsax.tick_circle : Iconsax.close_circle,
+                  icon: category.isRecyclable
+                      ? Iconsax.tick_circle
+                      : Iconsax.close_circle,
                   title: category.isRecyclable ? 'Recyclable' : 'Not Recyclable',
-                  subtitle: category.isRecyclable ? 'Can be recycled' : 'Cannot be recycled',
+                  subtitle: category.isRecyclable
+                      ? 'Can be recycled'
+                      : 'Cannot be recycled',
                   color: category.isRecyclable ? FColors.success : FColors.error,
                   dark: dark,
                 ),
@@ -213,7 +234,7 @@ class WasteCategoryDetailScreen extends StatelessWidget {
               // Base Points card
               Expanded(
                 child: _InfoCard(
-                  icon: Iconsax.star,
+                  icon: Iconsax.medal_star5,
                   title: '${category.basePoints} Points',
                   subtitle: 'Per kilogram',
                   color: FColors.warning,
@@ -223,45 +244,49 @@ class WasteCategoryDetailScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: FSizes.spaceBtwItems),
-          // Second row - Emission Factor card占据整行
-          SizedBox(
-            width: double.infinity, // 强制占据整行宽度
-            child: _InfoCard(
-              icon: Iconsax.cloud,
-              title: '${category.emissionFactor} kg',
-              subtitle: 'CO₂/kg',
-              color: FColors.info,
-              dark: dark,
+          // Second row - Emission Factor card 占据整行
+          if (hasEmission && efPerKg != null && metadata != null)
+            SizedBox(
+              width: double.infinity,
+              child: _EmissionInfoCard(
+                efPerKg: efPerKg,
+                metadata: metadata,
+                categoryColor: category.color,
+                dark: dark,
+                context: context,
+              ),
             ),
-          ),
         ],
       );
     }
 
-    // 对于1-2个卡片，使用简单的Row布局
+    // 对于 1-2 个卡片
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Recyclable status card
         Expanded(
           child: _InfoCard(
-            icon: category.isRecyclable ? Iconsax.tick_circle : Iconsax.close_circle,
+            icon: category.isRecyclable
+                ? Iconsax.tick_circle
+                : Iconsax.close_circle,
             title: category.isRecyclable ? 'Recyclable' : 'Not Recyclable',
-            subtitle: category.isRecyclable ? 'Can be recycled' : 'Cannot be recycled',
+            subtitle: category.isRecyclable
+                ? 'Can be recycled'
+                : 'Cannot be recycled',
             color: category.isRecyclable ? FColors.success : FColors.error,
             dark: dark,
           ),
         ),
 
-        // Add spacing if there is a second card
-        if (category.basePoints != null || category.emissionFactor != null)
+        if (category.basePoints != null || hasEmission)
           const SizedBox(width: FSizes.spaceBtwItems),
 
         // Base Points card (if available)
         if (category.basePoints != null)
           Expanded(
             child: _InfoCard(
-              icon: Iconsax.star,
+              icon: Iconsax.medal_star5,
               title: '${category.basePoints} Points',
               subtitle: 'Per kilogram',
               color: FColors.warning,
@@ -269,17 +294,107 @@ class WasteCategoryDetailScreen extends StatelessWidget {
             ),
           ),
 
-        // Emission Factor card (if available and no base points)
-        if (category.emissionFactor != null && category.basePoints == null)
+        // Emission Factor card (if available 且没有 basePoints 占第二格)
+        if (hasEmission &&
+            category.basePoints == null &&
+            efPerKg != null &&
+            metadata != null)
           Expanded(
-            child: _InfoCard(
-              icon: Iconsax.cloud,
-              title: '${category.emissionFactor} kg',
-              subtitle: 'CO₂/kg',
-              color: FColors.info,
+            child: _EmissionInfoCard(
+              efPerKg: efPerKg,
+              metadata: metadata,
+              categoryColor: category.color,
               dark: dark,
+              context: context,
             ),
           ),
+      ],
+    );
+  }
+}
+
+class _EmissionInfoCard extends StatelessWidget {
+  final num efPerKg;
+  final Map<String, dynamic> metadata;
+  final Color categoryColor;
+  final bool dark;
+  final BuildContext context;
+
+  const _EmissionInfoCard({
+    required this.efPerKg,
+    required this.metadata,
+    required this.categoryColor,
+    required this.dark,
+    required this.context,
+  });
+
+  @override
+  Widget build(BuildContext _) {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(FSizes.md),
+          decoration: BoxDecoration(
+            color: dark ? FColors.darkContainer : FColors.white,
+            borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
+            boxShadow: [
+              BoxShadow(
+                color: dark ? Colors.black26 : Colors.grey.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: FColors.info.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Iconsax.cloud,
+                  color: FColors.info,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: FSizes.sm),
+              Text(
+                '${efPerKg.toStringAsFixed(2)} kg',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: dark ? FColors.white : FColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: FSizes.xs),
+              Text(
+                'CO₂e / kg recycled',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: dark ? FColors.darkGrey : FColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: FSizes.xs,
+          left: FSizes.xs,
+          child: EmissionInfoDialog.buildInfoIcon(
+            context: context,
+            metadata: metadata,
+            dark: dark,
+            color: FColors.info,
+          ),
+        ),
       ],
     );
   }
@@ -392,7 +507,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _ExamplesGrid extends StatelessWidget {
-  final List<String> examples;
+  final List examples;
   final Color categoryColor;
   final bool dark;
 
@@ -407,46 +522,52 @@ class _ExamplesGrid extends StatelessWidget {
     return Wrap(
       spacing: FSizes.sm,
       runSpacing: FSizes.sm,
-      children: examples.map((example) => Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: FSizes.md,
-          vertical: FSizes.sm,
-        ),
-        decoration: BoxDecoration(
-          color: dark ? FColors.darkContainer : FColors.white,
-          borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
-          border: Border.all(
-            color: categoryColor.withOpacity(0.3),
-            width: 1,
+      children: examples
+          .map(
+            (example) => Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: FSizes.md,
+            vertical: FSizes.sm,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: dark ? Colors.black12 : Colors.grey.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
+          decoration: BoxDecoration(
+            color: dark ? FColors.darkContainer : FColors.white,
+            borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
+            border: Border.all(
+              color: categoryColor.withOpacity(0.3),
+              width: 1,
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Iconsax.tick_circle,
-              size: 16,
-              color: categoryColor,
-            ),
-            const SizedBox(width: FSizes.xs),
-            Text(
-              example,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: dark ? FColors.white : FColors.textPrimary,
+            boxShadow: [
+              BoxShadow(
+                color:
+                dark ? Colors.black12 : Colors.grey.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Iconsax.tick_circle,
+                size: 16,
+                color: categoryColor,
+              ),
+              const SizedBox(width: FSizes.xs),
+              Text(
+                example,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color:
+                  dark ? FColors.white : FColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
         ),
-      )).toList(),
+      )
+          .toList(),
     );
   }
 }

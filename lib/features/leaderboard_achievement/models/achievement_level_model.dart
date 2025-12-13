@@ -4,9 +4,10 @@ class AchievementLevel {
   final String achievementLevelId;
   final int level;
   final int unlockCriteria;
-  final String title;  // 新增：该等级的称号
+  final String title;  // 该等级的称号
   final String description;
   final String badgeImage;
+  final int rewardPoints;   // 完成该等级获得的奖励积分
 
   AchievementLevel({
     required this.achievementLevelId,
@@ -15,6 +16,7 @@ class AchievementLevel {
     required this.title,
     required this.description,
     required this.badgeImage,
+    required this.rewardPoints,
   });
 
   /// Empty AchievementLevel
@@ -26,6 +28,7 @@ class AchievementLevel {
       title: '',
       description: '',
       badgeImage: '',
+      rewardPoints: 0,  
     );
   }
 
@@ -38,6 +41,7 @@ class AchievementLevel {
       'title': title,
       'description': description,
       'badgeImage': badgeImage,
+      'rewardPoints': rewardPoints,  
     };
   }
 
@@ -53,6 +57,7 @@ class AchievementLevel {
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       badgeImage: data['badgeImage'] ?? '',
+      rewardPoints: data['rewardPoints'] ?? 0,
     );
   }
 
@@ -65,6 +70,7 @@ class AchievementLevel {
       title: map['title'] ?? '',
       description: map['description'] ?? '',
       badgeImage: map['badgeImage'] ?? '',
+      rewardPoints: map['rewardPoints'] ?? 0,  
     );
   }
 
@@ -76,6 +82,7 @@ class AchievementLevel {
     String? title,
     String? description,
     String? badgeImage,
+    int? rewardPoints,  
   }) {
     return AchievementLevel(
       achievementLevelId: achievementLevelId ?? this.achievementLevelId,
@@ -84,21 +91,12 @@ class AchievementLevel {
       title: title ?? this.title,
       description: description ?? this.description,
       badgeImage: badgeImage ?? this.badgeImage,
+      rewardPoints: rewardPoints ?? this.rewardPoints,  
     );
   }
 
   @override
   String toString() {
-    return 'AchievementLevel(id: $achievementLevelId, level: $level, unlockCriteria: $unlockCriteria, title: $title)';
+    return 'AchievementLevel(id: $achievementLevelId, level: $level, unlockCriteria: $unlockCriteria, title: $title, rewardPoints: $rewardPoints)';  
   }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other is AchievementLevel &&
-            other.achievementLevelId == achievementLevelId);
-  }
-
-  @override
-  int get hashCode => achievementLevelId.hashCode;
 }

@@ -23,7 +23,8 @@ class FSignupForm extends StatelessWidget {
           /// Username
           TextFormField(
             controller: controller.username,
-            validator: (value) => FValidator.validateEmptyText('Username', value),
+            validator: (value) =>
+                FValidator.validateEmptyText('Username', value),
             decoration: const InputDecoration(
               labelText: FTexts.username,
               prefixIcon: Icon(Iconsax.user_edit),
@@ -44,7 +45,7 @@ class FSignupForm extends StatelessWidget {
 
           /// Password
           Obx(
-                () => TextFormField(
+            () => TextFormField(
               controller: controller.password,
               validator: (value) => FValidator.validatePassword(value),
               obscureText: controller.hidePassword.value,
@@ -53,8 +54,11 @@ class FSignupForm extends StatelessWidget {
                 labelText: FTexts.password,
                 prefixIcon: const Icon(Iconsax.password_check),
                 suffixIcon: IconButton(
-                  onPressed: () => controller.hidePassword.value = !controller.hidePassword.value,
-                  icon: Icon(controller.hidePassword.value ? Iconsax.eye_slash : Iconsax.eye),
+                  onPressed: () => controller.hidePassword.value =
+                      !controller.hidePassword.value,
+                  icon: Icon(controller.hidePassword.value
+                      ? Iconsax.eye_slash
+                      : Iconsax.eye),
                 ),
               ),
             ),
@@ -63,17 +67,21 @@ class FSignupForm extends StatelessWidget {
 
           /// Confirm Password
           Obx(
-                () => TextFormField(
+            () => TextFormField(
               controller: controller.confirmPassword,
-              validator: (value) => FValidator.validateConfirmPassword(controller.password.text, value!),
+              validator: (value) => FValidator.validateConfirmPassword(
+                  controller.password.text, value!),
               obscureText: controller.hidePassword.value,
               expands: false,
               decoration: InputDecoration(
                 labelText: FTexts.confirmPassword,
                 prefixIcon: const Icon(Iconsax.password_check),
                 suffixIcon: IconButton(
-                  onPressed: () => controller.hidePassword.value = !controller.hidePassword.value,
-                  icon: Icon(controller.hidePassword.value ? Iconsax.eye_slash : Iconsax.eye),
+                  onPressed: () => controller.hidePassword.value =
+                      !controller.hidePassword.value,
+                  icon: Icon(controller.hidePassword.value
+                      ? Iconsax.eye_slash
+                      : Iconsax.eye),
                 ),
               ),
             ),

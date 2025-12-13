@@ -468,7 +468,7 @@ class _StaffDetailDialogState extends State<StaffDetailDialog> {
     if (_formKey.currentState!.validate()) {
       // Check username uniqueness (only if username changed)
       if (_usernameController.text.trim() != widget.staff.username) {
-        final repo = StaffRepository.instance;
+        final repo = RecyclingCenterStaffRepository.instance;
         final isUsernameUnique = await repo.isUsernameUnique(
           _usernameController.text.trim(),
           widget.staff.userId,

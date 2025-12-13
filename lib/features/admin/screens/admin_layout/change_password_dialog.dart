@@ -6,6 +6,7 @@ import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/utils/validators/validation.dart';
 
+import '../../../../utils/popups/loaders.dart';
 import '../../controllers/admin_layout/change_password_controller.dart';
 
 
@@ -140,6 +141,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                         suffixIcon: IconButton(
                           icon: Icon(
                             _isCurrentPasswordVisible ? Iconsax.eye : Iconsax.eye_slash,
+                            color: dark
+                                ? FColors.adminDarkTextSecondary
+                                : FColors.adminLightTextSecondary,
                           ),
                           onPressed: () {
                             setState(() {
@@ -193,6 +197,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                         suffixIcon: IconButton(
                           icon: Icon(
                             _isNewPasswordVisible ? Iconsax.eye : Iconsax.eye_slash,
+                            color: dark
+                                ? FColors.adminDarkTextSecondary
+                                : FColors.adminLightTextSecondary,
                           ),
                           onPressed: () {
                             setState(() {
@@ -214,10 +221,23 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                       obscureText: !_isConfirmPasswordVisible,
                       decoration: InputDecoration(
                         labelText: 'Confirm New Password',
-                        prefixIcon: const Icon(Iconsax.lock),
+                        labelStyle: TextStyle(
+                          color: dark
+                              ? FColors.adminDarkTextSecondary
+                              : FColors.adminLightTextSecondary,
+                        ),
+                        prefixIcon: Icon(
+                          Iconsax.lock,
+                          color: dark
+                              ? FColors.adminDarkTextSecondary
+                              : FColors.adminLightTextSecondary,
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _isConfirmPasswordVisible ? Iconsax.eye : Iconsax.eye_slash,
+                            color: dark
+                                ? FColors.adminDarkTextSecondary
+                                : FColors.adminLightTextSecondary,
                           ),
                           onPressed: () {
                             setState(() {
@@ -370,28 +390,40 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
   }
 
   void _handleSubmit() async {
-    if (_formKey.currentState!.validate()) {
-      if (_isVerificationStep) {
-        // Verify current password
-        final isValid = await _controller.verifyCurrentPassword(
-          _currentPasswordController.text,
-        );
+    if (!_formKey.currentState!.validate()) return;
 
-        if (isValid) {
-          setState(() {
-            _isVerificationStep = false;
-          });
-        }
-      } else {
-        // Change password
-        final success = await _controller.changePassword(
-          _currentPasswordController.text,
-          _newPasswordController.text,
-        );
+    if (_isVerificationStep) {
+      // Verify current password
+      final isValid = await _controller.verifyCurrentPassword(
+        _currentPasswordController.text,
+      );
 
-        if (success) {
-          Get.back();
-        }
+      if (isValid && mounted) {
+        setState(() {
+          _isVerificationStep = false;
+        });
+      }
+    } else {
+      // Change password
+      final success = await _controller.changePassword(
+        _currentPasswordController.text,
+        _newPasswordController.text,
+      );
+
+      // ✅ 先检查 mounted，再关闭 Dialog，最后显示 SnackBar
+      if (success) {
+        if (!mounted) return;
+
+        // ✅ 先关闭 Dialog
+        Get.back();
+
+        // ✅ 延迟一下再显示 SnackBar，确保 Dialog 已关闭
+        // await Future.delayed(const Duration(milliseconds: 300));
+
+        FLoaders.successSnackBar(
+          title: 'Success',
+          message: 'Password changed successfully',
+        );
       }
     }
   }

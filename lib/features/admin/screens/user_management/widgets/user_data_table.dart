@@ -44,11 +44,13 @@ class _UserDataTableState extends State<UserDataTable> {
     super.initState();
     _horizontalScrollController.addListener(_onScroll);
     _verticalScrollController.addListener(_syncFixedColumnScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkIfActionColumnShouldBeFixed());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkIfActionColumnShouldBeFixed());
   }
 
   void _syncFixedColumnScroll() {
-    if (_fixedColumnVerticalController.hasClients && _verticalScrollController.hasClients) {
+    if (_fixedColumnVerticalController.hasClients &&
+        _verticalScrollController.hasClients) {
       _fixedColumnVerticalController.jumpTo(_verticalScrollController.offset);
     }
   }
@@ -107,15 +109,20 @@ class _UserDataTableState extends State<UserDataTable> {
                 controller: _verticalScrollController,
                 child: Container(
                   constraints: BoxConstraints(
-                    minWidth: MediaQuery.of(context).size.width - (FSizes.lg * 2),
+                    minWidth:
+                        MediaQuery.of(context).size.width - (FSizes.lg * 2),
                   ),
                   child: DataTable(
                     headingRowColor: MaterialStateProperty.all(
-                      widget.dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+                      widget.dark
+                          ? FColors.adminDarkSurfaceVariant
+                          : FColors.adminLightSurfaceVariant,
                     ),
                     dataRowColor: MaterialStateProperty.resolveWith(
-                          (states) => states.contains(MaterialState.hovered)
-                          ? (widget.dark ? FColors.adminDarkHover : FColors.adminLightHover)
+                      (states) => states.contains(MaterialState.hovered)
+                          ? (widget.dark
+                              ? FColors.adminDarkHover
+                              : FColors.adminLightHover)
                           : null,
                     ),
                     dataRowMinHeight: 80,
@@ -138,7 +145,9 @@ class _UserDataTableState extends State<UserDataTable> {
             child: Container(
               width: 160,
               decoration: BoxDecoration(
-                color: widget.dark ? FColors.adminDarkSurface : FColors.adminLightSurface,
+                color: widget.dark
+                    ? FColors.adminDarkSurface
+                    : FColors.adminLightSurface,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.15),
@@ -159,13 +168,17 @@ class _UserDataTableState extends State<UserDataTable> {
                 controller: _fixedColumnVerticalController,
                 child: DataTable(
                   headingRowColor: MaterialStateProperty.all(
-                    widget.dark ? FColors.adminDarkSurfaceVariant : FColors.adminLightSurfaceVariant,
+                    widget.dark
+                        ? FColors.adminDarkSurfaceVariant
+                        : FColors.adminLightSurfaceVariant,
                   ),
                   dataRowMinHeight: 80,
                   dataRowMaxHeight: double.infinity,
                   headingRowHeight: 60,
                   columns: [_buildActionColumn()],
-                  rows: widget.users.map((user) => DataRow(cells: [_buildActionCell(user)])).toList(),
+                  rows: widget.users
+                      .map((user) => DataRow(cells: [_buildActionCell(user)]))
+                      .toList(),
                 ),
               ),
             ),
@@ -181,14 +194,20 @@ class _UserDataTableState extends State<UserDataTable> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Iconsax.personalcard, size: 80, color: widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted),
+            Icon(Iconsax.personalcard,
+                size: 80,
+                color: widget.dark
+                    ? FColors.adminDarkTextMuted
+                    : FColors.adminLightTextMuted),
             const SizedBox(height: FSizes.lg),
             Text(
               "No Users Found",
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: widget.dark ? FColors.adminDarkText : FColors.adminLightText,
+                color: widget.dark
+                    ? FColors.adminDarkText
+                    : FColors.adminLightText,
               ),
             ),
             const SizedBox(height: FSizes.sm),
@@ -196,7 +215,9 @@ class _UserDataTableState extends State<UserDataTable> {
               "There are no users matching your filters.",
               style: TextStyle(
                 fontSize: 14,
-                color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+                color: widget.dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
               ),
             ),
           ],
@@ -207,19 +228,33 @@ class _UserDataTableState extends State<UserDataTable> {
 
   List<DataColumn> _buildColumns() {
     final columns = [
-      DataColumn(label: SizedBox(width: 80, child: Text('Profile', style: _headerStyle()))),
-      DataColumn(label: SizedBox(width: 150, child: _buildColumnHeader('Username', 0))),
-      DataColumn(label: SizedBox(width: 200, child: _buildColumnHeader('User ID', 1))),
-      DataColumn(label: SizedBox(width: 220, child: _buildColumnHeader('Email', 2))),
-      DataColumn(label: SizedBox(width: 120, child: _buildColumnHeader('Phone', 3))),
-      DataColumn(label: SizedBox(width: 90,  child: _buildColumnHeader('Gender', 4))),
-      DataColumn(label: SizedBox(width: 150, child: _buildColumnHeader('Date of Birth', 5))),
+      DataColumn(
+          label: SizedBox(
+              width: 80, child: Text('Profile', style: _headerStyle()))),
+      DataColumn(
+          label:
+              SizedBox(width: 150, child: _buildColumnHeader('Username', 0))),
+      DataColumn(
+          label: SizedBox(width: 200, child: _buildColumnHeader('User ID', 1))),
+      DataColumn(
+          label: SizedBox(width: 220, child: _buildColumnHeader('Email', 2))),
+      DataColumn(
+          label: SizedBox(width: 120, child: _buildColumnHeader('Phone', 3))),
+      DataColumn(
+          label: SizedBox(width: 90, child: _buildColumnHeader('Gender', 4))),
+      DataColumn(
+          label: SizedBox(
+              width: 150, child: _buildColumnHeader('Date of Birth', 5))),
       DataColumn(
         label: SizedBox(width: 120, child: _buildColumnHeader('Points', 6)),
         numeric: true,
       ),
-      DataColumn(label: SizedBox(width: 140, child: _buildColumnHeader('Join Date', 7))),
-      DataColumn(label: SizedBox(width: 120, child: _buildColumnHeader('Verified', 8))),
+      DataColumn(
+          label:
+              SizedBox(width: 140, child: _buildColumnHeader('Join Date', 7))),
+      DataColumn(
+          label:
+              SizedBox(width: 120, child: _buildColumnHeader('Verified', 8))),
       _buildEmptySpacerColumn(),
     ];
     if (!_showFixedActionColumn) {
@@ -228,13 +263,14 @@ class _UserDataTableState extends State<UserDataTable> {
     return columns;
   }
 
-  Widget _buildColumnHeader(String title, int columnIndex, {bool numeric = false}) {
+  Widget _buildColumnHeader(String title, int columnIndex,
+      {bool numeric = false}) {
     final isCurrentSort = widget.sortColumnIndex == columnIndex;
     return InkWell(
       onTap: () => widget.onSort(columnIndex, !widget.sortAscending),
       child: Row(
         mainAxisAlignment:
-        numeric ? MainAxisAlignment.end : MainAxisAlignment.spaceBetween,
+            numeric ? MainAxisAlignment.end : MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
             child: Align(
@@ -248,12 +284,18 @@ class _UserDataTableState extends State<UserDataTable> {
           ),
           Icon(
             isCurrentSort
-                ? (widget.sortAscending ? Iconsax.arrow_up_3 : Iconsax.arrow_down)
+                ? (widget.sortAscending
+                    ? Iconsax.arrow_up_3
+                    : Iconsax.arrow_down)
                 : Iconsax.arrow_3,
             size: 16,
             color: isCurrentSort
-                ? (widget.dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary)
-                : (widget.dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted),
+                ? (widget.dark
+                    ? FColors.adminDarkPrimary
+                    : FColors.adminLightPrimary)
+                : (widget.dark
+                    ? FColors.adminDarkTextMuted
+                    : FColors.adminLightTextMuted),
           ),
         ],
       ),
@@ -285,12 +327,9 @@ class _UserDataTableState extends State<UserDataTable> {
         _wrapCell(user.username, 150),
         _wrapSelectableCell(user.userId, 200),
         _wrapCell(user.email, 220),
-        _wrapCell(user.phoneNo ?? 'N/A', 120),
-        _wrapCell(user.gender ?? 'N/A', 90),
-        _wrapCell(
-          user.dob != null ? FFormatter.formatDate(user.dob!) : 'N/A',
-          150,
-        ),
+        _wrapCell(user.displayGender, 120),
+        _wrapCell(user.displayGender, 90),
+        _wrapCell(user.displayDob, 150),
         DataCell(
           Container(
             alignment: Alignment.centerRight,
@@ -324,7 +363,6 @@ class _UserDataTableState extends State<UserDataTable> {
   }
 
   Widget _buildProfileImage(UserModel user) {
-    print('build image: ${user.profileImg}');
     return SmallProfileImage(
       profileImg: user.profileImg,
       username: user.username,
@@ -362,7 +400,7 @@ class _UserDataTableState extends State<UserDataTable> {
   Widget _buildPointsBadge(int points, bool dark) {
     final color = dark ? FColors.adminDarkPrimary : FColors.adminLightPrimary;
     return CommonBadge(
-      icon: Iconsax.medal,
+      icon: Iconsax.medal_star5,
       color: color,
       text: points.toString(),
       iconSize: 16,
@@ -372,7 +410,8 @@ class _UserDataTableState extends State<UserDataTable> {
         fontSize: 13,
       ),
       borderRadius: FSizes.cardRadiusMd,
-      padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+      padding: const EdgeInsets.symmetric(
+          horizontal: FSizes.sm, vertical: FSizes.xs),
       borderColor: color.withOpacity(0.3),
     );
   }
@@ -395,7 +434,8 @@ class _UserDataTableState extends State<UserDataTable> {
         fontSize: 12,
       ),
       borderRadius: FSizes.cardRadiusMd,
-      padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+      padding: const EdgeInsets.symmetric(
+          horizontal: FSizes.sm, vertical: FSizes.xs),
       borderColor: color.withOpacity(0.3),
     );
   }
@@ -430,12 +470,17 @@ class _UserDataTableState extends State<UserDataTable> {
               tooltip: 'Edit User',
             ),
             IconButton(
-              onPressed: () => widget.isBannedView ? _recoverUser(user) : _banUser(user),
+              onPressed: () =>
+                  widget.isBannedView ? _recoverUser(user) : _banUser(user),
               icon: Icon(
                 widget.isBannedView ? Iconsax.refresh : Iconsax.slash,
                 color: widget.isBannedView
-                    ? (widget.dark ? FColors.adminDarkSuccess : FColors.adminLightSuccess)
-                    : (widget.dark ? FColors.adminDarkError : FColors.adminLightError),
+                    ? (widget.dark
+                        ? FColors.adminDarkSuccess
+                        : FColors.adminLightSuccess)
+                    : (widget.dark
+                        ? FColors.adminDarkError
+                        : FColors.adminLightError),
                 size: 18,
               ),
               tooltip: widget.isBannedView ? 'Recover User' : 'Ban User',
@@ -456,7 +501,9 @@ class _UserDataTableState extends State<UserDataTable> {
 
   TextStyle _cellStyle() {
     return TextStyle(
-      color: widget.dark ? FColors.adminDarkTextSecondary : FColors.adminLightTextSecondary,
+      color: widget.dark
+          ? FColors.adminDarkTextSecondary
+          : FColors.adminLightTextSecondary,
       fontSize: 14,
     );
   }

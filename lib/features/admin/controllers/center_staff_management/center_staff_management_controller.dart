@@ -13,7 +13,7 @@ enum StaffFilter { active, inactive, banned }
 class StaffManagementController extends GetxController {
   static StaffManagementController get instance => Get.find();
 
-  final StaffRepository _staffRepository = Get.put(StaffRepository());
+  final RecyclingCenterStaffRepository _staffRepository = Get.put(RecyclingCenterStaffRepository());
   final UserRepository _userRepository = Get.put(UserRepository());
   final TextEditingController searchController = TextEditingController();
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
@@ -296,9 +296,19 @@ class StaffManagementController extends GetxController {
     }
   }
 
-  Future<void> sendStaffPasswordReset(RecyclingCenterStaff staff) async {
+  // Send password reset link (using Cloud Function)
+  Future<void> sendPasswordResetLink(RecyclingCenterStaff staff) async {
     try {
-      FLoaders.showLoading('Sending password reset...');
+      // Check if can send
+      if (!canSendResetLink(staff)) {
+        FLoaders.warningSnackBar(
+          title: 'Wait Required',
+          message: 'Please wait ${staff.getFormattedRemainingResetTime()} before sending another reset link.',
+        );
+        return;
+      }
+
+      FLoaders.showLoading('Sending password reset link...');
 
       final HttpsCallable callable = _functions.httpsCallable(
         'resendPasswordReset',
@@ -319,12 +329,12 @@ class StaffManagementController extends GetxController {
       if (responseData['success'] == true) {
         FLoaders.successSnackBar(
           title: 'Success',
-          message: 'Password reset email sent to ${staff.username}',
+          message: 'Password reset link has been sent to ${staff.email}',
         );
       } else {
         FLoaders.errorSnackBar(
           title: 'Error',
-          message: responseData['message'] ?? 'Failed to send password reset email',
+          message: responseData['message'] ?? 'Failed to send password reset link',
         );
       }
 
@@ -350,10 +360,20 @@ class StaffManagementController extends GetxController {
       } else {
         FLoaders.errorSnackBar(
           title: 'Error',
-          message: 'Failed to send password reset email: $errorMessage',
+          message: 'Failed to send password reset link: $errorMessage',
         );
       }
     }
+  }
+
+  // Check if can send reset link (10 minutes cooldown)
+  bool canSendResetLink(RecyclingCenterStaff staff) {
+    final lastResetTime = staff.lastPasswordResetTime;
+    if (lastResetTime == null) return true;
+
+    final now = DateTime.now();
+    final difference = now.difference(lastResetTime);
+    return difference.inMinutes >= 10;
   }
 
   Future<void> banStaff(RecyclingCenterStaff staff) async {

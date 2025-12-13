@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FYP</string>
-    <string name="facebook_app_id">477075678563508</string>
-    <string name="fb_login_protocol_scheme">fb477075678563508</string>
-    <string name="facebook_client_token">fa2e8452ac5621f268057d085f1ed5ab</string>
-
+    <string name="app_name">smart-waste-recycling-system</string>
+    <string name="facebook_app_id">2272274446613132</string>
+    <string name="fb_login_protocol_scheme">fb2272274446613132</string>
+    <string name="facebook_client_token">e3840afb863f68f0ea70a26eed0773ab</string>
 </resources>

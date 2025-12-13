@@ -2,18 +2,19 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:fyp/data/repositories/authentication/authentication_repository.dart';
 
-import '../../../data/repositories/achievement/achievement_repostory.dart';
+import '../../../data/repositories/achievement/achievement_repository.dart';
 import '../../../data/repositories/achievement/user_achievement_repository.dart';
 import '../models/achievement_enums.dart';
 import '../models/user_achievement_model.dart';
+import '../screens/user_achievement/widgets/level_up_banner.dart'; // 导入横幅
 
 class UserAchievementController extends GetxController {
   static UserAchievementController get instance => Get.find();
 
   final UserAchievementRepository _userAchievementRepo =
-      Get.put(UserAchievementRepository());
+  Get.put(UserAchievementRepository());
   final AchievementRepository _achievementRepo =
-      Get.put(AchievementRepository());
+  Get.put(AchievementRepository());
   final _authRepo = AuthenticationRepository.instance;
 
   // Observable data
@@ -55,15 +56,15 @@ class UserAchievementController extends GetxController {
       _achievementsSubscription?.cancel();
       _achievementsSubscription =
           _userAchievementRepo.getUserAchievementsStream(userId).listen(
-        (achievements) {
-          _handleAchievementsUpdate(achievements);
-          isLoading.value = false;
-        },
-        onError: (e) {
-          error.value = 'Failed to fetch achievements: $e';
-          isLoading.value = false;
-        },
-      );
+                (achievements) {
+              _handleAchievementsUpdate(achievements);
+              isLoading.value = false;
+            },
+            onError: (e) {
+              error.value = 'Failed to fetch achievements: $e';
+              isLoading.value = false;
+            },
+          );
     } catch (e) {
       error.value = 'Error: $e';
       isLoading.value = false;
@@ -78,16 +79,19 @@ class UserAchievementController extends GetxController {
 
       // Check if this is an existing achievement with a level change
       final oldAchievement = userAchievements.firstWhereOrNull(
-        (a) => a.achievement.achievementId == achievementId,
+            (a) => a.achievement.achievementId == achievementId,
       );
 
       if (oldAchievement != null) {
         final oldLevel = oldAchievement.currentLevel;
 
-        // Level up detected
+        // ✅ Level up detected
         if (newLevel > oldLevel) {
           previousLevels[achievementId] = oldLevel;
           levelUpAnimations[achievementId] = true;
+
+          // ✅ 显示横幅
+          _showLevelUpBanner(newAchievement);
 
           // Reset animation flag after 2 seconds
           Future.delayed(const Duration(seconds: 2), () {
@@ -101,6 +105,20 @@ class UserAchievementController extends GetxController {
     }
 
     userAchievements.value = newAchievements;
+  }
+
+  /// ✅ Show level up banner
+  void _showLevelUpBanner(UserAchievement achievement) {
+    final levelInfo = achievement.currentLevelInfo;
+
+    if (levelInfo != null && achievement.currentLevel > 0) {
+      LevelUpBanner.show(
+        achievementTitle: achievement.achievement.title,
+        level: achievement.currentLevel,
+        rewardPoints: levelInfo.rewardPoints,
+        badgeEmoji: levelInfo.badgeImage,
+      );
+    }
   }
 
   /// Get achievements grouped by category
@@ -119,10 +137,9 @@ class UserAchievementController extends GetxController {
       grouped[category]!.add(userAchievement);
     }
 
-    // 按自定义顺序排序：recycling 先出现，然后 differentWaste
+    // ✅ 按自定义顺序排序：recycling 先出现，然后 differentWaste
     final sortedEntries = grouped.entries.toList()
       ..sort((a, b) {
-        // 定义优先级：recycling = 1 (最高), differentWaste = 2
         final priorityA = _getCategoryPriority(a.key);
         final priorityB = _getCategoryPriority(b.key);
         return priorityA.compareTo(priorityB);

@@ -2,13 +2,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
+
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
+
 import '../../../../common/widgets/appbar/appbar.dart';
 import '../../controllers/detection_history_controller.dart';
+import '../../controllers/waste_category_guide_controller.dart';
 import '../../models/detection_history_model.dart';
+import '../../models/waste_category_model.dart';
+import '../waste_category_guideline/waste_category_guide_detail.dart';
 
 class DetectionHistoryScreen extends StatelessWidget {
   const DetectionHistoryScreen({super.key});
@@ -224,6 +229,10 @@ class DetectionHistoryScreen extends StatelessWidget {
   }
 }
 
+// ============================================
+// Detail Screen
+// ============================================
+
 class DetectionHistoryDetailScreen extends StatelessWidget {
   final DetectionHistoryModel history;
 
@@ -235,6 +244,8 @@ class DetectionHistoryDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = FHelperFunctions.isDarkMode(context);
+    // 🆕 获取 WasteCategoryController 来获取 category 信息
+    final guideController = Get.put(WasteCategoryController());
 
     return Scaffold(
       backgroundColor: dark ? FColors.dark : FColors.light,
@@ -360,10 +371,29 @@ class DetectionHistoryDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: FSizes.md),
+
+                  // 🆕 使用新的构建方法
                   ...history.detectedItems.asMap().entries.map((entry) {
                     final index = entry.key;
                     final item = entry.value;
-                    return _buildDetectedItemCard(context, item, index, dark);
+
+                    // 🆕 获取对应的 categoryId
+                    final categoryId = index < history.categoryIds.length
+                        ? history.categoryIds[index]
+                        : null;
+
+                    // 🆕 通过 categoryId 获取 WasteCategory
+                    final category = categoryId != null
+                        ? guideController.getCategoryById(categoryId)
+                        : null;
+
+                    return _buildDetectedItemCard(
+                      context,
+                      item,
+                      index,
+                      category, // 🆕 传递 category 而不是 categoryId
+                      dark,
+                    );
                   }).toList(),
                 ],
               ),
@@ -380,6 +410,7 @@ class DetectionHistoryDetailScreen extends StatelessWidget {
       BuildContext context,
       String item,
       int index,
+      WasteCategory? category,
       bool dark,
       ) {
     final colors = [
@@ -392,6 +423,7 @@ class DetectionHistoryDetailScreen extends StatelessWidget {
       Colors.pink,
       Colors.teal,
     ];
+
     final color = colors[index % colors.length];
 
     return Container(
@@ -411,32 +443,94 @@ class DetectionHistoryDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(FSizes.md),
-        child: Row(
-          children: [
-            // Color Indicator
-            Container(
-              width: 4,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: FSizes.md),
-
-            // Item Info
-            Expanded(
-              child: Text(
-                item,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: dark ? FColors.white : FColors.textPrimary,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+        onTap: category == null
+            ? null
+            : () {
+          Get.to(() => WasteCategoryDetailScreen(category: category));
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(FSizes.md),
+          child: Row(
+            children: [
+              // Color Indicator
+              Container(
+                width: 4,
+                height: 60, // ✅ 增加高度以适应更多内容
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: FSizes.md),
+
+              // Item Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Detected label
+                    Text(
+                      item,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: dark ? FColors.white : FColors.textPrimary,
+                      ),
+                    ),
+
+                    // ✅ 如果有 category，显示 category name
+                    if (category != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        category.name,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: dark ? FColors.darkGrey : FColors.textSecondary,
+                        ),
+                      ),
+
+                      // ✅ 显示 recyclable 状态（与 detection_result 一致）
+                      const SizedBox(height: FSizes.xs),
+                      Row(
+                        children: [
+                          Icon(
+                            category.isRecyclable
+                                ? Iconsax.tick_circle
+                                : Iconsax.close_circle,
+                            size: 16,
+                            color: category.isRecyclable
+                                ? FColors.success
+                                : FColors.error,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            category.isRecyclable
+                                ? 'Recyclable'
+                                : 'Not Recyclable',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: category.isRecyclable
+                                  ? FColors.success
+                                  : FColors.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // ✅ 只有当 category 存在时才显示箭头
+              if (category != null)
+                Icon(
+                  Iconsax.arrow_right_3,
+                  size: 18,
+                  color: dark ? FColors.darkGrey : FColors.textSecondary,
+                ),
+            ],
+          ),
         ),
       ),
     );

@@ -12,11 +12,13 @@ class AddActivityFormController extends GetxController {
   final bool isEditing;
   final RecyclingActivity? existingActivity;
   final List<WasteCategory> wasteCategories;
+  final File? existingImageFile; // Add this parameter
 
   AddActivityFormController({
     required this.isEditing,
     this.existingActivity,
     required this.wasteCategories,
+    this.existingImageFile, // Add this parameter
   });
 
   // Form key and controllers
@@ -31,8 +33,16 @@ class AddActivityFormController extends GetxController {
   final RxInt calculatedPoints = 0.obs;
   final RxBool isLoading = false.obs;
 
+  // Track if image was changed during editing
+  final RxBool imageChanged = false.obs;
+
   // Computed property to check if there's an existing image
-  RxBool get hasExistingImage => RxBool(uploadedImageFileName.value.isNotEmpty && !uploadedImageFileName.value.startsWith('temp_'));
+  RxBool get hasExistingImage {
+    return RxBool(
+        uploadedImageFileName.value.isNotEmpty &&
+            !uploadedImageFileName.value.startsWith('temp_')
+    );
+  }
 
   // Image picker
   final ImagePicker _imagePicker = ImagePicker();
@@ -46,6 +56,13 @@ class AddActivityFormController extends GetxController {
     super.onInit();
     if (isEditing && existingActivity != null) {
       _populateFields();
+
+      // Set the existing image file if provided
+      if (existingImageFile != null) {
+        selectedImage.value = existingImageFile;
+        imageChanged.value = false; // Not changed yet
+        print('📸 Loaded existing image file for editing');
+      }
     }
   }
 
@@ -61,19 +78,21 @@ class AddActivityFormController extends GetxController {
       wasteObjectController.text = existingActivity!.wasteObject;
       weightController.text = existingActivity!.weight.toString();
 
-      // Debug existing activity data
+      print('🔍 Populating fields for existing activity');
       print('Existing activity supportImage: ${existingActivity!.supportImage}');
       print('Existing activity wasteObject: ${existingActivity!.wasteObject}');
       print('Existing activity weight: ${existingActivity!.weight}');
 
-      // Set the uploaded image filename - this is crucial for edit mode
-      // Only set if it's not a temporary filename
-      if (existingActivity!.supportImage.isNotEmpty && !existingActivity!.supportImage.startsWith('temp_')) {
-        uploadedImageFileName.value = existingActivity!.supportImage;
-        print('Set uploadedImageFileName to: ${uploadedImageFileName.value}');
+      // In edit mode, we don't rely on supportImage filename
+      // The image file will be provided through the existingImageFile parameter
+      // This is because before submission, images are stored as File objects
+      uploadedImageFileName.value = existingActivity!.supportImage;
+      imageChanged.value = false; // Image not changed yet
+
+      if (existingActivity!.supportImage.startsWith('temp_')) {
+        print('📝 Activity has temporary image (not yet uploaded to Firebase)');
       } else {
-        print('Existing image is temporary, ignoring: ${existingActivity!.supportImage}');
-        uploadedImageFileName.value = '';
+        print('☁️ Activity has uploaded image: ${existingActivity!.supportImage}');
       }
 
       calculatedPoints.value = existingActivity!.pointsEarned;
@@ -83,7 +102,7 @@ class AddActivityFormController extends GetxController {
       );
       if (category != null) {
         selectedCategory.value = category;
-        print('Set category to: ${category.name}');
+        print('✅ Set category to: ${category.name}');
       }
     }
   }
@@ -204,7 +223,8 @@ class AddActivityFormController extends GetxController {
     }
 
     selectedImage.value = imageFile;
-    uploadedImageFileName.value = ''; // Clear old filename when selecting new one
+    imageChanged.value = true; // Mark that image was changed
+    // Don't clear uploadedImageFileName yet - we need it for deletion
 
     FLoaders.customToast(message: 'Image selected successfully!');
   }
@@ -212,6 +232,7 @@ class AddActivityFormController extends GetxController {
   void removeImage() {
     selectedImage.value = null;
     uploadedImageFileName.value = '';
+    imageChanged.value = true; // Mark that image was changed
 
     FLoaders.warningSnackBar(
       title: 'Image Removed',
@@ -263,7 +284,8 @@ class AddActivityFormController extends GetxController {
       errorMessage = 'Please select a waste category';
     }
 
-    if (selectedImage.value == null && uploadedImageFileName.value.isEmpty) {
+    // Must have an image (either existing or newly selected)
+    if (selectedImage.value == null) {
       isValid = false;
       errorMessage = 'Please upload a support image';
     }
@@ -280,25 +302,22 @@ class AddActivityFormController extends GetxController {
 
   /// Create recycling activity (image will be uploaded later during submission)
   RecyclingActivity createActivity(String userId, String centerStaffId) {
-    // In edit mode, preserve the existing image filename if no new image is selected
-    String supportImage;
+    String finalImageFileName;
 
     if (isEditing && existingActivity != null) {
-      // If we have a new image selected, we'll upload it later
-      // If no new image is selected, keep the existing image filename
-      if (selectedImage.value != null) {
-        // New image selected - use temporary identifier
-        supportImage = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      if (imageChanged.value) {
+        // Image was changed - use new temp filename
+        print('📸 Image changed during edit, will upload new image');
+        finalImageFileName = 'temp_${DateTime.now().millisecondsSinceEpoch}';
       } else {
-        // No new image - preserve the existing image filename
-        supportImage = existingActivity!.supportImage;
-        print('Preserving existing image: $supportImage');
+        // Image not changed - preserve existing filename
+        finalImageFileName = existingActivity!.supportImage;
+        print('♻️ Preserving existing image filename: $finalImageFileName');
       }
     } else {
-      // New activity - use temporary identifier
-      supportImage = uploadedImageFileName.value.isNotEmpty && !uploadedImageFileName.value.startsWith('temp_')
-          ? uploadedImageFileName.value
-          : 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      // New activity
+      finalImageFileName = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      print('Creating new activity with temp filename');
     }
 
     // Create activity
@@ -308,40 +327,20 @@ class AddActivityFormController extends GetxController {
       wasteObject: wasteObjectController.text.trim(),
       wasteCategoryId: selectedCategory.value!.categoryId,
       weight: double.parse(weightController.text.trim()),
-      supportImage: supportImage,
+      supportImage: finalImageFileName,
       customPoints: calculatedPoints.value,
     );
 
-    print('Created activity with supportImage: $supportImage');
+    print('✅ Created activity with supportImage: $finalImageFileName');
     return activity;
   }
 
   /// Get the selected image file (for upload during submission)
   File? getImageFile() {
+    // Always return the current image
+    // If it was changed, it's the new image
+    // If it wasn't changed, it's the existing image
     return selectedImage.value;
-  }
-
-  /// Get the URL for existing image in edit mode
-  String getExistingImageUrl(String userId) {
-    if (uploadedImageFileName.value.isEmpty) {
-      print('uploadedImageFileName is empty');
-      return '';
-    }
-
-    // Don't try to generate URL for temporary files
-    if (uploadedImageFileName.value.startsWith('temp_')) {
-      print('Skipping temporary image: ${uploadedImageFileName.value}');
-      return '';
-    }
-
-    // Construct the Firebase Storage URL
-    final imageUrl = 'https://firebasestorage.googleapis.com/v0/b/fir-82ffd.appspot.com/o/recycling_activities%2F$userId%2F${Uri.encodeComponent(uploadedImageFileName.value)}?alt=media';
-
-    print('Generated image URL: $imageUrl');
-    print('User ID: $userId');
-    print('Filename: ${uploadedImageFileName.value}');
-
-    return imageUrl;
   }
 
   void resetForm() {
@@ -352,15 +351,15 @@ class AddActivityFormController extends GetxController {
     selectedImage.value = null;
     uploadedImageFileName.value = '';
     calculatedPoints.value = 0;
+    imageChanged.value = false; // Reset image changed flag
   }
 
   bool get hasUnsavedChanges {
     if (isEditing && existingActivity != null) {
       return wasteObjectController.text != existingActivity!.wasteObject ||
           weightController.text != existingActivity!.weight.toString() ||
-          selectedCategory.value?.categoryId !=
-              existingActivity!.wasteCategoryId ||
-          selectedImage.value != null;
+          selectedCategory.value?.categoryId != existingActivity!.wasteCategoryId ||
+          imageChanged.value; // Check if image was changed
     } else {
       return wasteObjectController.text.isNotEmpty ||
           weightController.text.isNotEmpty ||

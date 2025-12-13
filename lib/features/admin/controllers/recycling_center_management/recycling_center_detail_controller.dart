@@ -9,12 +9,12 @@ import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart
 import 'package:fyp/features/authentication/models/user_model.dart';
 import 'package:fyp/utils/popups/admin_loaders.dart';
 import 'package:fyp/utils/constants/colors.dart';
-import 'package:fyp/data/repositories/personalization/recycling_activity_repository.dart';
-import 'package:fyp/data/repositories/recycling_center/recycling_center_staff_repository.dart';
+import 'package:fyp/data/repositories/recycling_center/recycling_activity_repository.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../../common/widgets/admin/admin_lightbox.dart';
 import '../../../../data/repositories/recycling_center/waste_category_repository.dart';
+import '../../../../data/repositories/user/center_staff_repository.dart';
 import '../../../waste_classification/models/waste_category_model.dart';
 
 class RecyclingCenterDetailsController extends GetxController {

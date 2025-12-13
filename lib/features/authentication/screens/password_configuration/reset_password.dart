@@ -8,6 +8,8 @@ import 'package:fyp/utils/constants/text_strings.dart';
 import 'package:fyp/utils/device/device_utility.dart';
 import 'package:get/get.dart';
 
+import '../../../../utils/constants/colors.dart';
+
 class ResetPasswordScreen extends StatelessWidget {
   const ResetPasswordScreen({super.key, required this.email});
 
@@ -35,19 +37,37 @@ class ResetPasswordScreen extends StatelessWidget {
                 width: FDeviceUtils.getScreenWidth() * 0.6,
               ),
               const SizedBox(height: FSizes.spaceBtwSections),
-        
+
               /// Title & Subtitle
-              Text(email, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+              Text(email,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center),
               const SizedBox(height: FSizes.spaceBtwItems),
-              Text(FTexts.changeYourPasswordTitle, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
+              Text(FTexts.changeYourPasswordTitle,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.center),
               const SizedBox(height: FSizes.spaceBtwItems),
-              Text(FTexts.changeYourPasswordSubTitle, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
+              Text(FTexts.changeYourPasswordSubTitle,
+                  style: Theme.of(context).textTheme.labelMedium,
+                  textAlign: TextAlign.center),
               const SizedBox(height: FSizes.spaceBtwSections),
-        
+
               /// Buttons
-              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Get.offAll(() => const LoginScreen()), child: const Text(FTexts.done))),
+              SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                      onPressed: () => Get.offAll(() => const LoginScreen()),
+                      child: const Text(FTexts.done))),
               const SizedBox(height: FSizes.spaceBtwItems),
-              SizedBox(width: double.infinity, child: TextButton(onPressed: () => ForgetPasswordController.instance.resendPasswordResetEmail(email), child: const Text(FTexts.resendEmail ))),
+              SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                      onPressed: () => ForgetPasswordController.instance
+                          .resendPasswordResetEmail(email),
+                      child: Text(
+                        FTexts.resendEmail,
+                        style: TextStyle(color: FColors.primary),
+                      ))),
             ],
           ),
         ),

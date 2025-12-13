@@ -8,6 +8,8 @@ import 'package:fyp/utils/theme/custom_themes/outlined_button_theme.dart';
 import 'package:fyp/utils/theme/custom_themes/text_field_theme.dart';
 import 'package:fyp/utils/theme/custom_themes/text_theme.dart';
 
+import '../constants/colors.dart';
+
 /// -- Light & Dark App Themes
 class FAppTheme {
   FAppTheme._();
@@ -17,7 +19,7 @@ class FAppTheme {
       useMaterial3: true,
       fontFamily: 'Poppins',
       brightness: Brightness.light,
-      primaryColor: Colors.green,
+      primaryColor: FColors.primary,
       scaffoldBackgroundColor: Colors.white,
       appBarTheme: FAppBarTheme.lightAppBarTheme,
       textTheme: FTextTheme.lightTextTheme,
@@ -34,7 +36,7 @@ class FAppTheme {
       useMaterial3: true,
       fontFamily: 'Poppins',
       brightness: Brightness.dark,
-      primaryColor: Colors.green,
+      primaryColor: FColors.primary,
       scaffoldBackgroundColor: Colors.black,
       appBarTheme: FAppBarTheme.darkAppBarTheme,
       textTheme: FTextTheme.darkTextTheme,

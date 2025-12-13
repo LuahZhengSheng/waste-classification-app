@@ -7,6 +7,8 @@ import 'package:iconsax/iconsax.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../utils/popups/loaders.dart';
+
 class CustomCameraController extends GetxController with WidgetsBindingObserver {
   // Camera state
   final _availableCameras = <CameraDescription>[].obs;
@@ -120,11 +122,7 @@ class CustomCameraController extends GetxController with WidgetsBindingObserver 
       await _cameraController.value?.pauseVideoRecording();
       _isRecordingPaused.value = true;
     } on CameraException catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to pause video recording: ${e.description ?? e.code}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to pause video recording: ${e.description ?? e.code}');
     }
   }
 
@@ -136,11 +134,7 @@ class CustomCameraController extends GetxController with WidgetsBindingObserver 
       await _cameraController.value?.resumeVideoRecording();
       _isRecordingPaused.value = false;
     } on CameraException catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to resume video recording: ${e.description ?? e.code}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to resume video recording: ${e.description ?? e.code}');
     }
   }
 
@@ -312,19 +306,11 @@ class CustomCameraController extends GetxController with WidgetsBindingObserver 
       return savedFile;
     } on CameraException catch (e) {
       _isCapturing.value = false;
-      Get.snackbar(
-        'Error',
-        'Failed to capture photo: ${e.description ?? e.code}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to capture photo: ${e.description ?? e.code}');
       return null;
     } catch (e) {
       _isCapturing.value = false;
-      Get.snackbar(
-        'Error',
-        'Failed to capture photo: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to capture photo: $e');
       return null;
     }
   }
@@ -344,11 +330,7 @@ class CustomCameraController extends GetxController with WidgetsBindingObserver 
       _isRecordingPaused.value = false;
       _startRecordingTimer();
     } on CameraException catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to start video recording: ${e.description ?? e.code}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to start video recording: ${e.description ?? e.code}');
     }
   }
 
@@ -375,11 +357,7 @@ class CustomCameraController extends GetxController with WidgetsBindingObserver 
       _isRecording.value = false;
       _isRecordingPaused.value = false;
       _stopRecordingTimer();
-      Get.snackbar(
-        'Error',
-        'Failed to stop video recording: ${e.description ?? e.code}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to stop video recording: ${e.description ?? e.code}');
       return null;
     }
   }
@@ -450,11 +428,7 @@ class CustomCameraController extends GetxController with WidgetsBindingObserver 
     try {
       await openAppSettings();
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Cannot open settings: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Cannot open settings: $e');
     }
   }
 

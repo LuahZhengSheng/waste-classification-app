@@ -10,8 +10,8 @@ import 'package:fyp/utils/exceptions/platform_exceptions.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
 import 'package:fyp/features/authentication/models/user_model.dart';
 
-class StaffRepository extends GetxController {
-  static StaffRepository get instance => Get.find();
+class RecyclingCenterStaffRepository extends GetxController {
+  static RecyclingCenterStaffRepository get instance => Get.find();
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -98,6 +98,17 @@ class StaffRepository extends GetxController {
       throw FPlatformException(e.code).message;
     } catch (e) {
       throw 'Something went wrong. Please try again.';
+    }
+  }
+
+  /// Update last password reset time
+  Future<void> updateLastPasswordResetTime(String staffId) async {
+    try {
+      await _db.collection(_usersCollection).doc(staffId).update({
+        'lastPasswordResetTime': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw 'Failed to update password reset time: $e';
     }
   }
 
@@ -249,5 +260,17 @@ class StaffRepository extends GetxController {
         print('Error deleting profile image: $e');
       }
     }
+  }
+
+  /// Get staff by center ID with stream
+  Stream<List<RecyclingCenterStaff>> getStaffByCenterIdStream(String centerId) {
+    return _db
+        .collection(_usersCollection)
+        .where('centerId', isEqualTo: centerId)
+        .where('role', isEqualTo: 'center_staff')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => RecyclingCenterStaff.fromSnapshot(doc))
+        .toList());
   }
 }

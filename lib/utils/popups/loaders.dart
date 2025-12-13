@@ -5,6 +5,8 @@ import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../features/community/models/post_enums.dart';
+
 class FLoaders {
   static void hideSnackBar() => ScaffoldMessenger.of(Get.context!).hideCurrentSnackBar();
 
@@ -91,7 +93,7 @@ class FLoaders {
       shouldIconPulse: true,
       colorText: Colors.white,
       backgroundColor: _isDarkMode() ? FColors.adminDarkInfo : FColors.adminLightInfo,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       duration: const Duration(seconds: 3),
       margin: const EdgeInsets.all(10),
       icon: const Icon(Iconsax.info_circle, color: Colors.white),
@@ -853,6 +855,308 @@ class FLoaders {
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  // 🆕 Show Report Dialog
+  static Future<List<String>?> showReportDialog({
+    required List<String> alreadyReportedOptions,
+  }) async {
+    final dark = FHelperFunctions.isDarkMode(Get.context!);
+    final selectedOptions = <String>[].obs;
+
+    // Initialize with already reported options
+    selectedOptions.addAll(alreadyReportedOptions);
+
+    return await Get.dialog<List<String>>(
+      Dialog(
+        backgroundColor: dark ? FColors.communityDarkSurface : FColors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(Get.context!).size.height * 0.7,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(FSizes.defaultSpace),
+                decoration: BoxDecoration(
+                  color: dark
+                      ? FColors.communityDarkBackground
+                      : FColors.grey.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: FColors.error.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Iconsax.warning_2,
+                        color: FColors.error,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: FSizes.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Report Post',
+                            style: Theme.of(Get.context!).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: dark ? FColors.white : FColors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Select all that apply',
+                            style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
+                              color: dark ? FColors.darkTextSecondary : FColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Get.back(),
+                      icon: Icon(
+                        Icons.close,
+                        color: dark ? FColors.darkTextSecondary : FColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Report Options List
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(vertical: FSizes.sm),
+                  itemCount: ReportOption.values.length,
+                  itemBuilder: (context, index) {
+                    final option = ReportOption.values[index];
+
+                    return Obx(() {
+                      final isSelected = selectedOptions.contains(option.name);
+
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            if (isSelected) {
+                              selectedOptions.remove(option.name);
+                            } else {
+                              selectedOptions.add(option.name);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: FSizes.defaultSpace,
+                              vertical: FSizes.md,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? (dark
+                                  ? FColors.error.withOpacity(0.1)
+                                  : FColors.error.withOpacity(0.05))
+                                  : Colors.transparent,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: dark
+                                      ? FColors.communityDarkBorder
+                                      : FColors.grey.withOpacity(0.2),
+                                  width: 0.5,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                // Checkbox
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? FColors.error
+                                        : Colors.transparent,
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? FColors.error
+                                          : (dark ? FColors.darkGrey : FColors.grey),
+                                      width: 2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: isSelected
+                                      ? const Icon(
+                                    Icons.check,
+                                    color: FColors.white,
+                                    size: 16,
+                                  )
+                                      : null,
+                                ),
+                                const SizedBox(width: FSizes.md),
+
+                                // Option Details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        option.displayName,
+                                        style: Theme.of(Get.context!).textTheme.bodyLarge?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: dark ? FColors.white : FColors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        option.description,
+                                        style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
+                                          color: dark
+                                              ? FColors.darkTextSecondary
+                                              : FColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    });
+                  },
+                ),
+              ),
+
+              // Footer with buttons
+              Container(
+                padding: const EdgeInsets.all(FSizes.defaultSpace),
+                decoration: BoxDecoration(
+                  color: dark
+                      ? FColors.communityDarkBackground
+                      : FColors.grey.withOpacity(0.05),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Selected count
+                    Obx(() {
+                      if (selectedOptions.isEmpty) {
+                        return const SizedBox();
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FSizes.md,
+                          vertical: FSizes.sm,
+                        ),
+                        margin: const EdgeInsets.only(bottom: FSizes.md),
+                        decoration: BoxDecoration(
+                          color: dark
+                              ? FColors.error.withOpacity(0.1)
+                              : FColors.error.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Iconsax.tick_circle,
+                              size: 16,
+                              color: FColors.error,
+                            ),
+                            const SizedBox(width: FSizes.xs),
+                            Text(
+                              '${selectedOptions.length} option${selectedOptions.length > 1 ? 's' : ''} selected',
+                              style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
+                                color: FColors.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Get.back(),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: dark ? FColors.communityDarkBorder : FColors.borderPrimary,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: FSizes.md),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: dark ? FColors.darkTextSecondary : FColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: FSizes.md),
+                        Expanded(
+                          child: Obx(() {
+                            return ElevatedButton(
+                              onPressed: selectedOptions.isEmpty
+                                  ? null
+                                  : () => Get.back(result: selectedOptions.toList()),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: FColors.error,
+                                foregroundColor: FColors.white,
+                                disabledBackgroundColor: dark
+                                    ? FColors.communityDarkBorder
+                                    : FColors.grey.withOpacity(0.3),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: FSizes.md),
+                              ),
+                              child: const Text(
+                                'Report',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

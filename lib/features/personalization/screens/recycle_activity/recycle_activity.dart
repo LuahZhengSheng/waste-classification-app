@@ -67,34 +67,15 @@ class RecycleHistoryScreen extends StatelessWidget {
                 ),
               ),
 
-              // Activities List
+              // Activities List - Grouped by Date OR Empty State
               controller.filteredActivities.isEmpty
-                  ? SliverFillRemaining(
-                child: _buildEmptyState(dark),
+                  ? SliverToBoxAdapter(
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.4,
+                  child: _buildEmptyState(dark),
+                ),
               )
-                  : SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  FSizes.defaultSpace,
-                  0,
-                  FSizes.defaultSpace,
-                  FSizes.defaultSpace,
-                ),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      final activity =
-                      controller.filteredActivities[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(
-                            bottom: FSizes.spaceBtwItems),
-                        child: _buildActivityCard(
-                            activity, dark, controller, context),
-                      );
-                    },
-                    childCount: controller.filteredActivities.length,
-                  ),
-                ),
-              ),
+                  : _buildGroupedActivitiesList(controller, dark, context),
             ],
           ),
         );
@@ -183,7 +164,7 @@ class RecycleHistoryScreen extends StatelessWidget {
                       children: [
                         Text(
                           controller.selectedCategoryForChart.value != null
-                              ? '${controller.getCategoryPercentage(controller.selectedCategoryForChart.value!).toStringAsFixed(1)}%'
+                              ? '${controller.getCategoryPercentage(controller.selectedCategoryForChart.value!).toStringAsFixed(2)}%'
                               : 'Tap\nCategory',
                           style: Theme.of(Get.context!)
                               .textTheme
@@ -289,26 +270,48 @@ class RecycleHistoryScreen extends StatelessWidget {
     final distance = (tapPosition - center).distance;
 
     if (distance >= 60 && distance <= 100) {
-      final angle =
-      math.atan2(tapPosition.dy - center.dy, tapPosition.dx - center.dx);
-      final normalizedAngle =
-          (angle + math.pi / 2 + 2 * math.pi) % (2 * math.pi);
+      final angle = math.atan2(tapPosition.dy - center.dy, tapPosition.dx - center.dx);
+      final normalizedAngle = (angle + math.pi / 2 + 2 * math.pi) % (2 * math.pi);
 
       final totalWeight = controller.activities
           .fold<double>(0, (sum, activity) => sum + activity.weight);
+
       if (totalWeight == 0) return;
 
+      // ✅ 计算最小角度阈值（例如 5 度）
+      const minClickableAngle = 5 * math.pi / 180; // 5度的弧度
+
       double currentAngle = 0;
+      WasteCategory? bestMatch;
+      double closestDistance = double.infinity;
+
       for (final category in categories) {
         final categoryWeight = controller.getCategoryWeight(category);
         final sweepAngle = (categoryWeight / totalWeight) * 2 * math.pi;
 
+        // ✅ 扩展小 segment 的点击范围
+        final expandedSweepAngle = sweepAngle < minClickableAngle
+            ? minClickableAngle
+            : sweepAngle;
+
+        final midAngle = currentAngle + sweepAngle / 2;
+        final angleDiff = (normalizedAngle - midAngle).abs();
+
+        // ✅ 检查是否在扩展后的范围内
         if (normalizedAngle >= currentAngle &&
-            normalizedAngle <= currentAngle + sweepAngle) {
-          controller.selectCategoryForChart(category);
-          break;
+            normalizedAngle < currentAngle + expandedSweepAngle) {
+          // ✅ 优先选择角度差最小的
+          if (angleDiff < closestDistance) {
+            closestDistance = angleDiff;
+            bestMatch = category;
+          }
         }
+
         currentAngle += sweepAngle;
+      }
+
+      if (bestMatch != null) {
+        controller.selectCategoryForChart(bestMatch);
       }
     }
   }
@@ -399,7 +402,7 @@ class RecycleHistoryScreen extends StatelessWidget {
                         controller.selectedCategoryForChart.value!)
                         .toString()
                         : controller.totalPointsEarned.toString(),
-                    Iconsax.star1,
+                    Iconsax.medal_star5,
                     FColors.warning,
                     dark,
                   ),
@@ -409,8 +412,8 @@ class RecycleHistoryScreen extends StatelessWidget {
                   child: _buildStatCard(
                     'Weight',
                     isFiltered
-                        ? '${controller.getCategoryWeight(controller.selectedCategoryForChart.value!).toStringAsFixed(1)} kg'
-                        : '${controller.totalWeightRecycled.toStringAsFixed(1)} kg',
+                        ? '${controller.getCategoryWeight(controller.selectedCategoryForChart.value!).toStringAsFixed(2)} kg'
+                        : '${controller.totalWeightRecycled.toStringAsFixed(2)} kg',
                     Iconsax.weight,
                     FColors.info,
                     dark,
@@ -429,7 +432,7 @@ class RecycleHistoryScreen extends StatelessWidget {
                         .getCategoryActivityCount(
                         controller.selectedCategoryForChart.value!)
                         .toString()
-                        : controller.filteredActivities.length.toString(),
+                        : controller.currentUser.value.totalRecyclingActivities.toString(),
                     Iconsax.activity,
                     FColors.primary,
                     dark,
@@ -440,8 +443,8 @@ class RecycleHistoryScreen extends StatelessWidget {
                   child: _buildStatCard(
                     'CO₂ Saved',
                     isFiltered
-                        ? '${controller.getCategoryCO2Reduced(controller.selectedCategoryForChart.value!).toStringAsFixed(1)} kg'
-                        : '${controller.totalCO2Reduced.toStringAsFixed(1)} kg',
+                        ? '${controller.getCategoryCO2Reduced(controller.selectedCategoryForChart.value!).toStringAsFixed(2)} kg'
+                        : '${controller.totalCO2Reduced.toStringAsFixed(2)} kg',
                     Iconsax.tree,
                     FColors.success,
                     dark,
@@ -483,6 +486,131 @@ class RecycleHistoryScreen extends StatelessWidget {
               color: dark ? FColors.darkGrey : FColors.grey,
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupedActivitiesList(
+      RecycleActivityController controller,
+      bool dark,
+      BuildContext context,
+      ) {
+    final groupedActivities = controller.getActivitiesGroupedByDate();
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+            (context, index) {
+          final dateKey = groupedActivities.keys.elementAt(index);
+          final activities = groupedActivities[dateKey]!;
+          final dateHeader = controller.getFormattedDateHeader(dateKey);
+          final summary = controller.getDateSummary(activities);
+
+          return Padding(
+            padding: const EdgeInsets.only(
+              left: FSizes.defaultSpace,
+              right: FSizes.defaultSpace,
+              bottom: FSizes.spaceBtwSections,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date Header with Summary
+                _buildDateHeader(dateHeader, summary, dark),
+                const SizedBox(height: FSizes.spaceBtwItems),
+
+                // Activities for this date
+                ...activities.map((activity) => Padding(
+                  padding: const EdgeInsets.only(bottom: FSizes.spaceBtwItems),
+                  child: _buildActivityCard(activity, dark, controller, context),
+                )),
+              ],
+            ),
+          );
+        },
+        childCount: groupedActivities.length,
+      ),
+    );
+  }
+
+  Widget _buildDateHeader(String dateHeader, Map<String, dynamic> summary, bool dark) {
+    return Container(
+      padding: const EdgeInsets.all(FSizes.md),
+      decoration: BoxDecoration(
+        color: dark ? FColors.darkContainer : FColors.white,
+        borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+        border: Border.all(
+          color: FColors.primary.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: FColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Iconsax.calendar_1,
+              color: FColors.primary,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: FSizes.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dateHeader,
+                  style: Theme.of(Get.context!).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${summary['count']} activities • ${summary['weight'].toStringAsFixed(2)} kg',
+                  style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
+                    color: dark ? FColors.darkGrey : FColors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  Icon(Iconsax.medal_star5, size: 14, color: FColors.warning),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${summary['points']}',
+                    style: Theme.of(Get.context!).textTheme.bodyMedium?.copyWith(
+                      color: FColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Iconsax.tree, size: 14, color: FColors.success),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${summary['emission'].toStringAsFixed(2)}',
+                    style: Theme.of(Get.context!).textTheme.bodySmall?.copyWith(
+                      color: FColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
@@ -886,7 +1014,6 @@ class RecycleHistoryScreen extends StatelessWidget {
                       // Support Image with FutureBuilder
                       GestureDetector(
                         onTap: () {
-                          // 使用 FutureBuilder 来处理异步图片 URL
                           _showImageLightbox(activity, context);
                         },
                         child: Hero(
@@ -903,9 +1030,11 @@ class RecycleHistoryScreen extends StatelessWidget {
                               ),
                             ),
                             child: FutureBuilder<String>(
-                              future: activity.getSupportImageUrl(activity.userId),
+                              future:
+                              activity.getSupportImageUrl(activity.userId),
                               builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
                                   return Center(
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
@@ -914,7 +1043,9 @@ class RecycleHistoryScreen extends StatelessWidget {
                                   );
                                 }
 
-                                if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+                                if (snapshot.hasError ||
+                                    snapshot.data == null ||
+                                    snapshot.data!.isEmpty) {
                                   return Icon(
                                     category.icon,
                                     color: category.color,
@@ -935,13 +1066,18 @@ class RecycleHistoryScreen extends StatelessWidget {
                                         size: 28,
                                       );
                                     },
-                                    loadingBuilder: (context, child, loadingProgress) {
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
                                       if (loadingProgress == null) return child;
                                       return Center(
                                         child: CircularProgressIndicator(
-                                          value: loadingProgress.expectedTotalBytes != null
-                                              ? loadingProgress.cumulativeBytesLoaded /
-                                              loadingProgress.expectedTotalBytes!
+                                          value: loadingProgress
+                                              .expectedTotalBytes !=
+                                              null
+                                              ? loadingProgress
+                                              .cumulativeBytesLoaded /
+                                              loadingProgress
+                                                  .expectedTotalBytes!
                                               : null,
                                           strokeWidth: 2,
                                           color: category.color,
@@ -997,28 +1133,6 @@ class RecycleHistoryScreen extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Icon(
-                                  Iconsax.calendar,
-                                  size: 12,
-                                  color: dark ? FColors.darkGrey : FColors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  activity.formattedCreatedAt,
-                                  style: Theme.of(Get.context!)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                    color: dark
-                                        ? FColors.darkGrey
-                                        : FColors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ],
                         ),
                       ),
@@ -1048,7 +1162,7 @@ class RecycleHistoryScreen extends StatelessWidget {
                           color: dark ? FColors.darkGrey : FColors.grey,
                         ),
                         _buildMetricItem(
-                          icon: Iconsax.star1,
+                          icon: Iconsax.medal_star5,
                           value: '${activity.pointsEarned} pts',
                           color: FColors.warning,
                         ),
@@ -1060,7 +1174,7 @@ class RecycleHistoryScreen extends StatelessWidget {
                         _buildMetricItem(
                           icon: Iconsax.tree,
                           value:
-                          '${(activity.weight * 0.5).toStringAsFixed(1)} kg',
+                          '${activity.emissionReduced.toStringAsFixed(2)} kg',
                           color: FColors.success,
                         ),
                       ],
@@ -1075,9 +1189,9 @@ class RecycleHistoryScreen extends StatelessWidget {
     });
   }
 
-  // 新增方法：处理图片查看
   void _showImageLightbox(RecyclingActivity activity, BuildContext context) {
-    Future<String> imageUrlFuture = activity.getSupportImageUrl(activity.userId);
+    Future<String> imageUrlFuture =
+    activity.getSupportImageUrl(activity.userId);
 
     showDialog(
       context: context,
@@ -1090,7 +1204,9 @@ class RecycleHistoryScreen extends StatelessWidget {
             );
           }
 
-          if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+          if (snapshot.hasError ||
+              snapshot.data == null ||
+              snapshot.data!.isEmpty) {
             Navigator.pop(context);
             return const SizedBox();
           }
@@ -1193,8 +1309,8 @@ class DonutChartPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2 - 10;
     final strokeWidth = 25.0;
-
     double startAngle = -math.pi / 2;
+
     final totalWeight = categories.fold<double>(
       0,
           (sum, category) => sum + controller.getCategoryWeight(category),
@@ -1211,8 +1327,19 @@ class DonutChartPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius - strokeWidth / 2, backgroundPaint);
 
-    // Draw category segments
-    for (var category in categories) {
+    // ✅ 按权重从大到小排序，这样小的会最后绘制（显示在上层）
+    final sortedCategories = List<WasteCategory>.from(categories)
+      ..sort((a, b) {
+        final weightA = controller.getCategoryWeight(a);
+        final weightB = controller.getCategoryWeight(b);
+        return weightB.compareTo(weightA); // 降序排列
+      });
+
+    // ✅ 重新计算起始角度（保持绘制顺序）
+    startAngle = -math.pi / 2;
+
+    // Draw category segments - 使用排序后的列表
+    for (var category in sortedCategories) {
       final weight = controller.getCategoryWeight(category);
       final sweepAngle = (weight / totalWeight) * 2 * math.pi;
 
@@ -1236,6 +1363,7 @@ class DonutChartPainter extends CustomPainter {
           center: center,
           radius: radius - strokeWidth / 2,
         );
+
         canvas.drawArc(shadowRect, startAngle, sweepAngle, false, shadowPaint);
 
         paint.strokeWidth = strokeWidth + 2;
@@ -1245,6 +1373,7 @@ class DonutChartPainter extends CustomPainter {
         center: center,
         radius: radius - strokeWidth / 2,
       );
+
       canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
 
       startAngle += sweepAngle;

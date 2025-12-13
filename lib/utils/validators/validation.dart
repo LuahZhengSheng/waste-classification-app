@@ -73,15 +73,40 @@ class FValidator {
       return 'Phone number is required.';
     }
 
-    // Regular expression for phone number validation (assuming a 10-digit MAS phone number format)
-    final phoneRegExp = RegExp(r'^\d{10}$');
+    // Remove spaces, hyphens, and plus signs for validation
+    final cleanedValue = value.replaceAll(RegExp(r'[\s\-\+]'), '');
 
-    if (!phoneRegExp.hasMatch(value)) {
-      return 'Invalid phone number format (10 digits required).';
+    // Remove country code if present (60 or +60)
+    String numberToValidate = cleanedValue;
+    if (cleanedValue.startsWith('60')) {
+      numberToValidate = '0${cleanedValue.substring(2)}';
+    }
+
+    // Check if starts with 0
+    if (!numberToValidate.startsWith('0')) {
+      return 'Invalid format. Mobile number must start with 01X.';
+    }
+
+    // Validate mobile number prefixes and lengths
+    // 011 and 015: 11 digits total (0 + 2-digit prefix + 8 digits)
+    // All others (010, 012-014, 016-019): 10 digits total (0 + 2-digit prefix + 7 digits)
+
+    if (numberToValidate.startsWith('011') || numberToValidate.startsWith('015')) {
+      // Must be exactly 11 digits: 011-XXXX XXXX
+      if (!RegExp(r'^01[15]\d{8}$').hasMatch(numberToValidate)) {
+        return 'Invalid format. Example: 011-1234 5678';
+      }
+    } else if (RegExp(r'^01[02346789]').hasMatch(numberToValidate)) {
+      // Valid prefixes: 010, 012, 013, 014, 016, 017, 018, 019
+      // Must be exactly 10 digits: 01X-XXX XXXX
+      if (!RegExp(r'^01[02346789]\d{7}$').hasMatch(numberToValidate)) {
+        return 'Invalid format. Example: 012-345 6789';
+      }
+    } else {
+      // Invalid prefix (not 010-019)
+      return 'Invalid mobile prefix. Must start with 010-019.';
     }
 
     return null;
   }
-
-// Add more custom validators as needed for your specific requirements.
 }

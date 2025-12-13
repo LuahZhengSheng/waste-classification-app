@@ -8,6 +8,8 @@ import 'package:fyp/utils/constants/text_strings.dart';
 import 'package:fyp/utils/device/device_utility.dart';
 import 'package:get/get.dart';
 
+import '../../../../utils/constants/colors.dart';
+
 class VerifyEmailScreen extends StatelessWidget {
   const VerifyEmailScreen({super.key, this.email});
 
@@ -40,7 +42,7 @@ class VerifyEmailScreen extends StatelessWidget {
               const SizedBox(height: FSizes.spaceBtwSections),
 
               /// Title & Subtitle
-              Text(FTexts.confirmEmail, style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
+              Text(FTexts.confirmEmail, style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: FColors.primary), textAlign: TextAlign.center),
               const SizedBox(height: FSizes.spaceBtwItems),
               Text(email ?? '', style: Theme.of(context).textTheme.labelLarge, textAlign: TextAlign.center),
               const SizedBox(height: FSizes.spaceBtwItems),

@@ -3,13 +3,14 @@ import 'package:get/get.dart';
 
 import '../../../features/leaderboard_achievement/models/achievement_model.dart';
 import '../../../features/leaderboard_achievement/models/user_achievement_model.dart';
-import 'achievement_repostory.dart';
+import 'achievement_repository.dart';
 
 class UserAchievementRepository extends GetxController {
   static UserAchievementRepository get instance => Get.find();
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final String _userAchievementsCollection = 'userAchievements';
+  final String _achievementsCollection = 'achievements';
 
   /// Get all user achievements for a specific achievement
   Future<List<UserAchievement>> getUserAchievementsByAchievementId(String achievementId) async {
@@ -23,7 +24,7 @@ class UserAchievementRepository extends GetxController {
 
       for (var doc in snapshot.docs) {
         final userAchievement = await _getUserAchievementWithFullData(doc);
-        if (userAchievement != UserAchievement.empty()) {
+        if (userAchievement != null) {
           userAchievements.add(userAchievement);
         }
       }
@@ -33,6 +34,49 @@ class UserAchievementRepository extends GetxController {
       throw 'Failed to fetch user achievements: $e';
     }
   }
+
+  /// Batch create user achievements for a new user
+  /// More efficient than calling createUserAchievement multiple times
+  Future<void> batchCreateUserAchievements({
+    required String userId,
+    required List<Achievement> achievements,
+  }) async {
+    try {
+      if (achievements.isEmpty) {
+        print('⚠️ No achievements provided for initialization');
+        return;
+      }
+
+      print('📊 Batch creating ${achievements.length} user achievements for user: $userId');
+
+      // Create batch
+      final batch = _db.batch();
+
+      for (final achievement in achievements) {
+        final userAchievementRef = _db
+            .collection(_userAchievementsCollection)
+            .doc(); // Auto-generate ID
+
+        batch.set(userAchievementRef, {
+          'userId': userId,
+          'achievementId': achievement.achievementId,
+          'progress': 0,
+          'currentLevel': 0,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        print('✅ Queued user achievement for: ${achievement.title}');
+      }
+
+      // Commit batch
+      await batch.commit();
+
+      print('🎉 Successfully initialized ${achievements.length} user achievements');
+    } catch (e) {
+      throw 'Failed to batch create user achievements: $e';
+    }
+  }
+
 
   /// Get all user achievements stream
   Stream<List<UserAchievement>> getUserAchievementsStream(String userId) {
@@ -45,7 +89,7 @@ class UserAchievementRepository extends GetxController {
 
       for (var doc in snapshot.docs) {
         final userAchievement = await _getUserAchievementWithFullData(doc);
-        if (userAchievement != UserAchievement.empty()) {
+        if (userAchievement != null) {
           userAchievements.add(userAchievement);
         }
       }
@@ -62,7 +106,9 @@ class UserAchievementRepository extends GetxController {
         .snapshots()
         .asyncMap((doc) async {
       if (!doc.exists) return UserAchievement.empty();
-      return await _getUserAchievementWithFullData(doc);
+
+      final userAchievement = await _getUserAchievementWithFullData(doc);
+      return userAchievement ?? UserAchievement.empty();
     });
   }
 
@@ -76,31 +122,43 @@ class UserAchievementRepository extends GetxController {
     });
   }
 
-  /// Get user achievement with full achievement data
-  Future<UserAchievement> _getUserAchievementWithFullData(
-      DocumentSnapshot<Map<String, dynamic>> doc) async {
-    if (!doc.exists) {
-      return UserAchievement.empty();
-    }
+  /// 🆕 返回 null 来表示"应该被过滤掉"的情况
+  /// Get user achievement with full achievement data (返回 null 如果获取失败)
+  Future<UserAchievement?> _getUserAchievementWithFullData(
+      DocumentSnapshot<Map<String, dynamic>> doc, {
+        bool includeInactive = false, // 🆕 添加参数，默认不包括 inactive
+      }) async {
+    if (!doc.exists) return null;
 
     final data = doc.data()!;
-
-    // Get achievement ID
     final achievementId = data['achievementId'] as String?;
 
     if (achievementId == null || achievementId.isEmpty) {
-      return UserAchievement.empty();
+      return null;
     }
 
     try {
-      final achievement = await AchievementRepository.instance
-          .getAchievementById(achievementId);
+      // 🆕 使用 Firestore 实例直接获取，不通过 repository
+      final achievementDoc = await _db
+          .collection(_achievementsCollection)
+          .doc(achievementId)
+          .get();
 
-      if (achievement == Achievement.empty()) {
-        return UserAchievement.empty();
+      if (!achievementDoc.exists) {
+        print('Achievement not found: $achievementId');
+        return null;
       }
 
-      // Build complete UserAchievement object
+      // 🆕 使用 repository 的公共方法获取 achievement with levels
+      final achievement = await AchievementRepository.instance
+          .getAchievementWithLevels(achievementDoc);
+
+      // 🆕 根据参数决定是否过滤 inactive
+      if (!includeInactive && achievement.status != 'active') {
+        print('Filtering out inactive achievement: $achievementId - ${achievement.title}');
+        return null;
+      }
+
       final userAchievement = UserAchievement(
         userAchievementId: doc.id,
         userId: data['userId'] ?? '',
@@ -113,7 +171,7 @@ class UserAchievementRepository extends GetxController {
       return userAchievement;
     } catch (e) {
       print('Error fetching user achievement data: $e');
-      return UserAchievement.empty();
+      return null;
     }
   }
 
@@ -189,7 +247,7 @@ class UserAchievementRepository extends GetxController {
   }
 
   /// Get or create user achievement
-  Future<UserAchievement> getOrCreateUserAchievement({
+  Future<UserAchievement?> getOrCreateUserAchievement({
     required String userId,
     required String achievementId,
   }) async {

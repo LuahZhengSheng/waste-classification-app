@@ -3,14 +3,16 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
 import 'package:fyp/features/recycling_center/models/recycle_activity_model.dart';
+import 'package:iconsax/iconsax.dart';
 
 import '../../../data/repositories/authentication/authentication_repository.dart';
-import '../../../data/repositories/personalization/recycling_activity_repository.dart';
+import '../../../data/repositories/recycling_center/recycling_activity_repository.dart';
 import '../../../data/repositories/recycling_center/waste_category_repository.dart';
 import '../../../data/services/qr_code/jwt_service.dart';
 import '../../../utils/constants/colors.dart';
 import '../../../utils/constants/enums.dart';
 import '../../../utils/helpers/activity_image.dart';
+import '../../../utils/helpers/helper_functions.dart';
 import '../../../utils/popups/full_screen_loader.dart';
 import '../../../utils/popups/loaders.dart';
 import '../../waste_classification/models/waste_category_model.dart';
@@ -73,7 +75,7 @@ class StaffHomeController extends GetxController {
   Future<void> loadWasteCategories() async {
     try {
       isLoading.value = true;
-      final categories = await _wasteCategoryRepository.getAllWasteCategories();
+      final categories = await _wasteCategoryRepository.getRecyclableCategories();
       wasteCategories.value = categories;
     } catch (e) {
       FLoaders.errorSnackBar(
@@ -221,11 +223,27 @@ class StaffHomeController extends GetxController {
 
   Future<bool> editRecyclingActivity(int index, RecyclingActivity activity, File? imageFile) async {
     try {
+      print('🔧 Editing activity at index: $index');
+      print('  Activity ID: ${activity.activityId}');
+      print('  Support Image: ${activity.supportImage}');
+      print('  Has new image file: ${imageFile != null}');
+
       if (index >= 0 && index < currentActivitiesWithImages.length) {
+        final oldActivity = currentActivitiesWithImages[index];
+
+        print('  Old activity support image: ${oldActivity.activity.supportImage}');
+
+        // 🆕 If there's a new image, mark the old one for potential deletion
+        // But don't delete yet - only delete when submitting or if user cancels
+
         currentActivitiesWithImages[index] = ActivityWithImage(
           activity: activity,
           imageFile: imageFile,
         );
+
+        print('✅ Activity updated successfully');
+        print('  New support image: ${activity.supportImage}');
+
         return true;
       } else {
         FLoaders.errorSnackBar(
@@ -235,6 +253,7 @@ class StaffHomeController extends GetxController {
         return false;
       }
     } catch (e) {
+      print('❌ Error editing activity: $e');
       FLoaders.errorSnackBar(
         title: 'Error',
         message: 'Failed to edit activity: $e',
@@ -289,30 +308,205 @@ class StaffHomeController extends GetxController {
   }
 
   Future<void> submitAllActivities() async {
-    // Show confirmation dialog
+    final dark = FHelperFunctions.isDarkMode(Get.context!);
+
+    // Show modern confirmation dialog
     final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('Submit All Activities'),
-        content: Text(
-          'Submit ${currentActivitiesWithImages.length} activities?\n\n'
-              'Total Weight: ${totalSessionWeight.toStringAsFixed(1)} kg\n'
-              'Total Points: $totalSessionPoints points\n\n'
-              'Note: This action cannot be undone.',
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Cancel'),
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: dark ? FColors.darkSurface : FColors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: FColors.staffLightSecondary,
-            ),
-            child: const Text('Submit'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with icon
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      FColors.staffLightPrimary,
+                      FColors.staffLightAccent,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row( // ✅ 改为 Row
+                  children: [
+                    // Icon
+                    Container(
+                      width: 56, // ✅ 稍微缩小一点
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: FColors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Iconsax.document_upload,
+                        size: 28,
+                        color: FColors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 16), // ✅ 横向间距
+                    const Expanded( // ✅ 让文字占据剩余空间
+                      child: Text(
+                        'Submit Activities',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: FColors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    // Summary cards
+                    _buildSummaryCard(
+                      icon: Iconsax.clipboard_text,
+                      label: 'Activities',
+                      value: '${currentActivitiesWithImages.length}',
+                      color: FColors.staffLightInfo,
+                      dark: dark,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildSummaryCard(
+                      icon: Iconsax.weight,
+                      label: 'Total Weight',
+                      value: '${totalSessionWeight.toStringAsFixed(1)} kg',
+                      color: FColors.staffLightSecondary,
+                      dark: dark,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildSummaryCard(
+                      icon: Iconsax.coin_1,
+                      label: 'Total Points',
+                      value: '$totalSessionPoints pts',
+                      color: FColors.staffLightWarning,
+                      dark: dark,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Warning message
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: FColors.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: FColors.warning.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Iconsax.info_circle,
+                            size: 20,
+                            color: FColors.warning,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'This action cannot be undone',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: dark ? FColors.darkText : FColors.textPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Action buttons
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Get.back(result: false),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(
+                            color: dark
+                                ? FColors.staffDarkBorder
+                                : FColors.staffLightBorder,
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: dark
+                                ? FColors.staffDarkText
+                                : FColors.staffLightText,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Get.back(result: true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: FColors.staffLightSecondary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Submit',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: FColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
+      barrierDismissible: false,
     );
 
     if (confirmed != true) return;
@@ -354,6 +548,67 @@ class StaffHomeController extends GetxController {
         message: 'Failed to submit activities: $e',
       );
     }
+  }
+
+// Helper widget for summary cards
+  Widget _buildSummaryCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    required bool dark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: dark ? FColors.darkTextSecondary : FColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: dark ? FColors.darkText : FColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void resetForm() {

@@ -12,6 +12,10 @@ import 'package:fyp/utils/exceptions/firebase_exceptions.dart';
 import 'package:fyp/utils/exceptions/format_exceptions.dart';
 import 'package:fyp/utils/exceptions/platform_exceptions.dart';
 
+import '../../../utils/formatters/formatter.dart';
+import '../achievement/achievement_repository.dart';
+import '../achievement/user_achievement_repository.dart';
+
 class UserRepository extends GetxController {
   static UserRepository get instance => Get.find();
 
@@ -26,6 +30,24 @@ class UserRepository extends GetxController {
 
   // 头像缓存 - 改为公共访问
   final Map<String, String> profileImageCache = {};
+
+  AchievementRepository get _achievementRepository {
+    try {
+      return Get.find<AchievementRepository>();
+    } catch (e) {
+      // 如果找不到，就创建一个
+      return Get.put(AchievementRepository());
+    }
+  }
+
+  UserAchievementRepository get _userAchievementRepository {
+    try {
+      return Get.find<UserAchievementRepository>();
+    } catch (e) {
+      // 如果找不到，就创建一个
+      return Get.put(UserAchievementRepository());
+    }
+  }
 
   // ========== 排行榜相关方法 ==========
 
@@ -308,25 +330,72 @@ class UserRepository extends GetxController {
   /// Save user record to Firestore
   Future<void> saveUserRecord(UserModel user) async {
     try {
-      String? fcmToken = await _firebaseMessaging.getToken();
+      print('📝 Saving user record for: ${user.userId}');
 
-      Map<String, dynamic> userData = user.toJson();
-      if (fcmToken != null) {
-        userData['fcmToken'] = fcmToken;
+      // 🆕 Get FCM token
+      String? fcmToken;
+      try {
+        fcmToken = await FirebaseMessaging.instance.getToken();
+        if (fcmToken != null) {
+          print('🔔 FCM Token obtained: ${fcmToken.substring(0, 20)}...');
+        }
+      } catch (e) {
+        print('⚠️ Failed to get FCM token: $e');
       }
 
-      // 添加服务器时间戳
+      // Prepare user data
+      Map<String, dynamic> userData = user.toJson();
+
+      // 🆕 Include fcmTokens in initial data
+      if (fcmToken != null) {
+        userData['fcmTokens'] = [fcmToken];
+        print('✅ FCM token included in user data');
+      }
+
       userData['createdAt'] = FieldValue.serverTimestamp();
 
+      // Save user to Firestore (complete record with fcmTokens)
       await _db.collection(_usersCollection).doc(user.userId).set(userData);
+      print('✅ User record saved to Firestore');
+
+      // Initialize user achievements for new users
+      await _initializeUserAchievements(user.userId);
+      print('✅ User achievements initialized');
+
     } on FirebaseException catch (e) {
+      print('❌ Firebase error saving user record: ${e.code} - ${e.message}');
       throw FFirebaseException(e.code).message;
     } on FormatException catch (_) {
       throw const FFormatException();
     } on PlatformException catch (e) {
       throw FPlatformException(e.code).message;
     } catch (e) {
+      print('❌ Error saving user record: $e');
       throw 'Something went wrong. Please try again.';
+    }
+  }
+
+  /// Initialize all user achievements for a new user
+  /// Creates user achievement records for ALL achievements (including inactive)
+  Future<void> _initializeUserAchievements(String userId) async {
+    try {
+      print('🎯 Initializing user achievements for user: $userId');
+
+      // Get ALL achievements (including inactive) - don't filter by status
+      final allAchievements = await _achievementRepository.getAllAchievements();
+
+      print('📊 Found ${allAchievements.length} achievements to initialize');
+
+      await _userAchievementRepository.batchCreateUserAchievements(
+        userId: userId,
+        achievements: allAchievements,
+      );
+    } catch (e) {
+      // Don't throw error - let user creation succeed even if achievements fail
+      print('⚠️ Warning: Failed to initialize user achievements: $e');
+      if (kDebugMode) {
+        print('Stack trace: ${StackTrace.current}');
+      }
     }
   }
 
@@ -381,6 +450,8 @@ class UserRepository extends GetxController {
   /// Update user details in Firestore
   Future<void> updateUserDetails(UserModel updatedUser) async {
     try {
+      print('phone number: ${updatedUser.phoneNo}');
+
       Map<String, dynamic> userData = updatedUser.toJson();
 
       await _db.collection(_usersCollection).doc(updatedUser.userId).update(userData);
@@ -429,19 +500,121 @@ class UserRepository extends GetxController {
     }
   }
 
-  /// Check if phone number is unique
-  Future<bool> isPhoneNumberUnique(String phoneNumber, String currentUserId) async {
+  /// Check if username is available for new users (simpler query)
+  Future<bool> isUsernameAvailable(String username) async {
     try {
       final querySnapshot = await _db
           .collection(_usersCollection)
-          .where('phoneNo', isEqualTo: phoneNumber)
+          .where('username', isEqualTo: username)
+          .limit(1)
+          .get();
+
+      // If docs is empty, username is available
+      return querySnapshot.docs.isEmpty;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking username availability: $e');
+      }
+      throw 'Failed to check username availability: $e';
+    }
+  }
+
+  /// Check if phone number is unique
+  Future<bool> isPhoneNumberUnique(String phoneNumber, String currentUserId) async {
+    try {
+      // 🆕 先转换为国际格式再查询
+      final internationalPhoneNo = FFormatter.formatPhoneToInternational(phoneNumber);
+
+      if (kDebugMode) {
+        print('🔍 Checking phone number uniqueness:');
+        print('   - Input: $phoneNumber');
+        print('   - International format: $internationalPhoneNo');
+        print('   - Current user ID: $currentUserId');
+      }
+
+      final querySnapshot = await _db
+          .collection(_usersCollection)
+          .where('phoneNo', isEqualTo: internationalPhoneNo) // 使用国际格式查询
           .where(FieldPath.documentId, isNotEqualTo: currentUserId)
           .limit(1)
           .get();
 
-      return querySnapshot.docs.isEmpty;
+      final isUnique = querySnapshot.docs.isEmpty;
+
+      if (kDebugMode) {
+        print('   - Is unique: $isUnique');
+        if (!isUnique) {
+          print('   - Conflicting user: ${querySnapshot.docs.first.id}');
+        }
+      }
+
+      return isUnique;
     } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error checking phone number uniqueness: $e');
+      }
       throw 'Failed to check phone number: $e';
+    }
+  }
+
+  /// Check if user exists in Firestore
+  Future<bool> userExists(String userId) async {
+    try {
+      final doc = await _db.collection(_usersCollection).doc(userId).get();
+
+      if (!doc.exists) {
+        return false;
+      }
+
+      // 🆕 Check if user document has essential fields (not just fcmTokens)
+      final data = doc.data();
+      final hasEssentialFields = data != null &&
+          data.containsKey('username') &&
+          data.containsKey('email') &&
+          data.containsKey('role');
+
+      if (kDebugMode) {
+        print('📊 User document exists: ${doc.exists}');
+        print('📊 Has essential fields: $hasEssentialFields');
+        if (data != null) {
+          print('📊 Document keys: ${data.keys.toList()}');
+        }
+      }
+
+      return hasEssentialFields;
+    } on FirebaseException catch (e) {
+      if (kDebugMode) {
+        print('Error checking if user exists: ${e.message}');
+      }
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking if user exists: $e');
+      }
+      throw 'Failed to check if user exists: $e';
+    }
+  }
+
+  /// Update user's email verification status in Firestore
+  Future<void> updateEmailVerificationStatus(String userId, bool isVerified) async {
+    try {
+      await _db.collection(_usersCollection).doc(userId).update({
+        'isVerified': isVerified,
+      });
+
+      if (kDebugMode) {
+        print('✅ Updated email verification status for user $userId: $isVerified');
+      }
+    } on FirebaseException catch (e) {
+      if (kDebugMode) {
+        print('❌ Error updating email verification status: ${e.message}');
+      }
+      throw FFirebaseException(e.code).message;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error updating email verification status: $e');
+      }
+      throw 'Failed to update email verification status: $e';
     }
   }
 

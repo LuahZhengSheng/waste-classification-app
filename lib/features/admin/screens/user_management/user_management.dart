@@ -283,7 +283,7 @@ class UserManagementScreen extends StatelessWidget {
               IconButton(
                 onPressed: currentPage > 1 ? () => controller.goToPage(1) : null,
                 icon: Icon(
-                  Iconsax.arrow_left_3,
+                  Iconsax.previous,
                   color: currentPage > 1
                       ? (dark ? FColors.adminDarkText : FColors.adminLightText)
                       : (dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted),
@@ -338,7 +338,7 @@ class UserManagementScreen extends StatelessWidget {
               IconButton(
                 onPressed: currentPage < totalPages ? () => controller.goToPage(totalPages) : null,
                 icon: Icon(
-                  Iconsax.arrow_right_2,
+                  Iconsax.next,
                   color: currentPage < totalPages
                       ? (dark ? FColors.adminDarkText : FColors.adminLightText)
                       : (dark ? FColors.adminDarkTextMuted : FColors.adminLightTextMuted),

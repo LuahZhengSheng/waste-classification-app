@@ -13,12 +13,12 @@ class ChangePasswordController extends GetxController {
 
   Future<bool> verifyCurrentPassword(String currentPassword) async {
     try {
-      isLoading.value = true;
-      FLoaders.showLoading('Verifying password...');
+      isLoading.value = true; // ✅ 只用这个
+      // FLoaders.showLoading('Verifying password...'); // ❌ 移除
 
       final user = _authRepository.authUser;
       if (user == null) {
-        FLoaders.stopLoading();
+        // FLoaders.stopLoading(); // ❌ 移除
         FLoaders.errorSnackBar(
           title: 'Error',
           message: 'User not authenticated',
@@ -26,20 +26,15 @@ class ChangePasswordController extends GetxController {
         return false;
       }
 
-      // Re-authenticate user with current password
       await _authRepository.reAuthenticateWithEmailAndPassword(
         user.email!,
         currentPassword,
       );
 
-      FLoaders.stopLoading();
-      FLoaders.successSnackBar(
-        title: 'Success',
-        message: 'Password verified successfully',
-      );
+      // FLoaders.stopLoading(); // ❌ 移除
       return true;
     } catch (e) {
-      FLoaders.stopLoading();
+      // FLoaders.stopLoading(); // ❌ 移除
       FLoaders.errorSnackBar(
         title: 'Verification Failed',
         message: 'Current password is incorrect',
@@ -52,12 +47,12 @@ class ChangePasswordController extends GetxController {
 
   Future<bool> changePassword(String currentPassword, String newPassword) async {
     try {
-      isLoading.value = true;
-      FLoaders.showLoading('Changing password...');
+      isLoading.value = true; // ✅ 只用这个
+      // FLoaders.showLoading('Changing password...'); // ❌ 移除
 
       final user = _authRepository.authUser;
       if (user == null) {
-        FLoaders.stopLoading();
+        // FLoaders.stopLoading(); // ❌ 移除
         FLoaders.errorSnackBar(
           title: 'Error',
           message: 'User not authenticated',
@@ -65,23 +60,24 @@ class ChangePasswordController extends GetxController {
         return false;
       }
 
-      // Re-authenticate user before changing password
       await _authRepository.reAuthenticateWithEmailAndPassword(
         user.email!,
         currentPassword,
       );
 
-      // Change password
       await user.updatePassword(newPassword);
 
-      FLoaders.stopLoading();
+      Get.back();
+
+      // FLoaders.stopLoading(); // ❌ 移除
       FLoaders.successSnackBar(
         title: 'Success',
         message: 'Password changed successfully',
       );
+
       return true;
     } on FirebaseAuthException catch (e) {
-      FLoaders.stopLoading();
+      // FLoaders.stopLoading(); // ❌ 移除
 
       String errorMessage = 'Failed to change password';
 
@@ -102,7 +98,7 @@ class ChangePasswordController extends GetxController {
       );
       return false;
     } catch (e) {
-      FLoaders.stopLoading();
+      // FLoaders.stopLoading(); // ❌ 移除
       FLoaders.errorSnackBar(
         title: 'Error',
         message: 'Failed to change password: $e',

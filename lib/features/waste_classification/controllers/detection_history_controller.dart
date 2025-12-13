@@ -4,10 +4,13 @@ import '../../../data/repositories/waste_classification/detection_history_reposi
 import '../../../utils/constants/colors.dart';
 import '../models/detection_history_model.dart';
 import '../../../utils/popups/loaders.dart';
+import '../models/waste_category_model.dart';
+import 'waste_category_guide_controller.dart';
 
 class DetectionHistoryController extends GetxController {
   static DetectionHistoryController get instance => Get.find();
 
+  final WasteCategoryController wasteCategoryController = Get.put(WasteCategoryController());
   final DetectionHistoryRepository _repository = Get.put(DetectionHistoryRepository());
 
   final RxList<DetectionHistoryModel> historyList = <DetectionHistoryModel>[].obs;
@@ -17,6 +20,17 @@ class DetectionHistoryController extends GetxController {
   void onInit() {
     super.onInit();
     fetchDetectionHistory();
+  }
+
+  WasteCategory? getCategoryForLabel(String label) {
+    // 这里按你 detection_result 的逻辑做 mapping，比如用 label 去匹配 category.name
+    try {
+      return wasteCategoryController.allCategories.firstWhere(
+            (c) => c.name.contains(label), // 或者你自己的字段
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Fetch detection history
@@ -40,12 +54,14 @@ class DetectionHistoryController extends GetxController {
     required File imageFile,
     required int detectionCount,
     required List<String> detectedItems,
+    required List<String> categoryIds,
   }) async {
     try {
       await _repository.saveDetectionHistory(
         imageFile: imageFile,
         detectionCount: detectionCount,
         detectedItems: detectedItems,
+        categoryIds: categoryIds,
       );
 
       // Refresh history list

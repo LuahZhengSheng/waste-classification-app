@@ -10,9 +10,13 @@ class PostModel {
   List<String> likes;
   int commentCount;
   final DateTime createdAt;
-  final DateTime? updatedAt;     // 【修改】改为可选的
+  final DateTime? updatedAt;
   bool isDisabled;
   List<Comment> comments;
+
+  // 🎯 举报相关字段
+  Map<String, List<String>> reports; // 详细记录：{reportType: [userId1, userId2]}
+  List<String> reporters; // 🆕 去重的举报用户列表（像 likes 一样）
 
   PostModel({
     String? postId,
@@ -23,13 +27,17 @@ class PostModel {
     List<String>? likes,
     this.commentCount = 0,
     DateTime? createdAt,
-    this.updatedAt,                // 【修改】改为可选，默认不提供
+    this.updatedAt,
     this.isDisabled = false,
     List<Comment>? comments,
+    Map<String, List<String>>? reports,
+    List<String>? reporters,  // ✅ 构造函数参数
   })  : postId = postId ?? '',
         media = media ?? [],
         likes = likes ?? [],
         comments = comments ?? [],
+        reports = reports ?? {},
+        reporters = reporters ?? [],  // ✅ 默认空列表
         createdAt = createdAt ?? DateTime.now();
 
   /// Create an empty Post object
@@ -50,9 +58,10 @@ class PostModel {
       'commentCount': commentCount,
       'createdAt': Timestamp.fromDate(createdAt),
       'isDisabled': isDisabled,
+      'reports': reports,
+      'reporters': reporters, // 🆕
     };
 
-    // 【新增】只有 updatedAt 不为 null 时才添加
     if (updatedAt != null) {
       json['updatedAt'] = Timestamp.fromDate(updatedAt!);
     }
@@ -66,6 +75,18 @@ class PostModel {
     if (data == null) {
       throw Exception("Document data is null for community ID: ${doc.id}");
     }
+
+    // Parse reports map
+    Map<String, List<String>> reportsMap = {};
+    if (data['reports'] != null && data['reports'] is Map) {
+      final rawReports = data['reports'] as Map;
+      rawReports.forEach((key, value) {
+        if (value is List) {
+          reportsMap[key.toString()] = List<String>.from(value);
+        }
+      });
+    }
+
     return PostModel(
       postId: doc.id,
       userId: data['userId'] ?? '',
@@ -75,8 +96,10 @@ class PostModel {
       likes: List<String>.from(data['likes'] ?? []),
       commentCount: data['commentCount'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(), // 【修改】可能为 null
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       isDisabled: data['isDisabled'] ?? false,
+      reports: reportsMap,
+      reporters: List<String>.from(data['reporters'] ?? []), // 🆕
     );
   }
 
@@ -90,9 +113,11 @@ class PostModel {
     List<String>? likes,
     int? commentCount,
     DateTime? createdAt,
-    DateTime? updatedAt,         // 可以传 null 来保持原值
+    DateTime? updatedAt,
     bool? isDisabled,
     List<Comment>? comments,
+    Map<String, List<String>>? reports,
+    List<String>? reporters, // 🆕
   }) {
     return PostModel(
       postId: postId ?? this.postId,
@@ -103,15 +128,52 @@ class PostModel {
       likes: likes ?? this.likes,
       commentCount: commentCount ?? this.commentCount,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt, // 保持原值或使用新值
+      updatedAt: updatedAt ?? this.updatedAt,
       isDisabled: isDisabled ?? this.isDisabled,
       comments: comments ?? this.comments,
+      reports: reports ?? this.reports,
+      reporters: reporters ?? this.reporters, // 🆕
     );
   }
 
   /// Check if the post was edited
   bool get wasEdited => updatedAt != null &&
       updatedAt!.difference(createdAt).inSeconds > 60;
+
+  /// 🆕 Get report count - 像 likes.length 一样
+  int get reportCount => reporters.length;
+
+  /// 🆕 Get total report instances (一个用户可能多次举报不同类型)
+  int get totalReportInstances {
+    int total = 0;
+    reports.forEach((key, value) {
+      total += value.length;
+    });
+    return total;
+  }
+
+  /// Check if user has reported this post (检查 reporters list)
+  bool hasUserReported(String userId) => reporters.contains(userId);
+
+  /// Get user's reported options
+  List<String> getUserReportedOptions(String userId) {
+    List<String> reportedOptions = [];
+    reports.forEach((option, userList) {
+      if (userList.contains(option)) {
+        reportedOptions.add(option);
+      }
+    });
+    return reportedOptions;
+  }
+
+  /// 🆕 从 reports map 重新计算 reporters list（数据同步）
+  PostModel syncReporters() {
+    Set<String> uniqueReporters = {};
+    reports.forEach((key, value) {
+      uniqueReporters.addAll(value);
+    });
+    return copyWith(reporters: uniqueReporters.toList());
+  }
 
   /// Attach loaded comments to the Post object
   PostModel withComments(List<Comment> loadedComments) {
@@ -127,12 +189,14 @@ class PostModel {
       updatedAt: updatedAt,
       isDisabled: isDisabled,
       comments: loadedComments,
+      reports: reports,
+      reporters: reporters, // 🆕
     );
   }
 
   @override
   String toString() {
-    return 'PostModel(postId: $postId, userId: $userId, postType: $postType, content: ${content.length > 20 ? '${content.substring(0, 20)}...' : content}, likes: ${likes.length}, commentCount: $commentCount)';
+    return 'PostModel(postId: $postId, userId: $userId, postType: $postType, content: ${content.length > 20 ? '${content.substring(0, 20)}...' : content}, likes: ${likes.length}, commentCount: $commentCount, reporters: ${reporters.length})';
   }
 
   @override
@@ -150,7 +214,9 @@ class PostModel {
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
         other.isDisabled == isDisabled &&
-        other.comments == comments;
+        other.comments == comments &&
+        other.reports == reports &&
+        other.reporters == reporters; // 🆕
   }
 
   @override
@@ -165,6 +231,8 @@ class PostModel {
     createdAt.hashCode ^
     updatedAt.hashCode ^
     isDisabled.hashCode ^
-    comments.hashCode;
+    comments.hashCode ^
+    reports.hashCode ^
+    reporters.hashCode; // 🆕
   }
 }

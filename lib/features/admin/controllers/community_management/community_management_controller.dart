@@ -26,8 +26,8 @@ class CommunityManagementController extends GetxController {
   final Rx<PostStatusFilter> currentFilter = PostStatusFilter.active.obs;
   final RxInt currentPage = 1.obs;
   final RxInt itemsPerPage = 25.obs;
-  final RxInt sortColumnIndex = 0.obs;
-  final RxBool sortAscending = true.obs;
+  final RxInt sortColumnIndex = 4.obs; // 默认按 reporters (column 4) 排序
+  final RxBool sortAscending = false.obs; // 默认降序（高到低）
   final RxBool isLoading = true.obs;
   final RxBool hasNewPosts = false.obs;
   final RxString newPostsMessage = ''.obs;
@@ -58,7 +58,6 @@ class CommunityManagementController extends GetxController {
   }
 
   void _setupPostsCountListener() {
-    // Listen to posts count changes for new/deleted posts
     _postRepository.getPostsCountStream().listen((newCount) {
       if (_isInitialLoad) {
         _previousPostCount = newCount;
@@ -85,18 +84,14 @@ class CommunityManagementController extends GetxController {
     isLoading.value = true;
 
     try {
-      // Use Future instead of Stream for initial load
       final posts = await _postRepository.getAllPosts();
-
       allPosts.value = posts;
 
-      // Load user data for all unique user IDs
       final userIds = posts.map((post) => post.userId).toSet();
       await _loadUsersData(userIds);
 
       applyFiltersAndSearch();
 
-      // Reset new posts notification after refresh
       hasNewPosts.value = false;
       newPostsMessage.value = '';
 
@@ -134,37 +129,18 @@ class CommunityManagementController extends GetxController {
   void applyFiltersAndSearch() {
     List<PostModel> result = List.from(allPosts);
 
-    // æ·»åŠ è¯¦ç»†çš„è°ƒè¯•ä¿¡æ¯
-    print('=== DEBUG: applyFiltersAndSearch() ===');
-    print('Total posts in allPosts: ${allPosts.length}');
-    print('Current filter: ${currentFilter.value}');
-    print('Disabled posts count: ${allPosts.where((post) => post.isDisabled).length}');
-    print('Active posts count: ${allPosts.where((post) => !post.isDisabled).length}');
-
-    // æ‰“å°å‰å‡ ä¸ªå¸–å­çš„ isDisabled çŠ¶æ€
-    if (allPosts.isNotEmpty) {
-      print('First 5 posts isDisabled status:');
-      for (int i = 0; i < allPosts.length && i < 5; i++) {
-        final post = allPosts[i];
-        print('  Post ${i + 1}: ID=${post.postId}, isDisabled=${post.isDisabled}');
-      }
-    }
-
     // Apply status filter
     switch (currentFilter.value) {
       case PostStatusFilter.active:
         result = result.where((post) => !post.isDisabled).toList();
-        print('After active filter: ${result.length} posts (showing active posts only)');
         break;
       case PostStatusFilter.disabled:
         result = result.where((post) => post.isDisabled).toList();
-        print('After disabled filter: ${result.length} posts (showing disabled posts only)');
         break;
     }
 
     // Apply search filter
     if (searchQuery.value.isNotEmpty) {
-      final beforeSearch = result.length;
       result = result.where((post) {
         final user = usersCache[post.userId];
         return post.content.toLowerCase().contains(searchQuery.value.toLowerCase()) ||
@@ -173,19 +149,15 @@ class CommunityManagementController extends GetxController {
             (user?.username.toLowerCase().contains(searchQuery.value.toLowerCase()) ?? false) ||
             (user?.email.toLowerCase().contains(searchQuery.value.toLowerCase()) ?? false);
       }).toList();
-      print('After search filter "${searchQuery.value}": $beforeSearch -> ${result.length} posts');
     }
 
     // Apply post type filter
     if (activeFilters['postType'] != null) {
-      final beforePostType = result.length;
       result = result.where((post) => post.postType == activeFilters['postType']).toList();
-      print('After postType filter "${activeFilters['postType']}": $beforePostType -> ${result.length} posts');
     }
 
     // Apply media type filter
     if (activeFilters['mediaType'] != null) {
-      final beforeMedia = result.length;
       switch (activeFilters['mediaType']) {
         case 'hasMedia':
           result = result.where((post) => post.media.isNotEmpty).toList();
@@ -194,12 +166,10 @@ class CommunityManagementController extends GetxController {
           result = result.where((post) => post.media.isEmpty).toList();
           break;
       }
-      print('After mediaType filter "${activeFilters['mediaType']}": $beforeMedia -> ${result.length} posts');
     }
 
     // Apply date range filter
     if (activeFilters['dateRange'] != null) {
-      final beforeDate = result.length;
       final now = DateTime.now();
       DateTime? startDate;
 
@@ -221,17 +191,13 @@ class CommunityManagementController extends GetxController {
       if (startDate != null) {
         result = result.where((post) => post.createdAt.isAfter(startDate!)).toList();
       }
-      print('After dateRange filter "${activeFilters['dateRange']}": $beforeDate -> ${result.length} posts');
     }
 
     filteredPosts.value = result;
     currentPage.value = 1;
 
-    print('=== DEBUG: Final result ===');
-    print('Filtered posts: ${filteredPosts.length}');
-    print('Total pages: $totalPages');
-    print('Current page: $currentPage');
-    print('============================\n');
+    // 应用初始排序
+    sortPosts(sortColumnIndex.value, sortAscending.value);
   }
 
   void onSearchChanged(String query) {
@@ -256,7 +222,7 @@ class CommunityManagementController extends GetxController {
           aValue = a.postId;
           bValue = b.postId;
           break;
-        case 1: // Username (from cache)
+        case 1: // Username
           aValue = usersCache[a.userId]?.username ?? '';
           bValue = usersCache[b.userId]?.username ?? '';
           break;
@@ -268,21 +234,24 @@ class CommunityManagementController extends GetxController {
           aValue = a.media.length;
           bValue = b.media.length;
           break;
-        case 4: // Likes count
+        case 4: // Reporters count
+          aValue = a.reportCount;
+          bValue = b.reportCount;
+          break;
+        case 5: // Likes count
           aValue = a.likes.length;
           bValue = b.likes.length;
           break;
-        case 5: // Comments count
+        case 6: // Comments count
           aValue = a.commentCount;
           bValue = b.commentCount;
           break;
-        case 6: // Created At
+        case 7: // Created At
           aValue = a.createdAt;
           bValue = b.createdAt;
           break;
-        case 7: // Updated At
-        // 【修改】处理 null 的情况
-          aValue = a.updatedAt ?? DateTime(1970); // 如果为 null，使用很早的日期
+        case 8: // Updated At
+          aValue = a.updatedAt ?? DateTime(1970);
           bValue = b.updatedAt ?? DateTime(1970);
           break;
         default:
@@ -306,18 +275,14 @@ class CommunityManagementController extends GetxController {
 
   Future<void> togglePostStatus(PostModel post) async {
     try {
-      final isDisabling = !post.isDisabled; // true = 即将 disable, false = 即将 recover
+      final isDisabling = !post.isDisabled;
 
       final updatedPost = post.copyWith(
         isDisabled: isDisabling,
       );
 
-      print('commentCount: ${updatedPost.commentCount}');
-
-      // 保存 post 状态
       await _postRepository.savePost(updatedPost);
 
-      // 【新增】创建通知给发帖人
       await _createPostStatusNotification(
         userId: post.userId,
         postId: post.postId,
@@ -325,7 +290,6 @@ class CommunityManagementController extends GetxController {
         isDisabled: isDisabling,
       );
 
-      // 实时更新本地数据
       _updateLocalPost(updatedPost);
 
       FLoaders.successSnackBar(
@@ -340,7 +304,31 @@ class CommunityManagementController extends GetxController {
     }
   }
 
-  /// 创建 post 状态变化通知
+  /// 🆕 清空 post 的所有 reports
+  Future<void> clearPostReports(PostModel post) async {
+    try {
+      // 创建一个清空 reports 的 post
+      final updatedPost = post.copyWith(
+        reports: {},
+        reporters: [],
+      );
+
+      await _postRepository.savePost(updatedPost);
+
+      _updateLocalPost(updatedPost);
+
+      FLoaders.successSnackBar(
+        title: 'Success',
+        message: 'All reports have been cleared for this post',
+      );
+    } catch (e) {
+      FLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to clear reports: $e',
+      );
+    }
+  }
+
   Future<void> _createPostStatusNotification({
     required String userId,
     required String postId,
@@ -348,22 +336,18 @@ class CommunityManagementController extends GetxController {
     required bool isDisabled,
   }) async {
     try {
-      // 截取 post 内容前 50 个字符作为预览
       final contentPreview = postContent.length > 50
           ? '${postContent.substring(0, 50)}...'
           : postContent;
 
       if (isDisabled) {
-        // Post 被 disable 的通知
         await _notificationRepository.createNotificationForUser(
           userId: userId,
           title: 'Post Disabled',
           message: 'Your post "$contentPreview" has been disabled by an administrator.',
           type: 'community_post',
         );
-        print('✅ Created disable notification for user $userId');
       } else {
-        // Post 被 recover 的通知
         await _notificationRepository.createNotificationForUser(
           userId: userId,
           title: 'Post Recovered',
@@ -371,39 +355,24 @@ class CommunityManagementController extends GetxController {
           type: 'community_post',
           eventId: postId,
         );
-        print('✅ Created recover notification for user $userId');
       }
     } catch (e) {
-      // 通知创建失败不应该影响 post 状态更新
-      print('❌ Failed to create notification: $e');
+      print('Failed to create notification: $e');
     }
   }
 
-  /// 实时更新本地帖子数据
   void _updateLocalPost(PostModel updatedPost) {
-    // 更新 allPosts 中的帖子
     final index = allPosts.indexWhere((p) => p.postId == updatedPost.postId);
     if (index != -1) {
       allPosts[index] = updatedPost;
     }
 
-    // 更新 filteredPosts 中的帖子
     final filteredIndex = filteredPosts.indexWhere((p) => p.postId == updatedPost.postId);
     if (filteredIndex != -1) {
       filteredPosts[filteredIndex] = updatedPost;
     }
 
-    // 重新应用筛选（确保帖子在正确的标签页显示）
     applyFiltersAndSearch();
-  }
-
-  /// ç›‘å¬å•ä¸ªå¸–å­çš„å®žæ—¶æ›´æ–°ï¼ˆç”¨äºŽ disable/recover æ“ä½œï¼‰
-  void _setupPostUpdateListener(String postId) {
-    _postRepository.getPostByIdStream(postId).listen((updatedPost) {
-      if (updatedPost != null) {
-        _updateLocalPost(updatedPost);
-      }
-    });
   }
 
   // Pagination

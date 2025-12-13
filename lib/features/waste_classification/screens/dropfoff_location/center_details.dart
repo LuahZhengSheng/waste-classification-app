@@ -546,21 +546,21 @@ class CenterDetailsScreen extends StatelessWidget {
                     // Action Buttons
                     Row(
                       children: [
-                        // Expanded(
-                        //   child: OutlinedButton.icon(
-                        //     onPressed: () => controller.openGoogleMapsNavigation(center),
-                        //     icon: const Icon(Iconsax.routing, size: FSizes.iconMd),
-                        //     label: const Text('Get Directions'),
-                        //     style: OutlinedButton.styleFrom(
-                        //       foregroundColor: FColors.primary,
-                        //       side: BorderSide(color: FColors.primary.withOpacity(0.5)),
-                        //       shape: RoundedRectangleBorder(
-                        //         borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
-                        //       ),
-                        //       padding: const EdgeInsets.symmetric(vertical: FSizes.md),
-                        //     ),
-                        //   ),
-                        // ),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => controller.openGoogleMapsNavigation(center),
+                            icon: const Icon(Iconsax.routing, size: FSizes.iconMd),
+                            label: const Text('Get Directions'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: FColors.primary,
+                              side: BorderSide(color: FColors.primary.withOpacity(0.5)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: FSizes.md),
+                            ),
+                          ),
+                        ),
                         if (isPartner) ...[
                           const SizedBox(width: FSizes.sm),
                           Expanded(

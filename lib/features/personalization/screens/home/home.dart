@@ -266,7 +266,7 @@ class HomeScreen extends StatelessWidget {
         Expanded(
           child: _buildStatCard(
             icon: Icons.co2_outlined,
-            value: controller.kgCO2e.value.toString(),
+            value: controller.kgCO2e.value.toStringAsFixed(2),
             unit: 'kgCO2e',
             iconColor: FColors.accent, // Changed to cyan
             dark: dark,
@@ -276,7 +276,7 @@ class HomeScreen extends StatelessWidget {
         Expanded(
           child: _buildStatCard(
             icon: Icons.recycling_outlined, // Changed to recycle triangle icon
-            value: controller.totalKg.value.toString(),
+            value: controller.totalKg.value.toStringAsFixed(2),
             unit: 'KG',
             iconColor: FColors.accent, // Changed to cyan
             dark: dark,
@@ -308,9 +308,9 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: dark ? FColors.darkContainer : FColors.lightContainer,
         borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-        border: Border.all(
-          color: dark ? FColors.borderPrimary.withOpacity(0.1) : FColors.borderPrimary,
-        ),
+        // border: Border.all(
+        //   color: dark ? FColors.borderPrimary.withOpacity(0.1) : FColors.borderPrimary,
+        // ),
       ),
       child: Column(
         children: [

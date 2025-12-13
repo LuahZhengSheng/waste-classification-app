@@ -47,13 +47,10 @@ class RewardDetailScreen extends StatelessWidget {
         final reward = snapshot.data!;
 
         return Scaffold(
-          backgroundColor:
-              dark ? FColors.communityDarkBackground : FColors.light,
+          backgroundColor: dark ? FColors.communityDarkBackground : FColors.light,
           appBar: FAppBar(
             title: const Text('Reward Details'),
             showBackArrow: true,
-            backgroundColor:
-                dark ? FColors.communityDarkBackground : FColors.light,
           ),
           body: SingleChildScrollView(
             child: Column(

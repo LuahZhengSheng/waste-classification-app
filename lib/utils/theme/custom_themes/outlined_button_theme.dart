@@ -35,7 +35,7 @@ class FOutlinedButtonTheme {
         elevation: 0,
         foregroundColor: FColors.adminLightSurface,
         backgroundColor: Colors.transparent,
-        side: BorderSide(color: FColors.adminLightBorder),
+        side: BorderSide(color: FColors.transparent),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         textStyle: TextStyle(
             fontSize: 14,
@@ -52,7 +52,7 @@ class FOutlinedButtonTheme {
         elevation: 0,
         foregroundColor: FColors.adminDarkSurface,
         backgroundColor: Colors.transparent,
-        side: BorderSide(color: FColors.adminDarkBorder),
+        side: BorderSide(color: FColors.transparent),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         textStyle: TextStyle(
             fontSize: 14,

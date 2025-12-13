@@ -60,6 +60,29 @@ class EditAchievementDialog extends StatelessWidget {
                   );
                 }
 
+                if (controller.achievement.value == null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Iconsax.warning_2,
+                          size: 48,
+                          color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                        ),
+                        const SizedBox(height: FSizes.md),
+                        Text(
+                          'Failed to load achievement',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: dark ? FColors.adminDarkText : FColors.adminLightText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(FSizes.lg),
                   child: Column(
@@ -157,6 +180,9 @@ class EditAchievementDialog extends StatelessWidget {
   }
 
   Widget _buildBasicInfo(EditAchievementController controller, bool dark) {
+    final achievement = controller.achievement.value;
+    if (achievement == null) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.all(FSizes.lg),
       decoration: BoxDecoration(
@@ -182,8 +208,8 @@ class EditAchievementDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: FSizes.md),
-          _buildInfoRow('Title', controller.achievement.value.title, dark),
-          _buildInfoRow('Category', controller.achievement.value.category, dark),
+          _buildInfoRow('Title', achievement.title, dark),
+          _buildInfoRow('Category', achievement.category, dark),
           Obx(() => _buildInfoRow(
             'Max Level',
             '${controller.editedLevels.length} levels',
@@ -191,7 +217,7 @@ class EditAchievementDialog extends StatelessWidget {
           )),
           _buildInfoRow(
             'ID',
-            controller.achievement.value.achievementId,
+            achievement.achievementId,
             dark,
             isMonospace: true,
           ),
@@ -282,7 +308,7 @@ class EditAchievementDialog extends StatelessWidget {
         ),
         const SizedBox(height: FSizes.md),
         Text(
-          'Minimum 3 levels required. Unlock criteria must increase by at least 25% per level.',
+          'Minimum 3 levels required. Unlock criteria and reward points must increase by at least 25% per level.',
           style: TextStyle(
             fontSize: 12,
             color: dark
@@ -311,9 +337,9 @@ class EditAchievementDialog extends StatelessWidget {
       int index,
       bool dark,
       ) {
-    // 只有 Level 4 及后面的等级可以删除 (index >= 3 对应 Level 4)
     final canDelete = index >= 3;
     final minUnlockCriteria = controller.getMinimumUnlockCriteria(index);
+    final minRewardPoints = controller.getMinimumRewardPoints(index); // 🆕
 
     return Container(
       padding: const EdgeInsets.all(FSizes.lg),
@@ -379,16 +405,7 @@ class EditAchievementDialog extends StatelessWidget {
           const SizedBox(height: FSizes.md),
 
           // Badge Emoji
-          Text(
-            'Badge Emoji',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: dark ? FColors.adminDarkText : FColors.adminLightText,
-            ),
-          ),
-          const SizedBox(height: FSizes.sm),
-          TextFormField(
+          Obx(() => TextFormField(
             initialValue: level.badgeImage,
             onChanged: (value) => controller.updateLevelField(
               index,
@@ -397,6 +414,11 @@ class EditAchievementDialog extends StatelessWidget {
             ),
             decoration: InputDecoration(
               hintText: 'Enter emoji (e.g., 🏆)',
+              hintStyle: TextStyle(
+                color: dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
+              ),
               prefixIcon: Icon(
                 Iconsax.emoji_happy,
                 color: dark
@@ -412,25 +434,21 @@ class EditAchievementDialog extends StatelessWidget {
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.all(FSizes.md),
+              // 🆕 显示错误
+              errorText: controller.getFieldError(index, 'badgeImage'),
+              errorStyle: TextStyle(
+                color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                fontSize: 12,
+              ),
             ),
             style: TextStyle(
-              fontSize: 24,
               color: dark ? FColors.adminDarkText : FColors.adminLightText,
             ),
-          ),
+          )),
           const SizedBox(height: FSizes.md),
 
           // Title
-          Text(
-            'Title',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: dark ? FColors.adminDarkText : FColors.adminLightText,
-            ),
-          ),
-          const SizedBox(height: FSizes.sm),
-          TextFormField(
+          Obx(() => TextFormField(
             initialValue: level.title,
             onChanged: (value) => controller.updateLevelField(
               index,
@@ -439,6 +457,11 @@ class EditAchievementDialog extends StatelessWidget {
             ),
             decoration: InputDecoration(
               hintText: 'Enter level title',
+              hintStyle: TextStyle(
+                color: dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
+              ),
               prefixIcon: Icon(
                 Iconsax.text,
                 color: dark
@@ -454,24 +477,21 @@ class EditAchievementDialog extends StatelessWidget {
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.all(FSizes.md),
+              // 🆕 显示错误
+              errorText: controller.getFieldError(index, 'title'),
+              errorStyle: TextStyle(
+                color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                fontSize: 12,
+              ),
             ),
             style: TextStyle(
               color: dark ? FColors.adminDarkText : FColors.adminLightText,
             ),
-          ),
+          )),
           const SizedBox(height: FSizes.md),
 
           // Description
-          Text(
-            'Description',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: dark ? FColors.adminDarkText : FColors.adminLightText,
-            ),
-          ),
-          const SizedBox(height: FSizes.sm),
-          TextFormField(
+          Obx(() => TextFormField(
             initialValue: level.description,
             onChanged: (value) => controller.updateLevelField(
               index,
@@ -481,6 +501,11 @@ class EditAchievementDialog extends StatelessWidget {
             maxLines: 3,
             decoration: InputDecoration(
               hintText: 'Enter level description',
+              hintStyle: TextStyle(
+                color: dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
+              ),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(bottom: 40),
                 child: Icon(
@@ -499,24 +524,21 @@ class EditAchievementDialog extends StatelessWidget {
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.all(FSizes.md),
+              // 🆕 显示错误
+              errorText: controller.getFieldError(index, 'description'),
+              errorStyle: TextStyle(
+                color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                fontSize: 12,
+              ),
             ),
             style: TextStyle(
               color: dark ? FColors.adminDarkText : FColors.adminLightText,
             ),
-          ),
+          )),
           const SizedBox(height: FSizes.md),
 
           // Unlock Criteria
-          Text(
-            'Unlock Criteria',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: dark ? FColors.adminDarkText : FColors.adminLightText,
-            ),
-          ),
-          const SizedBox(height: FSizes.sm),
-          TextFormField(
+          Obx(() => TextFormField(
             initialValue: level.unlockCriteria.toString(),
             onChanged: (value) {
               final intValue = int.tryParse(value) ?? 0;
@@ -526,6 +548,11 @@ class EditAchievementDialog extends StatelessWidget {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               hintText: 'Enter unlock criteria (min: $minUnlockCriteria)',
+              hintStyle: TextStyle(
+                color: dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
+              ),
               prefixIcon: Icon(
                 Iconsax.chart,
                 color: dark
@@ -541,8 +568,14 @@ class EditAchievementDialog extends StatelessWidget {
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.all(FSizes.md),
-              helperText: index > 0
-                  ? 'Must be at least ${minUnlockCriteria} (25% more than previous level)'
+              // 🆕 显示错误（优先显示错误，没有错误才显示 helper）
+              errorText: controller.getFieldError(index, 'unlockCriteria'),
+              errorStyle: TextStyle(
+                color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                fontSize: 12,
+              ),
+              helperText: controller.getFieldError(index, 'unlockCriteria') == null && index > 0
+                  ? 'Must be at least $minUnlockCriteria (25% more than previous level)'
                   : null,
               helperStyle: TextStyle(
                 color: dark
@@ -554,7 +587,60 @@ class EditAchievementDialog extends StatelessWidget {
             style: TextStyle(
               color: dark ? FColors.adminDarkText : FColors.adminLightText,
             ),
-          ),
+          )),
+          const SizedBox(height: FSizes.md),
+
+          // 🆕 Reward Points
+          Obx(() => TextFormField(
+            initialValue: level.rewardPoints.toString(),
+            onChanged: (value) {
+              final intValue = int.tryParse(value) ?? 0;
+              controller.updateLevelField(index, 'rewardPoints', intValue);
+            },
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              hintText: 'Enter reward points (min: $minRewardPoints)',
+              hintStyle: TextStyle(
+                color: dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
+              ),
+              prefixIcon: Icon(
+                Iconsax.coin_1,
+                color: dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
+              ),
+              filled: true,
+              fillColor: dark
+                  ? FColors.adminDarkSurfaceVariant
+                  : FColors.adminLightSurfaceVariant,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.all(FSizes.md),
+              // 🆕 显示错误（优先显示错误，没有错误才显示 helper）
+              errorText: controller.getFieldError(index, 'rewardPoints'),
+              errorStyle: TextStyle(
+                color: dark ? FColors.adminDarkError : FColors.adminLightError,
+                fontSize: 12,
+              ),
+              helperText: controller.getFieldError(index, 'rewardPoints') == null && index > 0
+                  ? 'Must be at least $minRewardPoints (25% more than previous level)'
+                  : null,
+              helperStyle: TextStyle(
+                color: dark
+                    ? FColors.adminDarkTextSecondary
+                    : FColors.adminLightTextSecondary,
+                fontSize: 11,
+              ),
+            ),
+            style: TextStyle(
+              color: dark ? FColors.adminDarkText : FColors.adminLightText,
+            ),
+          )),
         ],
       ),
     );
@@ -604,7 +690,7 @@ class EditAchievementDialog extends StatelessWidget {
           const SizedBox(width: FSizes.md),
           Obx(() => ElevatedButton(
             onPressed: controller.canSave.value
-                ? controller.saveChanges  // 直接调用保存方法，里面会显示确认对话框
+                ? controller.saveChanges
                 : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: controller.canSave.value
@@ -625,10 +711,10 @@ class EditAchievementDialog extends StatelessWidget {
               elevation: 0,
             ),
             child: Row(
-              children: [
-                const Icon(Iconsax.tick_circle, size: 18),
-                const SizedBox(width: FSizes.sm),
-                const Text(
+              children: const [
+                Icon(Iconsax.tick_circle, size: 18),
+                SizedBox(width: FSizes.sm),
+                Text(
                   'Save Changes',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,

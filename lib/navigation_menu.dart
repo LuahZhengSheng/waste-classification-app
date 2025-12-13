@@ -119,8 +119,8 @@ class NavigationMenu extends StatelessWidget {
 }
 
 class NavigationController extends GetxController {
-  // Observable integer for the currently selected navigation index
-  final Rx<int> selectedIndex = 0.obs;
+  // Observable integer for the currently selected navigation index - 默认为 2 (Scan Sort 页面)
+  final Rx<int> selectedIndex = 2.obs;
 
   // List of screens corresponding to navigation destinations
   final screens = [
@@ -130,4 +130,13 @@ class NavigationController extends GetxController {
     const PostsScreen(),
     const ProfileScreen(),
   ];
+
+  // 在 controller 初始化时自动初始化相机
+  @override
+  void onInit() {
+    super.onInit();
+    // 由于默认页面是 Scan Sort (index 2)，在初始化时启动相机
+    final cameraController = Get.put(ScanSortCameraController());
+    cameraController.initializeCameraForPage();
+  }
 }

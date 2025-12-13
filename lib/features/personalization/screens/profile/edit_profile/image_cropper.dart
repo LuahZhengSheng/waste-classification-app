@@ -6,6 +6,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
 import '../../../../../utils/constants/colors.dart';
+import '../../../../../utils/popups/loaders.dart';
 
 class ImageCropperScreen extends StatelessWidget {
   final File imageFile;
@@ -376,11 +377,7 @@ class ImageCropperController extends GetxController {
       // Return processed image
       Get.back(result: tempFile);
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to process image: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      FLoaders.errorSnackBar(title: 'Error', message: 'Failed to process image: $e');
     } finally {
       isProcessing.value = false;
     }

@@ -51,6 +51,7 @@ interface AchievementLevel {
   title: string;
   description: string;
   badgeImage: string;
+  rewardPoints?: number; // 🆕 可选，兼容旧数据
 }
 
 interface Achievement {
@@ -264,16 +265,20 @@ async function updateUserAchievementWithIncrement(
     if (newLevel > currentLevel) {
       console.log(`Level up! User ${userId} progressed from level ${currentLevel} to ${newLevel} in ${achievementId}`);
 
-      // 更新进度和等级
-      await updateUserAchievementWithLevel(
-        userId,
-        achievementId,
-        newProgress,
-        newLevel
-      );
+      // 找到对应的新等级配置（包含 rewardPoints）
+      const levelConfig = levels.find(l => l.level === newLevel);
+      const rewardPoints = levelConfig?.rewardPoints ?? 0;
 
-      // 发送等级提升通知
-      await sendLevelUpNotification(userId, achievement, newLevel, levels);
+      // 并行执行：更新成就等级 + 发送通知 + 发放用户积分
+      await Promise.all([
+        updateUserAchievementWithLevel(userId, achievementId, newProgress, newLevel),
+        sendLevelUpNotification(userId, achievement, newLevel, levels),
+        rewardPoints > 0 ? addRewardPointsToUser(userId, rewardPoints) : Promise.resolve(), // 🆕 只更新 rewardPoint 字段
+      ]);
+
+      if (rewardPoints > 0) {
+        console.log(`User ${userId} received ${rewardPoints} reward points for level ${newLevel} of ${achievementId}`);
+      }
     } else {
       // 只更新进度
       await updateUserAchievementProgress(userId, achievementId, newProgress);
@@ -327,7 +332,8 @@ async function getAchievementWithLevels(
         unlockCriteria: levelData.unlockCriteria || 0,
         title: levelData.title || '',
         description: levelData.description || '',
-        badgeImage: levelData.badgeImage || ''
+        badgeImage: levelData.badgeImage || '',
+        rewardPoints: levelData.rewardPoints ?? 0, // 🆕 读取每级奖励积分
       });
     });
 
@@ -495,6 +501,43 @@ async function sendLevelUpNotification(
 }
 
 /**
+ * 🆕 成就升级时给用户增加 rewardPoint（只改当前可用积分）
+ */
+async function addRewardPointsToUser(
+  userId: string,
+  rewardPoints: number
+): Promise<void> {
+  if (rewardPoints <= 0) return;
+
+  try {
+    const userRef = db.collection('users').doc(userId);
+
+    // 使用事务保证并发安全
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists) {
+        console.warn(`User ${userId} not found when adding reward points`);
+        return;
+      }
+
+      const data = snap.data() || {};
+      const currentRewardPoint = data.rewardPoint || 0;
+
+      const newRewardPoint = currentRewardPoint + rewardPoints;
+
+      tx.update(userRef, {
+        rewardPoint: newRewardPoint,
+      });
+    });
+
+    console.log(`Added ${rewardPoints} rewardPoint to user ${userId}`);
+  } catch (error) {
+    console.error(`Error adding reward points to user ${userId}:`, error);
+    // 不抛出，让主流程继续（成就更新不失败）
+  }
+}
+
+/**
  * 批量更新所有用户成就（用于数据迁移或修复）
  */
 export const batchUpdateUserAchievements = functions.https.onCall(
@@ -541,7 +584,7 @@ export const batchUpdateUserAchievements = functions.https.onCall(
         categoryWeights[categoryId] += Math.floor(activity.weight); // 重量取整
       });
 
-      // 批量更新所有成就
+      // 批量更新所有成就（这里仍然只重算 progress & level，不在迁移里发奖励）
       await Promise.all([
         updateUserAchievementWithIncrement(userId, ACHIEVEMENT_IDS.RECYCLING_COUNT, totalActivities, 0),
         updateUserAchievementWithIncrement(userId, ACHIEVEMENT_IDS.POINTS_EARNED, totalPoints, 0),

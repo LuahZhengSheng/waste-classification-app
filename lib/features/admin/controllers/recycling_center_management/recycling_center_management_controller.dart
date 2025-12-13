@@ -15,7 +15,7 @@ class PartnerCenterManagementController extends GetxController {
 
   // Repositories
   final _centerRepo = Get.put(RecyclingCenterRepository());
-  final _staffRepo = Get.put(StaffRepository());
+  final _staffRepo = Get.put(RecyclingCenterStaffRepository());
 
   // Search and Filter
   final searchController = TextEditingController();

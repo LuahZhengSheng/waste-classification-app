@@ -120,26 +120,41 @@ class DetectionController extends GetxController {
       final compressedImage = await ImageCompressor.compressAndConvertToWebP(imageFile);
       print('✅ Image compressed to WebP: ${compressedImage.path}');
 
+      // 🆕 提取 categoryIds
+      final categoryIds = result.detections
+          .map((d) => d.category?.categoryId ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+
       // 保存历史记录
       final historyController = Get.put(DetectionHistoryController());
       await historyController.saveDetectionHistory(
         imageFile: compressedImage,
         detectionCount: result.detectionCount,
         detectedItems: result.detections.map((d) => d.label).toList(),
+        categoryIds: categoryIds, // 🆕 传递 categoryIds
       );
 
       print('✅ Detection history saved with compressed WebP image');
-
     } catch (e) {
       print('⚠️ Failed to save detection history: $e');
+
       // 如果压缩失败，尝试保存原始图片
       try {
+        // 🆕 提取 categoryIds
+        final categoryIds = result.detections
+            .map((d) => d.category?.categoryId ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList();
+
         final historyController = Get.put(DetectionHistoryController());
         await historyController.saveDetectionHistory(
           imageFile: imageFile,
           detectionCount: result.detectionCount,
           detectedItems: result.detections.map((d) => d.label).toList(),
+          categoryIds: categoryIds, // 🆕 传递 categoryIds
         );
+
         print('✅ Detection history saved with original image as fallback');
       } catch (e2) {
         print('❌ Completely failed to save history: $e2');

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fyp/data/repositories/achievement/user_achievement_repository.dart';
 import 'package:fyp/data/repositories/user/user_repository.dart';
-import 'package:fyp/data/repositories/achievement/achievement_repostory.dart';
+import 'package:fyp/data/repositories/achievement/achievement_repository.dart';
 import 'package:fyp/utils/popups/admin_loaders.dart';
 import '../../../../utils/helpers/helper_functions.dart';
 import '../../../../utils/popups/loaders.dart';

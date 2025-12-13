@@ -1,8 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:fyp/data/repositories/authentication/authentication_repository.dart';
+import 'package:fyp/data/repositories/user/user_repository.dart';
+import 'package:fyp/features/authentication/models/user_model.dart';
 
 class HomeController extends GetxController {
+  static HomeController get instance => Get.find();
+
+  // Repository instances
+  final _userRepository = Get.put(UserRepository());
+  final _authRepository = Get.put(AuthenticationRepository());
+
   // Observable variables for slideshow
   final RxInt currentSlideIndex = 0.obs;
   final RxList<SlideModel> slides = <SlideModel>[].obs;
@@ -11,8 +20,11 @@ class HomeController extends GetxController {
   late PageController pageController;
   Timer? autoSlideTimer;
 
-  // Observable variables for user stats
-  final RxInt rewardPoints = 1200.obs;
+  // 🆕 Observable user model
+  final Rx<UserModel> user = UserModel.empty().obs;
+
+  // Observable variables for user stats (computed from user model)
+  final RxInt rewardPoints = 0.obs;
   final RxDouble kgCO2e = 0.0.obs;
   final RxDouble totalKg = 0.0.obs;
   final RxInt frequency = 0.obs;
@@ -21,14 +33,19 @@ class HomeController extends GetxController {
   final RxBool isLoadingStats = false.obs;
   final RxBool isLoadingSlides = false.obs;
 
+  // 🆕 Stream subscription
+  StreamSubscription<UserModel>? _userStreamSubscription;
+
   @override
   void onInit() {
     super.onInit();
     pageController = PageController();
     loadSlides();
-    loadUserStats();
 
-    // Start auto slideshow after a short delay to allow slides to load
+    // 🆕 Listen to real-time user data
+    _subscribeToUserStream();
+
+    // Start auto slideshow after a short delay
     Future.delayed(const Duration(seconds: 1), () {
       if (slides.isNotEmpty) {
         startAutoSlideshow();
@@ -40,14 +57,52 @@ class HomeController extends GetxController {
   void onClose() {
     pageController.dispose();
     autoSlideTimer?.cancel();
+    _userStreamSubscription?.cancel(); // 🆕 Cancel subscription
     super.onClose();
+  }
+
+  // 🆕 Subscribe to user data stream
+  void _subscribeToUserStream() {
+    try {
+      final userId = _authRepository.authUser?.uid;
+      if (userId == null || userId.isEmpty) {
+        print('No user logged in');
+        return;
+      }
+
+      isLoadingStats.value = true;
+
+      _userStreamSubscription = _userRepository
+          .getUserDetailsStream(userId)
+          .listen(
+            (userData) {
+          user.value = userData;
+          _updateStatsFromUser(userData);
+          isLoadingStats.value = false;
+        },
+        onError: (error) {
+          print('Error loading user stats: $error');
+          isLoadingStats.value = false;
+        },
+      );
+    } catch (e) {
+      print('Error subscribing to user stream: $e');
+      isLoadingStats.value = false;
+    }
+  }
+
+  // 🆕 Update stats from user model
+  void _updateStatsFromUser(UserModel userData) {
+    rewardPoints.value = userData.rewardPoint;
+    kgCO2e.value = userData.totalEmissionReduced;
+    totalKg.value = userData.totalWeightRecycled;
+    frequency.value = userData.totalRecyclingActivities;
   }
 
   // Load slideshow data
   void loadSlides() {
     isLoadingSlides.value = true;
 
-    // Simulate loading slides data
     slides.value = [
       SlideModel(
         title: "Welcome\ncollectors and\nmerchants.",
@@ -71,51 +126,25 @@ class HomeController extends GetxController {
 
     isLoadingSlides.value = false;
 
-    // Start auto slideshow after slides are loaded
     if (slides.isNotEmpty) {
       startAutoSlideshow();
     }
   }
 
-  // Load user statistics
-  void loadUserStats() async {
-    isLoadingStats.value = true;
-
-    try {
-      // Simulate API call to get user stats
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Update stats (these would come from your backend)
-      rewardPoints.value = 1200;
-      kgCO2e.value = 0.0;
-      totalKg.value = 0.0;
-      frequency.value = 0;
-
-    } catch (e) {
-      // Handle error
-      print('Error loading user stats: $e');
-    } finally {
-      isLoadingStats.value = false;
-    }
-  }
-
   // Start auto slideshow
   void startAutoSlideshow() {
-    // Cancel any existing timer first
     stopAutoSlideshow();
 
     autoSlideTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (slides.isEmpty) return;
 
-      // 检查 PageController 是否已附加到 PageView
       if (!pageController.hasClients) {
-        timer.cancel(); // 如果 PageController 未附加，停止定时器
+        timer.cancel();
         return;
       }
 
       int nextIndex = (currentSlideIndex.value + 1) % slides.length;
 
-      // Use pageController to animate to next slide
       pageController.animateToPage(
         nextIndex,
         duration: const Duration(milliseconds: 500),
@@ -130,14 +159,13 @@ class HomeController extends GetxController {
     autoSlideTimer = null;
   }
 
-  // Navigate to slideshow page / Handle manual slide change
+  // Handle slide change
   void onSlideChanged(int index) {
     currentSlideIndex.value = index;
-    // Restart auto-slideshow timer when user manually changes slide
     startAutoSlideshow();
   }
 
-  // Handle user interaction with slideshow
+  // Handle user interaction
   void onSlideInteractionStart() {
     stopAutoSlideshow();
   }
@@ -148,23 +176,54 @@ class HomeController extends GetxController {
 
   // Handle redeem points
   void onRedeemPressed() {
-    // Navigate to redeem points page
     Get.toNamed('/redeem');
   }
 
   // Handle calculate emission
   void onCalculateEmissionPressed() {
-    // Navigate to emission calculator page
     Get.toNamed('/emission-calculator');
   }
 
-  // Refresh all data
+  // 🆕 Refresh user data manually
   Future<void> refreshData() async {
-    await Future.wait([
-      Future(() => loadSlides()),
-      Future(() => loadUserStats()),
-    ]);
+    try {
+      final userId = _authRepository.authUser?.uid;
+      if (userId == null) return;
+
+      isLoadingStats.value = true;
+
+      // Fetch latest user data
+      final userData = await _userRepository.fetchUserDetails();
+      user.value = userData;
+      _updateStatsFromUser(userData);
+
+      // Reload slides
+      loadSlides();
+    } catch (e) {
+      print('Error refreshing data: $e');
+    } finally {
+      isLoadingStats.value = false;
+    }
   }
+
+  // 🆕 Get formatted stats for display
+  String get formattedPoints => rewardPoints.value.toString();
+
+  String get formattedEmission {
+    if (kgCO2e.value >= 1000) {
+      return '${(kgCO2e.value / 1000).toStringAsFixed(2)} tonnes';
+    }
+    return '${kgCO2e.value.toStringAsFixed(2)} kg';
+  }
+
+  String get formattedWeight {
+    if (totalKg.value >= 1000) {
+      return '${(totalKg.value / 1000).toStringAsFixed(2)} tonnes';
+    }
+    return '${totalKg.value.toStringAsFixed(2)} kg';
+  }
+
+  String get formattedFrequency => '${frequency.value}x';
 }
 
 // Model for slideshow data

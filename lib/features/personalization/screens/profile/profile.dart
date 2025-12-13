@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fyp/common/widgets/appbar/appbar.dart';
 import 'package:fyp/utils/constants/colors.dart';
 import 'package:fyp/utils/constants/sizes.dart';
 import 'package:fyp/utils/helpers/helper_functions.dart';
 import 'package:fyp/utils/formatters/formatter.dart';
 
 import '../../../leaderboard_achievement/screens/user_achievement/user_achievement.dart';
-import '../../../recycling_center/screens/test.dart';
 import '../../controllers/profile_controller.dart';
 import '../recycle_activity/recycle_activity.dart';
 import 'about_us.dart';
 import 'privacy_policy.dart';
 import 'terms_conditions.dart';
 import 'widgets/qr_code.dart';
+import 'widgets/re_authenticate_user_login_form.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -45,7 +44,10 @@ class ProfileScreen extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: dark
-                        ? [FColors.primary.withOpacity(0.8), FColors.primary.withOpacity(0.6)]
+                        ? [
+                            FColors.primary.withOpacity(0.8),
+                            FColors.primary.withOpacity(0.6)
+                          ]
                         : [FColors.primary, FColors.primary.withOpacity(0.8)],
                   ),
                 ),
@@ -60,14 +62,19 @@ class ProfileScreen extends StatelessWidget {
                           children: [
                             Text(
                               'Profile',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineMedium
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
                             IconButton(
-                              onPressed: () => controller.navigateToEditProfile(),
-                              icon: const Icon(Iconsax.edit, color: Colors.white),
+                              onPressed: () =>
+                                  controller.navigateToEditProfile(),
+                              icon:
+                                  const Icon(Iconsax.edit, color: Colors.white),
                             ),
                           ],
                         ),
@@ -96,13 +103,22 @@ class ProfileScreen extends StatelessWidget {
                       subtitle: 'Manage your personal details',
                       onTap: () => controller.navigateToEditProfile(),
                     ),
-                    _buildProfileOption(
-                      context,
-                      icon: Iconsax.security_user,
-                      title: 'Account Security',
-                      subtitle: 'Password, security settings',
-                      onTap: () => Get.to(() => const AccountSecurityScreen()),
-                    ),
+                    // 🆕 只在有密码时显示 "Change Password"
+                    if (controller.hasPasswordProvider)
+                      _buildProfileOption(
+                        context,
+                        icon: Iconsax.lock1,
+                        title: 'Change Password',
+                        subtitle: 'Update your account password',
+                        onTap: () {
+                          Get.to(
+                            () => ReAuthLoginForm(
+                              onVerifySuccess:
+                                  controller.navigateToChangePasswordScreen,
+                            ),
+                          );
+                        },
+                      ),
 
                     const SizedBox(height: FSizes.spaceBtwSections),
 
@@ -184,7 +200,8 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context, ProfileController controller, bool dark) {
+  Widget _buildProfileHeader(
+      BuildContext context, ProfileController controller, bool dark) {
     return Obx(() {
       final user = controller.user.value;
       final profileImg = user.profileImg;
@@ -211,7 +228,9 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
                 child: GestureDetector(
-                  onTap: hasImage ? controller.viewProfileImage : controller.showImageSourceSelection,
+                  onTap: hasImage
+                      ? controller.viewProfileImage
+                      : controller.showImageSourceSelection,
                   child: CircleAvatar(
                     radius: 60,
                     backgroundImage: image,
@@ -237,18 +256,18 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     child: controller.imageUploading.value
                         ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
                         : const Icon(
-                      Iconsax.camera,
-                      size: 18,
-                      color: Colors.white,
-                    ),
+                            Iconsax.camera,
+                            size: 18,
+                            color: Colors.white,
+                          ),
                   ),
                 ),
               ),
@@ -263,9 +282,9 @@ class ProfileScreen extends StatelessWidget {
               Text(
                 user.username.isNotEmpty ? user.username : 'User',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(width: FSizes.sm),
               GestureDetector(
@@ -293,8 +312,8 @@ class ProfileScreen extends StatelessWidget {
           Text(
             user.email.isNotEmpty ? user.email : 'No email',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white70,
-            ),
+                  color: Colors.white70,
+                ),
           ),
           const SizedBox(height: FSizes.sm),
 
@@ -320,7 +339,8 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildInfoChip({required IconData icon, required String text}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: FSizes.sm, vertical: FSizes.xs),
+      padding: const EdgeInsets.symmetric(
+          horizontal: FSizes.sm, vertical: FSizes.xs),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(20),
@@ -345,20 +365,20 @@ class ProfileScreen extends StatelessWidget {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-        ),
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
 
   Widget _buildProfileOption(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        required String subtitle,
-        Color? textColor,
-        required VoidCallback onTap,
-      }) {
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Color? textColor,
+    required VoidCallback onTap,
+  }) {
     final dark = FHelperFunctions.isDarkMode(context);
 
     return Container(
@@ -404,16 +424,16 @@ class ProfileScreen extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                        ),
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: dark ? FColors.grey : FColors.darkGrey,
-                        ),
+                              color: dark ? FColors.grey : FColors.darkGrey,
+                            ),
                       ),
                     ],
                   ),
@@ -436,7 +456,8 @@ class ProfileScreen extends StatelessWidget {
 
     Get.dialog(
       Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(FSizes.cardRadiusLg)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(FSizes.cardRadiusLg)),
         child: Padding(
           padding: const EdgeInsets.all(FSizes.defaultSpace),
           child: Column(
@@ -446,7 +467,8 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: FSizes.md),
               Text(
                 'Logout',
-                style: Get.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Get.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: FSizes.sm),
               Text(
@@ -470,138 +492,15 @@ class ProfileScreen extends StatelessWidget {
                         Get.back();
                         controller.logout();
                       },
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      child: const Text('Logout', style: TextStyle(color: Colors.white)),
+                      style:
+                          ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Logout',
+                          style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ],
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Account Security Screen
-class AccountSecurityScreen extends StatelessWidget {
-  const AccountSecurityScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = FHelperFunctions.isDarkMode(context);
-
-    return Scaffold(
-      backgroundColor: dark ? FColors.dark : FColors.light,
-      appBar: FAppBar(
-        title: Text(
-          'Account Security',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        showBackArrow: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(FSizes.defaultSpace),
-        child: Column(
-          children: [
-            _buildSecurityOption(
-              context,
-              icon: Iconsax.lock,
-              title: 'Change Password',
-              subtitle: 'Update your account password',
-              onTap: () {},
-            ),
-            _buildSecurityOption(
-              context,
-              icon: Iconsax.mobile,
-              title: 'Two-Factor Authentication',
-              subtitle: 'Add extra security to your account',
-              onTap: () {},
-            ),
-            _buildSecurityOption(
-              context,
-              icon: Iconsax.key,
-              title: 'Login Sessions',
-              subtitle: 'Manage your active sessions',
-              onTap: () {},
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSecurityOption(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        required String subtitle,
-        required VoidCallback onTap,
-      }) {
-    final dark = FHelperFunctions.isDarkMode(context);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: FSizes.sm),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-          child: Container(
-            padding: const EdgeInsets.all(FSizes.md),
-            decoration: BoxDecoration(
-              color: dark ? FColors.darkContainer : FColors.white,
-              borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: FColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(FSizes.cardRadiusMd),
-                  ),
-                  child: Icon(icon, color: FColors.primary, size: 24),
-                ),
-                const SizedBox(width: FSizes.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: dark ? FColors.grey : FColors.darkGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Iconsax.arrow_right_3,
-                  color: dark ? FColors.grey : FColors.darkGrey,
-                  size: 18,
-                ),
-              ],
-            ),
           ),
         ),
       ),

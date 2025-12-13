@@ -50,34 +50,31 @@ class FAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final dark = FHelperFunctions.isDarkMode(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: FSizes.md),
-      child: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: backgroundColor ?? (dark ? FColors.communityDarkBackground : FColors.light),
-        centerTitle: centerTitle,
-        elevation: elevation,
-        leading: showBackArrow
-            ? IconButton(
-          onPressed: leadingOnPressed ?? () => Get.back(),
-          icon: Icon(
-            Iconsax.arrow_left_2,
-            color: backArrowColor ?? (dark ? Colors.white : Colors.black),
-            size: 24,
-          ),
-        )
-            : leadingIcon != null
-            ? IconButton(
-          onPressed: leadingOnPressed,
-          icon: Icon(
-            leadingIcon,
-            color: backArrowColor ?? (dark ? Colors.white : Colors.black),
-          ),
-        )
-            : null,
-        title: _buildTitle(context, dark),
-        actions: _buildActions(context, dark),
-      ),
+    return AppBar(
+      automaticallyImplyLeading: false,
+      backgroundColor: backgroundColor ?? (dark ? FColors.communityDarkBackground : FColors.light),
+      centerTitle: centerTitle,
+      elevation: elevation,
+      leading: showBackArrow
+          ? IconButton(
+        onPressed: leadingOnPressed ?? () => Get.back(),
+        icon: Icon(
+          Iconsax.arrow_left_2,
+          color: backArrowColor ?? (dark ? Colors.white : Colors.black),
+          size: 24,
+        ),
+      )
+          : leadingIcon != null
+          ? IconButton(
+        onPressed: leadingOnPressed,
+        icon: Icon(
+          leadingIcon,
+          color: backArrowColor ?? (dark ? Colors.white : Colors.black),
+        ),
+      )
+          : null,
+      title: _buildTitle(context, dark),
+      actions: _buildActions(context, dark),
     );
   }
 

@@ -226,19 +226,62 @@ class FCMService {
     try {
       String? userId = _getCurrentUserId();
 
-      if (userId != null) {
-        await _firestore.collection('users').doc(userId).set({
-          'fcmTokens': FieldValue.arrayUnion([token]),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      if (userId == null) {
+        print('⚠️ No user logged in, token not saved to Firestore');
+        return;
+      }
 
-        print('FCM token saved successfully for user $userId');
-        await _saveUserId(userId);
+      // 🆕 Step 1: 检查用户文档是否存在
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+
+      if (!userDoc.exists) {
+        print('⚠️ User document does not exist yet, skipping FCM token save');
+        print('💡 Token will be saved when user record is created');
+        return;
+      }
+
+      // 🆕 Step 2: 验证文档是否包含完整数据
+      final data = userDoc.data();
+
+      if (data == null) {
+        print('⚠️ User document data is null, skipping FCM token save');
+        return;
+      }
+
+      // 🆕 Step 3: 检查必需字段
+      final hasUsername = data.containsKey('username');
+      final hasEmail = data.containsKey('email');
+      final hasRole = data.containsKey('role');
+
+      if (!hasUsername || !hasEmail || !hasRole) {
+        print('⚠️ User document incomplete:');
+        print('   - username: $hasUsername');
+        print('   - email: $hasEmail');
+        print('   - role: $hasRole');
+        print('   - Available fields: ${data.keys.toList()}');
+        print('💡 Skipping FCM token save until user record is complete');
+        return;
+      }
+
+      // ✅ Step 4: 用户记录完整，保存 FCM Token
+      // 🆕 使用 update 而不是 set，避免创建新文档
+      await _firestore.collection('users').doc(userId).update({
+        'fcmTokens': FieldValue.arrayUnion([token]),
+      });
+
+      print('✅ FCM token saved successfully for user $userId');
+      print('🔔 Token: ${token.substring(0, 20)}...');
+
+      await _saveUserId(userId);
+
+    } on FirebaseException catch (e) {
+      if (e.code == 'not-found') {
+        print('⚠️ User document not found (expected for new users)');
       } else {
-        print('No user logged in, token not saved to Firestore');
+        print('⚠️ Firebase error saving FCM token: ${e.code} - ${e.message}');
       }
     } catch (e) {
-      print('Error saving FCM token to Firestore: $e');
+      print('⚠️ Error saving FCM token to Firestore: $e');
     }
   }
 

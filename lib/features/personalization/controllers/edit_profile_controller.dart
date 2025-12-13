@@ -48,27 +48,25 @@ class EditProfileController extends GetxController {
 
     username.text = user.username;
     email.text = user.email;
-    phoneNumber.text = user.phoneNo ?? '';
+    phoneNumber.text = user.displayPhoneNo;
 
-    // 修复：直接设置 selectedGender 的值
-    selectedGender.value = user.gender;
-
-    // 修复日期字段
-    if (user.dob != null) {
-      selectedDate = user.dob;
-      dateOfBirth.text = _formatDate(user.dob!);
+    // 🆕 如果 gender 是 "N/A" 或空，设置为 null
+    if (user.gender == null || user.gender!.isEmpty || user.displayGender == 'N/A') {
+      selectedGender.value = null;
     } else {
-      selectedDate = null;
-      dateOfBirth.text = '';
+      selectedGender.value = user.gender;
     }
+
+    selectedDate = user.dob;
+    dateOfBirth.text = user.displayDob;
 
     if (kDebugMode) {
       print('=== EditProfileController Fields Initialized ===');
       print('Username: ${user.username}');
-      print('Gender value: "${selectedGender.value}"');
-      print('Gender from user model: "${user.gender}"');
+      print('Gender from model: "${user.gender}"');
+      print('Display Gender: "${user.displayGender}"');
+      print('Selected Gender: "${selectedGender.value}"');
       print('Gender options: $genderOptions');
-      print('Gender value in options: ${genderOptions.contains(selectedGender.value)}');
     }
   }
 
@@ -88,6 +86,8 @@ class EditProfileController extends GetxController {
 
   /// Show date picker
   Future<void> selectDate(BuildContext context) async {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate ?? DateTime.now().subtract(const Duration(days: 365 * 18)),
@@ -96,7 +96,16 @@ class EditProfileController extends GetxController {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: dark
+                ? ColorScheme.dark(
+              primary: const Color(0xFF4BAF6F),
+              onPrimary: Colors.white,
+              surface: const Color(0xFF1E1E1E), // Dark background
+              onSurface: Colors.white,
+              background: const Color(0xFF121212),
+              onBackground: Colors.white,
+            )
+                : ColorScheme.light(
               primary: const Color(0xFF4BAF6F),
               onPrimary: Colors.white,
               surface: Colors.white,
@@ -112,79 +121,6 @@ class EditProfileController extends GetxController {
       selectedDate = picked;
       dateOfBirth.text = _formatDate(picked);
     }
-  }
-
-  /// Validate Malaysian phone number
-  String? validateMalaysianPhoneNumber(String? value) {
-    if (value == null || value.isEmpty) {
-      return null; // Optional field
-    }
-
-    // Remove all non-digit characters
-    final phoneNumber = value.replaceAll(RegExp(r'\D'), '');
-
-    // Malaysian mobile numbers start with specific prefixes
-    final validPrefixes = [
-      '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', // Mobile prefixes
-    ];
-
-    // Check if it starts with +60 or 60
-    if (phoneNumber.startsWith('60')) {
-      final withoutCountryCode = phoneNumber.substring(2);
-
-      // Check if it's 9 or 10 digits after country code
-      if (withoutCountryCode.length < 9 || withoutCountryCode.length > 10) {
-        return 'Invalid Malaysian phone number';
-      }
-
-      // Check if it starts with valid prefix
-      final prefix = withoutCountryCode.substring(0, 2);
-      if (!validPrefixes.contains(prefix)) {
-        return 'Invalid Malaysian mobile number';
-      }
-
-      return null;
-    }
-
-    // Without country code, should be 10-11 digits
-    if (phoneNumber.length < 10 || phoneNumber.length > 11) {
-      return 'Phone number should be 10-11 digits';
-    }
-
-    // Check if it starts with 0
-    if (!phoneNumber.startsWith('0')) {
-      return 'Phone number should start with 0';
-    }
-
-    // Check if it starts with valid prefix (after 0)
-    final prefix = phoneNumber.substring(1, 3);
-    if (!validPrefixes.contains(prefix)) {
-      return 'Invalid Malaysian mobile number';
-    }
-
-    return null;
-  }
-
-  /// Format Malaysian phone number
-  String formatMalaysianPhoneNumber(String phoneNumber) {
-    // Remove all non-digit characters
-    final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
-
-    // If it starts with country code
-    if (digits.startsWith('60')) {
-      final withoutCountryCode = digits.substring(2);
-      // Format as: 012-345 6789
-      if (withoutCountryCode.length >= 9) {
-        return '${withoutCountryCode.substring(0, 3)}-${withoutCountryCode.substring(3, 6)} ${withoutCountryCode.substring(6)}';
-      }
-    }
-
-    // Format as: 012-345 6789
-    if (digits.length >= 10) {
-      return '${digits.substring(0, 3)}-${digits.substring(3, 6)} ${digits.substring(6)}';
-    }
-
-    return phoneNumber;
   }
 
   /// Validate and update user profile
@@ -232,7 +168,8 @@ class EditProfileController extends GetxController {
       }
 
       // Check if phone number has changed and is unique
-      if (newPhoneNumber.isNotEmpty && newPhoneNumber != currentUser.phoneNo) {
+      print('number: $newPhoneNumber');
+      if (newPhoneNumber.isNotEmpty && newPhoneNumber != 'N/A' && newPhoneNumber != currentUser.phoneNo) {
         final isUnique = await userRepository.isPhoneNumberUnique(
           newPhoneNumber,
           currentUser.userId,
@@ -248,36 +185,31 @@ class EditProfileController extends GetxController {
         }
       }
 
-      // 修复：确保 profileImg 只存储文件名，而不是完整 URL
-      String? profileImgFileName;
-      if (currentUser.profileImg != null && currentUser.profileImg!.isNotEmpty) {
-        // 如果已经是文件名（不包含 http），直接使用
-        if (!currentUser.profileImg!.startsWith('http')) {
-          profileImgFileName = currentUser.profileImg;
-        } else {
-          // 如果是完整 URL，提取文件名
-          profileImgFileName = _extractFileNameFromUrl(currentUser.profileImg!);
-          if (kDebugMode) {
-            print('Extracted filename from URL: $profileImgFileName');
-          }
-        }
-      }
+      // 确保 profileImg 只存储文件名，而不是完整 URL
+      // String? profileImgFileName;
+      // if (currentUser.profileImg != null && currentUser.profileImg!.isNotEmpty) {
+      //   // 如果已经是文件名（不包含 http），直接使用
+      //   if (!currentUser.profileImg!.startsWith('http')) {
+      //     profileImgFileName = currentUser.profileImg;
+      //   } else {
+      //     // 如果是完整 URL，提取文件名
+      //     profileImgFileName = _extractFileNameFromUrl(currentUser.profileImg!);
+      //     if (kDebugMode) {
+      //       print('Extracted filename from URL: $profileImgFileName');
+      //     }
+      //   }
+      // }
+
+      print('new phone number: ${newPhoneNumber}');
 
       // Update user data - 确保只存储文件名
       final updatedUser = currentUser.copyWith(
         username: newUsername,
-        phoneNo: newPhoneNumber.isEmpty ? null : newPhoneNumber,
+        phoneNo: newPhoneNumber,
         gender: newGender,
         dob: selectedDate,
-        profileImg: profileImgFileName, // 只存储文件名
+        profileImg: currentUser.profileImg, // 只存储文件名
       );
-
-      if (kDebugMode) {
-        print('=== Profile Update Debug ===');
-        print('Original profileImg: ${currentUser.profileImg}');
-        print('Extracted filename: $profileImgFileName');
-        print('Updated user profileImg: ${updatedUser.profileImg}');
-      }
 
       // Save to Firestore
       await userRepository.updateUserDetails(updatedUser);

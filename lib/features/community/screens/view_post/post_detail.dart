@@ -70,7 +70,7 @@ class PostDetailsScreen extends StatelessWidget {
                         isInDetailScreen: true,
                       ),
 
-                      const SizedBox(height: FSizes.spaceBtwSections),
+                      // const SizedBox(height: FSizes.spaceBtwSections),
 
                       // Comments section
                       Container(

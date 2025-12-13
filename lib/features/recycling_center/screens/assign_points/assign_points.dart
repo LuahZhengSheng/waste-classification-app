@@ -24,7 +24,8 @@ class AssignPointsScreen extends StatelessWidget {
         return await _showDiscardDialog(controller);
       },
       child: Scaffold(
-        backgroundColor: dark ? FColors.staffDarkBackground : FColors.staffLightBackground,
+        backgroundColor:
+            dark ? FColors.staffDarkBackground : FColors.staffLightBackground,
         appBar: FAppBar(
           title: Text(
             'Assign Points',
@@ -33,7 +34,8 @@ class AssignPointsScreen extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: dark ? FColors.staffDarkSurface : FColors.staffLightSurface,
+          backgroundColor:
+              dark ? FColors.staffDarkSurface : FColors.staffLightSurface,
           showBackArrow: true,
           backArrowColor: dark ? FColors.staffDarkText : FColors.staffLightText,
           leadingOnPressed: () async {
@@ -61,7 +63,8 @@ class AssignPointsScreen extends StatelessWidget {
       padding: const EdgeInsets.all(FSizes.lg),
       margin: const EdgeInsets.all(FSizes.md),
       decoration: BoxDecoration(
-        gradient: dark ? FColors.staffPrimaryGradient : FColors.staffPrimaryGradient,
+        gradient:
+            dark ? FColors.staffPrimaryGradient : FColors.staffPrimaryGradient,
         borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
         boxShadow: [
           BoxShadow(
@@ -89,21 +92,21 @@ class AssignPointsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
                     child: snapshot.hasData && snapshot.data != null
                         ? Image.network(
-                      snapshot.data!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Iconsax.user,
-                          color: FColors.staffLightPrimary,
-                          size: 32,
-                        );
-                      },
-                    )
+                            snapshot.data!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Iconsax.user,
+                                color: FColors.staffLightPrimary,
+                                size: 32,
+                              );
+                            },
+                          )
                         : const Icon(
-                      Iconsax.user,
-                      color: FColors.staffLightPrimary,
-                      size: 32,
-                    ),
+                            Iconsax.user,
+                            color: FColors.staffLightPrimary,
+                            size: 32,
+                          ),
                   ),
                 );
               },
@@ -132,7 +135,7 @@ class AssignPointsScreen extends StatelessWidget {
                   Row(
                     children: [
                       const Icon(
-                        Iconsax.coin_1,
+                        Iconsax.medal_star5,
                         size: 16,
                         color: Colors.white,
                       ),
@@ -156,34 +159,37 @@ class AssignPointsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActivitiesList(BuildContext context, StaffHomeController controller, bool dark) {
+  Widget _buildActivitiesList(
+      BuildContext context, StaffHomeController controller, bool dark) {
     return Obx(() => ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: FSizes.md),
-      itemCount: controller.currentActivitiesWithImages.length + 1,
-      itemBuilder: (context, index) {
-        if (index == controller.currentActivitiesWithImages.length) {
-          return _buildAddActivityCard(context, controller, dark);
-        } else {
-          return _buildActivityCard(context, controller, index, dark);
-        }
-      },
-    ));
+          padding: const EdgeInsets.symmetric(horizontal: FSizes.md),
+          itemCount: controller.currentActivitiesWithImages.length + 1,
+          itemBuilder: (context, index) {
+            if (index == controller.currentActivitiesWithImages.length) {
+              return _buildAddActivityCard(context, controller, dark);
+            } else {
+              return _buildActivityCard(context, controller, index, dark);
+            }
+          },
+        ));
   }
 
-  Widget _buildAddActivityCard(BuildContext context, StaffHomeController controller, bool dark) {
+  Widget _buildAddActivityCard(
+      BuildContext context, StaffHomeController controller, bool dark) {
     return Container(
       margin: const EdgeInsets.only(bottom: FSizes.md),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () => Get.to(() => const AddRecyclingActivityScreen(
-            isEditing: false,
-          )),
+                isEditing: false,
+              )),
           borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
           child: Container(
             padding: const EdgeInsets.all(FSizes.lg),
             decoration: BoxDecoration(
-              color: dark ? FColors.staffDarkSurface : FColors.staffLightSurface,
+              color:
+                  dark ? FColors.staffDarkSurface : FColors.staffLightSurface,
               borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
               border: Border.all(
                 color: dark
@@ -206,7 +212,9 @@ class AssignPointsScreen extends StatelessWidget {
                   ),
                   child: Icon(
                     Iconsax.add_circle,
-                    color: dark ? FColors.staffDarkPrimary : FColors.staffLightPrimary,
+                    color: dark
+                        ? FColors.staffDarkPrimary
+                        : FColors.staffLightPrimary,
                     size: FSizes.iconLg,
                   ),
                 ),
@@ -216,7 +224,8 @@ class AssignPointsScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: dark ? FColors.staffDarkText : FColors.staffLightText,
+                    color:
+                        dark ? FColors.staffDarkText : FColors.staffLightText,
                   ),
                 ),
                 const SizedBox(height: FSizes.xs),
@@ -224,7 +233,9 @@ class AssignPointsScreen extends StatelessWidget {
                   'Tap to add a new waste item',
                   style: TextStyle(
                     fontSize: 14,
-                    color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
+                    color: dark
+                        ? FColors.staffDarkTextSecondary
+                        : FColors.staffLightTextSecondary,
                   ),
                 ),
               ],
@@ -235,7 +246,8 @@ class AssignPointsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActivityCard(BuildContext context, StaffHomeController controller, int index, bool dark) {
+  Widget _buildActivityCard(BuildContext context,
+      StaffHomeController controller, int index, bool dark) {
     final activityWithImage = controller.currentActivitiesWithImages[index];
     final activity = activityWithImage.activity;
     final imageFile = activityWithImage.imageFile;
@@ -269,7 +281,9 @@ class AssignPointsScreen extends StatelessWidget {
                 ),
                 child: Icon(
                   Iconsax.trash,
-                  color: dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
+                  color: dark
+                      ? FColors.staffDarkSecondary
+                      : FColors.staffLightSecondary,
                   size: FSizes.iconMd,
                 ),
               ),
@@ -283,14 +297,18 @@ class AssignPointsScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: dark ? FColors.staffDarkText : FColors.staffLightText,
+                        color: dark
+                            ? FColors.staffDarkText
+                            : FColors.staffLightText,
                       ),
                     ),
                     Text(
                       '${activity.formattedWeight} • ${activity.pointsEarned} points',
                       style: TextStyle(
                         fontSize: 14,
-                        color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
+                        color: dark
+                            ? FColors.staffDarkTextSecondary
+                            : FColors.staffLightTextSecondary,
                       ),
                     ),
                   ],
@@ -301,20 +319,23 @@ class AssignPointsScreen extends StatelessWidget {
                 children: [
                   IconButton(
                     onPressed: () => Get.to(() => AddRecyclingActivityScreen(
-                      isEditing: true,
-                      editIndex: index,
-                      existingActivity: activity,
-                    )),
+                          isEditing: true,
+                          editIndex: index,
+                          existingActivity: activity,
+                        )),
                     icon: Icon(
                       Iconsax.edit,
-                      color: dark ? FColors.staffDarkInfo : FColors.staffLightInfo,
+                      color:
+                          dark ? FColors.staffDarkInfo : FColors.staffLightInfo,
                     ),
                   ),
                   IconButton(
                     onPressed: () => controller.deleteRecyclingActivity(index),
                     icon: Icon(
                       Iconsax.trash,
-                      color: dark ? FColors.staffDarkError : FColors.staffLightError,
+                      color: dark
+                          ? FColors.staffDarkError
+                          : FColors.staffLightError,
                     ),
                   ),
                 ],
@@ -333,9 +354,9 @@ class AssignPointsScreen extends StatelessWidget {
                   isVideo: false,
                 );
                 Get.to(() => UnifiedMediaLightbox(
-                  mediaItems: [mediaItem],
-                  initialIndex: 0,
-                ));
+                      mediaItems: [mediaItem],
+                      initialIndex: 0,
+                    ));
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
@@ -361,133 +382,151 @@ class AssignPointsScreen extends StatelessWidget {
 
   Widget _buildSubmitButton(StaffHomeController controller, bool dark) {
     return Obx(() => Container(
-      padding: const EdgeInsets.all(FSizes.md),
-      child: Column(
-        children: [
-          if (controller.currentActivitiesWithImages.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(FSizes.md),
-              margin: const EdgeInsets.only(bottom: FSizes.md),
-              decoration: BoxDecoration(
-                color: dark
-                    ? FColors.staffDarkSecondary.withOpacity(0.1)
-                    : FColors.staffLightSecondary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
-                border: Border.all(
-                  color: dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Column(
-                    children: [
-                      Text(
-                        '${controller.currentActivitiesWithImages.length}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: dark ? FColors.staffDarkText : FColors.staffLightText,
-                        ),
-                      ),
-                      Text(
-                        'Activities',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      Text(
-                        '${controller.totalSessionWeight.toStringAsFixed(1)} kg',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: dark ? FColors.staffDarkText : FColors.staffLightText,
-                        ),
-                      ),
-                      Text(
-                        'Total Weight',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      Text(
-                        '${controller.totalSessionPoints}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
-                        ),
-                      ),
-                      Text(
-                        'Points',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: dark ? FColors.staffDarkTextSecondary : FColors.staffLightTextSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: controller.currentActivitiesWithImages.isEmpty
-                  ? null
-                  : (controller.isLoading.value ? null : controller.submitAllActivities),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: dark ? FColors.staffDarkSecondary : FColors.staffLightSecondary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: FSizes.lg),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(FSizes.buttonRadius),
-                ),
-                elevation: controller.currentActivitiesWithImages.isEmpty ? 0 : 4,
-              ),
-              child: controller.isLoading.value
-                  ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-                  : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Iconsax.send_1),
-                  const SizedBox(width: FSizes.sm),
-                  Text(
-                    controller.currentActivitiesWithImages.isEmpty
-                        ? 'Add Activities First'
-                        : 'Submit All Activities',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+          padding: const EdgeInsets.all(FSizes.md),
+          child: Column(
+            children: [
+              if (controller.currentActivitiesWithImages.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(FSizes.md),
+                  margin: const EdgeInsets.only(bottom: FSizes.md),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? FColors.staffDarkSecondary.withOpacity(0.1)
+                        : FColors.staffLightSecondary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(FSizes.cardRadiusLg),
+                    border: Border.all(
+                      color: dark
+                          ? FColors.staffDarkSecondary
+                          : FColors.staffLightSecondary,
+                      width: 1,
                     ),
                   ),
-                ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          Text(
+                            '${controller.currentActivitiesWithImages.length}',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: dark
+                                  ? FColors.staffDarkText
+                                  : FColors.staffLightText,
+                            ),
+                          ),
+                          Text(
+                            'Activities',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: dark
+                                  ? FColors.staffDarkTextSecondary
+                                  : FColors.staffLightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            '${controller.totalSessionWeight.toStringAsFixed(1)} kg',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: dark
+                                  ? FColors.staffDarkText
+                                  : FColors.staffLightText,
+                            ),
+                          ),
+                          Text(
+                            'Total Weight',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: dark
+                                  ? FColors.staffDarkTextSecondary
+                                  : FColors.staffLightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            '${controller.totalSessionPoints}',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: dark
+                                  ? FColors.staffDarkSecondary
+                                  : FColors.staffLightSecondary,
+                            ),
+                          ),
+                          Text(
+                            'Points',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: dark
+                                  ? FColors.staffDarkTextSecondary
+                                  : FColors.staffLightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: controller.currentActivitiesWithImages.isEmpty
+                      ? null
+                      : (controller.isLoading.value
+                          ? null
+                          : controller.submitAllActivities),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: dark
+                        ? FColors.staffDarkSecondary
+                        : FColors.staffLightSecondary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: FSizes.lg),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(FSizes.buttonRadius),
+                    ),
+                    elevation:
+                        controller.currentActivitiesWithImages.isEmpty ? 0 : 4,
+                  ),
+                  child: controller.isLoading.value
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              controller.currentActivitiesWithImages.isEmpty
+                                  ? 'Add Activities First'
+                                  : 'Submit All Activities',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    ));
+        ));
   }
 
   Future<bool> _showDiscardDialog(StaffHomeController controller) async {
@@ -498,7 +537,8 @@ class AssignPointsScreen extends StatelessWidget {
     final result = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Discard Changes?'),
-        content: const Text('You have unsaved activities. Are you sure you want to discard them?'),
+        content: const Text(
+            'You have unsaved activities. Are you sure you want to discard them?'),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),

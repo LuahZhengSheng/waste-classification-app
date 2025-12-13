@@ -21,8 +21,6 @@ class FoodPortionSettingsScreen extends StatelessWidget {
       appBar: FAppBar(
         title: const Text('Portion Size Settings'),
         showBackArrow: true,
-        actionButtonText: 'Reset All',
-        onActionButtonPressed: () => _showResetDialog(context, controller),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(FSizes.defaultSpace),
@@ -81,6 +79,33 @@ class FoodPortionSettingsScreen extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: FSizes.spaceBtwSections),
+
+            // Reset All Button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showResetDialog(context, controller),
+                icon: const Icon(
+                  Iconsax.refresh_2,
+                  size: 18,
+                ),
+                label: const Text('Reset All to Default'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: FColors.food,
+                  side: BorderSide(
+                    color: FColors.food.withOpacity(0.5),
+                    width: 1.5,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: FSizes.md,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(FSizes.borderRadiusLg),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: FSizes.spaceBtwSections),
@@ -473,13 +498,13 @@ class FoodPortionSettingsScreen extends StatelessWidget {
                 Navigator.of(context).pop();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: FColors.food,
-                foregroundColor: FColors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(FSizes.borderRadiusMd),
-                ),
+                backgroundColor: FColors.transparent,
+                foregroundColor: FColors.food,
               ),
-              child: const Text('Reset All'),
+              child: const Text(
+                  'Reset All',
+                style: TextStyle(fontSize: 12),
+              ),
             ),
           ],
         );

@@ -146,11 +146,101 @@ export class SystemEmailTemplates {
     return htmlTemplate;
   }
 
+  // 角色变更通知模板
+  static getRoleChangeNotification(userName: string, oldRole: string, newRole: string): string {
+    const oldRoleDisplayName = getRoleDisplayName(oldRole);
+    const newRoleDisplayName = getRoleDisplayName(newRole);
+
+    const htmlTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #9C27B0, #7B1FA2); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 25px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; }
+        .footer { text-align: center; margin-top: 20px; padding: 15px; color: #666; font-size: 12px; }
+        .role-change { background: #f3e5f5; border: 1px solid #ce93d8; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .role-box { background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #9C27B0; }
+        .role-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .role-value { font-size: 18px; font-weight: bold; color: #9C27B0; }
+        .arrow { text-align: center; font-size: 24px; color: #9C27B0; margin: 10px 0; }
+        .warning-box { background: #fff3e0; border: 1px solid #ffb74d; padding: 15px; border-radius: 5px; margin: 15px 0; color: #e65100; }
+        .button { display: inline-block; padding: 10px 20px; background: #9C27B0; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌍 SaveEarth</h1>
+        <p>Role Update Notice</p>
+    </div>
+    <div class="content">
+        <h2>Dear ${userName},</h2>
+
+        <div class="role-change">
+            <strong>🔄 Your Account Role Has Been Updated</strong>
+            <p>An administrator has changed your account role. Please review the details below:</p>
+        </div>
+
+        <div class="role-box">
+            <div class="role-label">Previous Role</div>
+            <div class="role-value">👤 ${oldRoleDisplayName}</div>
+        </div>
+
+        <div class="arrow">⬇️</div>
+
+        <div class="role-box">
+            <div class="role-label">New Role</div>
+            <div class="role-value">⭐ ${newRoleDisplayName}</div>
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Important: Action Required</strong>
+            <p><strong>You will be automatically logged out</strong> to apply these changes. Please log in again to access your account with the new role permissions.</p>
+        </div>
+
+        <p><strong>What Changes With Your New Role:</strong></p>
+        <ul>
+            <li>✨ Your access permissions have been updated</li>
+            <li>🔐 You will need to re-authenticate to access the system</li>
+            <li>📊 Your dashboard and available features may differ based on the new role</li>
+            <li>🎯 New responsibilities and capabilities are now available</li>
+        </ul>
+
+        <p><strong>Next Steps:</strong></p>
+        <ol>
+            <li>You will be logged out automatically in a few moments</li>
+            <li>Log back in using your existing credentials</li>
+            <li>Explore your new role features and permissions</li>
+        </ol>
+
+        <p style="text-align: center;">
+            <a href="https://yourapp.saveearth.com/login" class="button">Log In Now</a>
+        </p>
+
+        <p><em><strong>Need Help?</strong> If you believe this role change was made in error or have questions about your new role, please contact our support team.</em></p>
+
+        <p style="text-align: center;">
+            <a href="mailto:saveearth.noreply@gmail.com" style="color: #9C27B0; text-decoration: none;">📧 Contact Support</a>
+        </p>
+    </div>
+    <div class="footer">
+        <p>Best regards,<br><strong>SaveEarth System Administration Team</strong></p>
+        <p>🌱 Together, let's make our planet greener!</p>
+    </div>
+</body>
+</html>
+    `;
+
+    return htmlTemplate;
+  }
+
   static getUpdateNotification(userName: string, userRole: string, changes: string[]): string {
     const roleDisplayName = getRoleDisplayName(userRole);
-    
-    const changesHtml = changes.length === 0 ? 
-      '<p>Your account information has been updated.</p>' : 
+
+    const changesHtml = changes.length === 0 ?
+      '<p>Your account information has been updated.</p>' :
       `
       <p><strong>The following changes were made to your account:</strong></p>
       <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #2196F3;">
@@ -179,7 +269,7 @@ export class SystemEmailTemplates {
     </div>
     <div class="content">
         <h2>Dear ${userName},</h2>
-        
+
         <div class="info">
             <strong>📝 Account Update Notice</strong>
             <p>Your ${roleDisplayName} account information has been recently updated.</p>

@@ -43,7 +43,7 @@ class FElevatedButtonTheme {
       backgroundColor: FColors.adminLightPrimary,
       disabledForegroundColor: FColors.adminLightError,
       disabledBackgroundColor: FColors.adminLightError,
-      side: BorderSide(color: FColors.adminLightPrimary),
+      side: BorderSide(color: FColors.transparent),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       textStyle: const TextStyle(
           fontSize: 16,
@@ -62,7 +62,7 @@ class FElevatedButtonTheme {
       backgroundColor: FColors.adminDarkPrimary,
       disabledForegroundColor: FColors.adminDarkError,
       disabledBackgroundColor: FColors.adminDarkError,
-      side: BorderSide(color: FColors.adminDarkPrimary),
+      side: BorderSide(color: FColors.transparent),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       textStyle: const TextStyle(
           fontSize: 16,

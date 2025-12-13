@@ -73,7 +73,7 @@ class PostsScreen extends StatelessWidget {
                   tabs: const [
                     Tab(text: 'All'),
                     Tab(text: 'Tips'),
-                    Tab(text: 'Questions'),
+                    Tab(text: 'Q&A'),
                     Tab(text: 'Discussion'),
                   ],
                 ),

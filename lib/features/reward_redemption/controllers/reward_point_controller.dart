@@ -5,7 +5,7 @@ import 'package:fyp/data/repositories/user/user_repository.dart';
 import 'package:fyp/utils/popups/loaders.dart';
 import 'package:get/get.dart';
 
-import '../../../data/repositories/personalization/recycling_activity_repository.dart';
+import '../../../data/repositories/recycling_center/recycling_activity_repository.dart';
 import '../../../data/repositories/recycling_center/recycling_center_repository.dart';
 import '../../../data/repositories/reward_redemption/redemption_repository.dart';
 import '../../../data/repositories/reward_redemption/reward_repository.dart';
@@ -92,7 +92,7 @@ class RewardPointsController extends GetxController
 
   /// Handle tab change - show loading when switching tabs
   void _onTabChanged() async {
-    FLoaders.showLoading('Switching tab...');
+    // FLoaders.showLoading('Switching tab...');
 
     // Wait a moment for UI to update
     await Future.delayed(const Duration(milliseconds: 100));
@@ -100,7 +100,7 @@ class RewardPointsController extends GetxController
     // Preload cache for the new tab
     await _preloadCacheForCurrentTab();
 
-    FLoaders.stopLoading();
+    // FLoaders.stopLoading();
   }
 
   /// Check if all data is loaded

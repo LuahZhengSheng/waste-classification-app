@@ -147,24 +147,39 @@ class PostDetailsController extends GetxController {
 
     try {
       final currentUserId = getCurrentUserId();
-      final currentPost = _post.value!;
+      final originalPost = _post.value!; // 保存原始状态用于回滚
 
-      List<String> updatedLikes = List.from(currentPost.likes);
-      if (updatedLikes.contains(currentUserId)) {
-        updatedLikes.remove(currentUserId);
+      // 1. ✅ 计算新的 likes 列表
+      final newLikes = List<String>.from(originalPost.likes);
+      final isCurrentlyLiked = newLikes.contains(currentUserId);
+
+      if (isCurrentlyLiked) {
+        newLikes.remove(currentUserId);
       } else {
-        updatedLikes.add(currentUserId);
+        newLikes.add(currentUserId);
       }
 
-      // Optimistic update
-      _post.value = currentPost.copyWith(likes: updatedLikes);
+      // 2. ✅ 乐观更新：立即更新本地 UI
+      _post.value = originalPost.copyWith(likes: newLikes);
+      update(); // 通知 GetBuilder 更新 UI
 
-      // Update in Firestore
-      await postRepository.updatePostLikes(currentPost.postId, updatedLikes);
+      // 3. ✅ 异步更新 Firestore
+      try {
+        await postRepository.updatePostLikes(originalPost.postId, newLikes);
+      } catch (e) {
+        // ❌ 更新失败，回滚到原始状态
+        _post.value = originalPost;
+        update();
+
+        FLoaders.errorSnackBar(
+          title: 'Error',
+          message: 'Failed to update like',
+        );
+      }
     } catch (e) {
       FLoaders.errorSnackBar(
         title: 'Error',
-        message: 'Failed to update like: $e',
+        message: 'Something went wrong',
       );
     }
   }
@@ -172,5 +187,25 @@ class PostDetailsController extends GetxController {
   /// Get current user ID
   String getCurrentUserId() {
     return AuthenticationRepository.instance.authUser?.uid ?? '';
+  }
+
+  /// Update post reports
+  Future<void> updatePostReports(String postId, Map<String, List<String>> reports) async {
+    if (_post.value == null) return;
+
+    try {
+      final currentPost = _post.value!;
+
+      // Optimistic update
+      _post.value = currentPost.copyWith(reports: reports);
+
+      // Update in Firestore
+      await postRepository.updatePostReports(postId, reports);
+    } catch (e) {
+      FLoaders.errorSnackBar(
+        title: 'Error',
+        message: 'Failed to update report: $e',
+      );
+    }
   }
 }

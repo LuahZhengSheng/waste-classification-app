@@ -556,7 +556,7 @@ class DropoffLocationsController extends GetxController {
     try {
       await FLoaders.showMapNavigationDialog(
         onConfirm: () async {
-          final url = 'https://www.google.com/maps/dir/?api=1&destination=${center.centerLocation.geoPoint.latitude},${center.centerLocation.geoPoint.longitude}';
+          final url = 'https://www.google.com/maps/dir/?api=1&destination=${center.centerLocation.geoPoint.latitude},${center.centerLocation.geoPoint.longitude}&travelmode=driving';
           if (await canLaunchUrl(Uri.parse(url))) {
             await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
           } else {

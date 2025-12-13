@@ -284,7 +284,7 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
         _wrapCell(manager.username, 150),
         _wrapSelectableCell(manager.userId, 200),
         _wrapCell(manager.email, 200),
-        _wrapCell(manager.phoneNo ?? 'N/A', 150),
+        _wrapCell(manager.displayPhoneNo, 150),
         DataCell(_buildRoleBadge(manager.role)),
         DataCell(_buildVerifiedBadge(manager.isVerified)),
         _buildEmptySpacerCell(),
@@ -499,7 +499,7 @@ class _ManagerDataTableState extends State<ManagerDataTable> {
               tooltip: manager.canSendPasswordResetLink() && !manager.isVerified && manager.isActive && !manager.isBanned
                   ? 'Send Password Reset Link'
                   : manager.canSendPasswordResetLink()
-                  ? 'Only available for unverified, active, and unbanned managers'
+                  ? 'Only available for unverified managers'
                   : 'Wait ${manager.getFormattedRemainingResetTime()} before sending again',
             ),
           ],
