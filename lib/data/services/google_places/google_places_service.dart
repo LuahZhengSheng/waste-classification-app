@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../../config/google_places_config.dart';
+import '../../../config/google_maps_config.dart';
 
 enum PlaceType {
   region, // 区域（如 George Town, Putrajaya）

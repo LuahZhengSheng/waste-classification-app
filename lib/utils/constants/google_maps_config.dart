@@ -19,7 +19,7 @@ class GoogleMapsConfig {
         await EnvConfig.initialize();
       }
 
-      _apiKey = EnvConfig.googlePlacesApiKey;
+      _apiKey = EnvConfig.googleMapsApiKey;
       _initialized = true;
       print('✅ GoogleMapsConfig initialized successfully');
     } catch (e) {

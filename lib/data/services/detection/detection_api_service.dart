@@ -6,7 +6,8 @@ import 'package:image/image.dart' as img;
 import '../../../features/waste_classification/models/detection_result_model.dart';
 
 class DetectionApiService {
-  static const String apiUrl = 'http://10.89.49.142:5000/predict';
+  // static const String apiUrl = 'http://10.89.49.142:5000/predict';
+  static const String apiUrl = 'http://192.168.0.8:5000/predict';
 
   static Future<ImageDetectionResult> detectObjects(File imageFile) async {
     print('📤 Sending image to detect: ${imageFile.path}');

@@ -2,17 +2,18 @@ import 'env_config.dart';
 
 class GooglePlacesConfig {
   // API Key from environment configuration
-  static final String apiKey = EnvConfig.googlePlacesApiKey;
+  static final String apiKey = EnvConfig.googleMapsApiKey;
 
   // Base URLs and Endpoints
   static const String placesApiBaseUrl = 'https://maps.googleapis.com/maps/api/place';
+  static const String distanceMatrixApiBaseUrl = 'https://maps.googleapis.com/maps/api/distancematrix';
+  static const String geocodeApiBaseUrl = 'https://maps.googleapis.com/maps/api/geocode';
   static const String nearbySearchEndpoint = '/nearbysearch/json';
   static const String textSearchEndpoint = '/textsearch/json';
   static const String detailsEndpoint = '/details/json';
   static const String photoEndpoint = '/photo';
   static const String autocompleteEndpoint = '/autocomplete/json';
   static const String geocodeEndpoint = '/geocode/json';
-  static const String distanceMatrixApiBaseUrl = 'https://maps.googleapis.com/maps/api/distancematrix';
 
   // Search Types
   static const String recyclingCenterType = 'recycling_center';
@@ -44,18 +45,6 @@ class GooglePlacesConfig {
   static const int defaultPhotoMaxWidth = 400;
   static const int highResPhotoMaxWidth = 800;
   static const int thumbnailPhotoMaxWidth = 200;
-
-  // Location Keywords for Query Analysis
-  static const List<String> locationKeywords = [
-    'near', 'in', 'at', 'area', 'district', 'city', 'town',
-    'kuala lumpur', 'selangor', 'penang', 'johor', 'melaka',
-    'putrajaya', 'cyberjaya', 'shah alam', 'petaling jaya'
-  ];
-
-  // Recycling Center Keywords for Query Analysis
-  static const List<String> centerKeywords = [
-    'recycling center', 'recycling', 'recycle', 'waste', 'center', 'centre'
-  ];
 
   // Default Place Details Fields
   static const String defaultPlaceDetailsFields =
@@ -148,7 +137,7 @@ class GooglePlacesConfig {
 
   /// Build URL for geocoding (address to coordinates)
   static String buildGeocodeUrl(String address) {
-    return 'https://maps.googleapis.com/maps/api/geocode/json'
+    return '$geocodeApiBaseUrl/json'
         '?address=${Uri.encodeComponent(address)}'
         '&components=country:$defaultCountry'
         '&key=$apiKey';
@@ -156,7 +145,7 @@ class GooglePlacesConfig {
 
   /// Build URL for reverse geocoding (coordinates to address)
   static String buildReverseGeocodeUrl(double latitude, double longitude) {
-    return 'https://maps.googleapis.com/maps/api/geocode/json'
+    return '$geocodeApiBaseUrl/json'
         '?latlng=$latitude,$longitude'
         '&key=$apiKey';
   }
@@ -167,20 +156,4 @@ class GooglePlacesConfig {
     if (radius > maxRadiusMeters) return maxRadiusMeters;
     return radius;
   }
-
-  /// Determine if a query is location-based
-  static bool isLocationQuery(String query) {
-    final lowerQuery = query.toLowerCase();
-    return locationKeywords.any((keyword) => lowerQuery.contains(keyword)) ||
-        !lowerQuery.contains('recycle') && !lowerQuery.contains('center');
-  }
-
-  /// Determine if a query is for a specific recycling center
-  static bool isSpecificCenterQuery(String query) {
-    final lowerQuery = query.toLowerCase();
-    return centerKeywords.any((keyword) => lowerQuery.contains(keyword));
-  }
-
-  /// Get all supported recycling center types
-  static List<String> get supportedRecyclingTypes => List.from(recyclingCenterTypes);
 }

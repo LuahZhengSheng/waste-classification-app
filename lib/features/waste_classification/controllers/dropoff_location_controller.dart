@@ -11,7 +11,7 @@ import 'package:fyp/utils/popups/loaders.dart';
 import '../../../data/repositories/recycling_center/waste_category_repository.dart';
 import '../../../data/services/google_places/google_places_service.dart';
 import '../../../utils/constants/google_maps_config.dart';
-import '../../../config/google_places_config.dart';
+import '../../../config/google_maps_config.dart';
 import '../../event/models/address_model.dart';
 import '../../event/models/geopoint_model.dart';
 import '../../event/models/location_model.dart';

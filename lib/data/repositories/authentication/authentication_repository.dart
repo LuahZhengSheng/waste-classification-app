@@ -47,44 +47,43 @@ class AuthenticationRepository extends GetxController {
   }
 
   /// Function to Show Relevant Screen
+  // Redirect function that routes users based on login state, platform, and role.
+  // Uses Get.offAll() to clear the navigation stack so users cannot navigate back
+  // to authentication screens after redirecting. [web:7][web:42]
   Future<void> screenRedirect() async {
+    // Get the currently signed-in Firebase Authentication user.
+    // If this is null, it means the user is not logged in. [web:9]
     final User? user = _auth.currentUser;
 
+    // Logged-in branch, read Firestore role and route accordingly. [web:9]
     if (user != null) {
-      // ✅ Already logged in
-      // Get user role from Firestore
+      // Read the user's Firestore document from users/{uid}. [web:9]
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
 
+      // Extract role, default to 'user' when the field is missing. [web:9]
       final String role = userDoc.data()?['role'] ?? 'user';
 
+      // Check whether the app is running on Web. 
       if (kIsWeb) {
-        // 👉 Web - Navigate based on role
+        // Web routing, only admin-series roles can access AdminDashboard.
+        // Other roles are directed to AdminLoginScreen. 
         switch (role) {
           case 'admin':
-          // Admin can access all pages, default to User Management
-            Get.offAll(() => const AdminDashboard());
-            break;
           case 'community_manager':
-          // Community Manager - default to Dashboard (since they can't access User Management)
-            Get.offAll(() => const AdminDashboard());
-            break;
           case 'event_manager':
-          // Event Manager - default to Dashboard
-            Get.offAll(() => const AdminDashboard());
-            break;
           case 'reward_manager':
-          // Reward Manager - default to Dashboard
             Get.offAll(() => const AdminDashboard());
             break;
           default:
-          // Unknown role or regular user - shouldn't access web admin
             Get.offAll(() => const AdminLoginScreen());
         }
       } else {
-        // 👉 App - Navigate based on role
+        // Mobile routing, user and center staff have dedicated navigation menus.
+        // Admin-series roles are redirected back to LoginScreen to prevent admin
+        // usage on mobile. 
         switch (role) {
           case 'user':
             Get.offAll(() => const NavigationMenu());
@@ -92,33 +91,26 @@ class AuthenticationRepository extends GetxController {
           case 'center_staff':
             Get.offAll(() => const StaffNavigationMenu());
             break;
-          case 'admin':
-          case 'community_manager':
-          case 'event_manager':
-          case 'reward_manager':
-          // Admin roles should not use mobile app
-          // Redirect to login or show error
-            Get.offAll(() => const LoginScreen());
-            break;
           default:
-            Get.offAll(() => const NavigationMenu());
+            Get.offAll(() => const LoginScreen());
         }
       }
     } else {
-      // ✅ Not logged in
+      // Not logged-in branch. [web:9]
       if (kIsWeb) {
-        // 👉 Web - Go to Admin Login
+        // Web always goes to the admin login screen when not authenticated. 
         Get.offAll(() => const AdminLoginScreen());
       } else {
-        // 👉 App
+        // On mobile, decide between onboarding and login based on local flag. 
         deviceStorage.writeIfNull('IsFirstTime', true);
+
+        // Read local state, default to true if the key is missing. 
         final isFirstTime = deviceStorage.read('IsFirstTime') ?? true;
 
+        // First launch goes to onboarding, otherwise go to login. 
         if (isFirstTime) {
-          // First time - OnBoarding
           Get.offAll(() => const OnBoardingScreen());
         } else {
-          // Not first time - Login
           Get.offAll(() => const LoginScreen());
         }
       }
@@ -158,8 +150,8 @@ class AuthenticationRepository extends GetxController {
   Future<UserCredential> loginWithEmailAndPassword(
       String email, String password) async {
     try {
-      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
+      final UserCredential userCredential = await _auth
+          .signInWithEmailAndPassword(email: email, password: password);
 
       // 登录成功后更新 FCM token
       // if (userCredential.user != null) {
@@ -184,8 +176,8 @@ class AuthenticationRepository extends GetxController {
   Future<UserCredential> registerWithEmailAndPassword(
       String email, String password) async {
     try {
-      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-          email: email, password: password);
+      final UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
@@ -224,7 +216,7 @@ class AuthenticationRepository extends GetxController {
     try {
       // Create a credential
       AuthCredential credential =
-      EmailAuthProvider.credential(email: email, password: password);
+          EmailAuthProvider.credential(email: email, password: password);
 
       // ReAuthenticate
       await _auth.currentUser!.reauthenticateWithCredential(credential);
@@ -268,7 +260,7 @@ class AuthenticationRepository extends GetxController {
 
       // Obtain the auth details from the request
       final GoogleSignInAuthentication? googleAuth =
-      await userAccount?.authentication;
+          await userAccount?.authentication;
 
       // Create a new credential
       final credentials = GoogleAuthProvider.credential(
@@ -277,7 +269,8 @@ class AuthenticationRepository extends GetxController {
       );
 
       // Once signed in, return the UserCredential
-      final UserCredential? userCredential = await _auth.signInWithCredential(credentials);
+      final UserCredential? userCredential =
+          await _auth.signInWithCredential(credentials);
 
       // 登录成功后更新 FCM token
       // if (userCredential?.user != null) {
@@ -330,13 +323,13 @@ class AuthenticationRepository extends GetxController {
 
       // 在 6.2.0 版本中使用 .token 而不是 .tokenString
       final OAuthCredential facebookAuthCredential =
-      FacebookAuthProvider.credential(loginResult.accessToken!.token);
+          FacebookAuthProvider.credential(loginResult.accessToken!.token);
 
       if (kDebugMode) print('🔵 Signing in with Firebase...');
 
       // Once signed in, return the UserCredential
       final UserCredential userCredential =
-      await _auth.signInWithCredential(facebookAuthCredential);
+          await _auth.signInWithCredential(facebookAuthCredential);
 
       // 登录成功后更新 FCM token
       // if (userCredential.user != null) {
@@ -345,15 +338,16 @@ class AuthenticationRepository extends GetxController {
       // }
 
       if (kDebugMode) {
-        print('✅ Facebook sign-in successful!');
-        print('✅ User ID: ${userCredential.user?.uid}');
-        print('✅ Email: ${userCredential.user?.email}');
-        print('✅ Display Name: ${userCredential.user?.displayName}');
+        print('Facebook sign-in successful!');
+        print('User ID: ${userCredential.user?.uid}');
+        print('Email: ${userCredential.user?.email}');
+        print('Display Name: ${userCredential.user?.displayName}');
       }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      if (kDebugMode) print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
+      if (kDebugMode)
+        print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
       throw FFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
       if (kDebugMode) print('❌ FirebaseException: ${e.code} - ${e.message}');
@@ -386,7 +380,7 @@ class AuthenticationRepository extends GetxController {
 
       // 获取 Google 登录凭证
       final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+          await googleUser.authentication;
       final OAuthCredential googleCredential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -394,7 +388,7 @@ class AuthenticationRepository extends GetxController {
 
       // 将 Google 登录凭证链接到当前用户
       final UserCredential userCredential =
-      await currentUser.linkWithCredential(googleCredential);
+          await currentUser.linkWithCredential(googleCredential);
 
       // 链接成功后更新 FCM token
       // await _updateUserFCMToken(currentUser.uid);
@@ -530,7 +524,8 @@ class AuthenticationRepository extends GetxController {
         return {
           'canLogin': false,
           'reason': 'inactive',
-          'message': 'Your account is inactive. Please contact support to reactivate.',
+          'message':
+              'Your account is inactive. Please contact support to reactivate.',
         };
       }
 

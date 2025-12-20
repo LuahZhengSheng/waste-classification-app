@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,7 +9,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
 
@@ -263,13 +263,13 @@ class FCMService {
         return;
       }
 
-      // ✅ Step 4: 用户记录完整，保存 FCM Token
+      // Step 4: 用户记录完整，保存 FCM Token
       // 🆕 使用 update 而不是 set，避免创建新文档
       await _firestore.collection('users').doc(userId).update({
         'fcmTokens': FieldValue.arrayUnion([token]),
       });
 
-      print('✅ FCM token saved successfully for user $userId');
+      print('FCM token saved successfully for user $userId');
       print('🔔 Token: ${token.substring(0, 20)}...');
 
       await _saveUserId(userId);
@@ -414,13 +414,13 @@ class FCMService {
     }
   }
 
-  /// Handle notification click - 修改为支持 Deep Link
+  /// Handle notification click - 支持 Deep Link
   void _handleNotificationClick(Map<String, dynamic>? data) {
     if (data != null) {
       final type = data['type'];
       final eventId = data['eventId'];
       final userId = data['userId'];
-      final deepLink = data['deep_link']; // 新增 deep_link 字段
+      final deepLink = data['deep_link']; // deep_link 字段
 
       print('Notification clicked - Type: $type, Event ID: $eventId, User ID: $userId, Deep Link: $deepLink');
 
@@ -543,7 +543,7 @@ class FCMService {
         return;
       }
 
-      print('✅ Found ${tokens.length} FCM tokens');
+      print('Found ${tokens.length} FCM tokens');
 
       // 2. 使用 v1 API 发送通知
       await _sendBulkFCMNotification(
@@ -684,7 +684,7 @@ class FCMService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ FCM v1 sent to token: ${token.substring(0, 10)}...');
+        print('FCM v1 sent to token: ${token.substring(0, 10)}...');
       } else {
         print('❌ FCM v1 failed: ${response.statusCode} - ${response.body}');
       }
@@ -726,109 +726,6 @@ class FCMService {
     } catch (e) {
       print('Error getting user FCM tokens: $e');
       return [];
-    }
-  }
-
-  /// 通过 HTTP 请求发送 FCM 通知
-  Future<void> _sendFCMViaHttp({
-    required List<String> tokens,
-    required String title,
-    required String body,
-    required Map<String, dynamic> data,
-  }) async {
-    try {
-      // FCM 服务器密钥 - 需要从 Firebase Console 获取
-      final String serverKey = EnvConfig.fcmServerKey;
-
-      if (serverKey == 'YOUR_FCM_SERVER_KEY') {
-        print('⚠️ Please set FCM_SERVER_KEY');
-        return;
-      }
-
-      final List<Future<void>> sendFutures = [];
-
-      // 为每个 token 发送单独的通知
-      for (final token in tokens) {
-        final future = _sendSingleFCMNotification(
-          token: token,
-          title: title,
-          body: body,
-          data: data,
-          serverKey: serverKey,
-        );
-        sendFutures.add(future);
-
-        // 添加小延迟避免速率限制
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-
-      // 并行发送所有通知
-      await Future.wait(sendFutures);
-
-    } catch (e) {
-      print('Error sending FCM via HTTP: $e');
-      rethrow;
-    }
-  }
-
-  /// 发送单个 FCM 通知 - 使用 HTTP 请求
-  Future<void> _sendSingleFCMNotification({
-    required String token,
-    required String title,
-    required String body,
-    required Map<String, dynamic> data,
-    required String serverKey,
-  }) async {
-    try {
-      final url = Uri.parse('https://fcm.googleapis.com/fcm/send');
-
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'key=$serverKey',
-      };
-
-      final message = {
-        'to': token,
-        'notification': {
-          'title': title,
-          'body': body,
-          'sound': 'default',
-          'badge': '1',
-        },
-        'data': data,
-        'android': {
-          'priority': 'high',
-        },
-        'apns': {
-          'payload': {
-            'aps': {
-              'contentAvailable': true,
-              'badge': 1,
-              'sound': 'default',
-            },
-          },
-        },
-      };
-
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: json.encode(message),
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        if (responseData['success'] == 1) {
-          print('✅ FCM sent to token: ${token.substring(0, 10)}... - Success');
-        } else {
-          print('❌ FCM failed for token: ${token.substring(0, 10)}... - ${responseData['results']}');
-        }
-      } else {
-        print('❌ HTTP Error: ${response.statusCode} for token: ${token.substring(0, 10)}...');
-      }
-    } catch (e) {
-      print('❌ Failed to send FCM to token: ${token.substring(0, 10)}... - Error: $e');
-      // 不抛出异常，继续发送其他通知
     }
   }
 

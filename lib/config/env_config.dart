@@ -23,7 +23,7 @@ class EnvConfig {
 
   static Future<void> _loadEnvFile() async {
     try {
-      // 修复：使用正确的路径，从根目录加载
+      // 使用正确的路径，从根目录加载
       await dotenv.load(fileName: ".env");
       print('✅ .env file loaded');
 
@@ -38,7 +38,7 @@ class EnvConfig {
 
   static void _validateRequiredVariables() {
     final requiredVars = [
-      'GOOGLE_PLACES_API_KEY', // 把这个放在第一个检查
+      'GOOGLE_MAPS_API_KEY', // 把这个放在第一个检查
       'JWT_SECRET_KEY',
       'BASE_URL',
       'API_KEY',
@@ -88,7 +88,7 @@ class EnvConfig {
       case 'SENDGRID_API_KEY':
       case 'FCM_SERVER_KEY':
         return 8;
-      case 'GOOGLE_PLACES_API_KEY':
+      case 'GOOGLE_MAPS_API_KEY':
         return 12; // 特别显示 Google Places API Key 的前12位
       default:
         return 4.clamp(0, maxLength);
@@ -100,7 +100,7 @@ class EnvConfig {
   static String get baseUrl => _getKey('BASE_URL');
   static String get apiKey => _getKey('API_KEY');
   static String get apiSecret => _getKey('API_SECRET');
-  static String get googlePlacesApiKey => _getKey('GOOGLE_PLACES_API_KEY');
+  static String get googleMapsApiKey => _getKey('GOOGLE_MAPS_API_KEY');
   static String get sendGridApiKey => _getKey('SENDGRID_API_KEY');
   static String get fcmServerKey => _getKey('FCM_SERVER_KEY');
   static bool get debug => _getBool('DEBUG', true);

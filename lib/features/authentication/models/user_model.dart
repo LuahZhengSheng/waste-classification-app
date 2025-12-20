@@ -9,9 +9,9 @@ class UserModel extends RoleModel {
   final int rewardPoint; // 用户当前剩余积分（可消费）
   final int monthlyRewardPoint; // 月度累计积分（用于排行榜）
   final int totalRewardPoint; // 历史总积分（用于排行榜）
-  final double totalWeightRecycled; // 🆕 总回收重量
-  final int totalRecyclingActivities; // 🆕 总回收活动次数
-  final double totalEmissionReduced; // 🆕 总减少的碳排放
+  final double totalWeightRecycled; // 总回收重量
+  final int totalRecyclingActivities; // 总回收活动次数
+  final double totalEmissionReduced; // 总减少的碳排放
   final List<NotificationModel> notifications;
 
   UserModel({
@@ -38,43 +38,8 @@ class UserModel extends RoleModel {
     this.totalEmissionReduced = 0.0,
     this.notifications = const [],
   });
-
-  /// 用于 UI 显示的性别（为空时显示 N/A）
-  String get displayGender {
-    if (gender == null || gender!.trim().isEmpty) {
-      return 'N/A';
-    }
-    return gender!;
-  }
-
-  String get displayDob {
-    if (dob == null) {
-      return 'N/A';
-    }
-
-    const monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-
-    final day = dob!.day.toString(); // 不补 0，5 就显示 5
-    final monthName = monthNames[dob!.month - 1];
-    final year = dob!.year.toString();
-
-    return '$day $monthName $year'; // e.g. 5 December 2025
-  }
-
-  /// ✅ Firestore 转换
+  
+  /// Firestore 转换
   factory UserModel.fromSnapshot(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
 
@@ -113,36 +78,7 @@ class UserModel extends RoleModel {
     );
   }
 
-  factory UserModel.profileOnly({
-    required String userId,
-    required String username,
-    required String email,
-    required String profileImg,
-  }) {
-    return UserModel(
-      userId: userId,
-      username: username,
-      email: email,
-      profileImg: profileImg,
-      phoneNo: null,
-      role: '',
-      isVerified: false,
-      isActive: true,
-      isBanned: false,
-      gender: null,
-      dob: null,
-      joinDate: DateTime.now(),
-      rewardPoint: 0,
-      monthlyRewardPoint: 0,
-      totalRewardPoint: 0,
-      totalWeightRecycled: 0.0, // 🆕
-      totalRecyclingActivities: 0, // 🆕
-      totalEmissionReduced: 0.0, // 🆕
-      notifications: [],
-    );
-  }
-
-  /// ✅ 转 Firestore JSON
+  /// 转 Firestore JSON
   @override
   Map<String, dynamic> toJson() {
     // 获取父类的 JSON（已经包含格式化的 phoneNo）
@@ -209,7 +145,7 @@ class UserModel extends RoleModel {
     );
   }
 
-  /// ✅ Empty User
+  /// Empty User
   static UserModel empty() => UserModel(
     userId: '',
     username: '',
@@ -224,6 +160,42 @@ class UserModel extends RoleModel {
     totalEmissionReduced: 0.0,
   );
 
+
+  /// 用于 UI 显示的性别（为空时显示 N/A）
+  String get displayGender {
+    if (gender == null || gender!.trim().isEmpty) {
+      return 'N/A';
+    }
+    return gender!;
+  }
+
+  String get displayDob {
+    if (dob == null) {
+      return 'N/A';
+    }
+
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    final day = dob!.day.toString(); // 不补 0，5 就显示 5
+    final monthName = monthNames[dob!.month - 1];
+    final year = dob!.year.toString();
+
+    return '$day $monthName $year'; // e.g. 5 December 2025
+  }
+
   /// 添加积分（当回收活动被批准时调用）
   UserModel addPoints(int points) {
     return copyWith(
@@ -233,7 +205,7 @@ class UserModel extends RoleModel {
     );
   }
 
-  /// 🆕 添加回收活动统计（当回收活动完成时调用）
+  /// 添加回收活动统计（当回收活动完成时调用）
   UserModel addRecyclingActivity({
     required int points,
     required double weight,
@@ -278,7 +250,7 @@ class UserModel extends RoleModel {
     };
   }
 
-  /// 🆕 获取回收统计信息
+  /// 获取回收统计信息
   Map<String, dynamic> get recyclingSummary {
     return {
       'totalWeight': totalWeightRecycled,
@@ -296,7 +268,7 @@ class UserModel extends RoleModel {
   /// 检查是否有足够积分消费
   bool canConsume(int points) => rewardPoint >= points;
 
-  /// 🆕 格式化回收重量显示
+  /// 格式化回收重量显示
   String get formattedWeight {
     if (totalWeightRecycled >= 1000) {
       return '${(totalWeightRecycled / 1000).toStringAsFixed(2)} tonnes';
@@ -304,7 +276,7 @@ class UserModel extends RoleModel {
     return '${totalWeightRecycled.toStringAsFixed(2)} kg';
   }
 
-  /// 🆕 格式化排放量显示
+  /// 格式化排放量显示
   String get formattedEmission {
     if (totalEmissionReduced >= 1000) {
       return '${(totalEmissionReduced / 1000).toStringAsFixed(2)} tonnes CO₂e';
