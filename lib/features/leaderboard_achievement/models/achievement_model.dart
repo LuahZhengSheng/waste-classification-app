@@ -92,7 +92,7 @@ class Achievement {
       category: map['category'] ?? '',
       maxLevel: map['maxLevel'] ?? 0,
       createdAt: getDateTime(map['createdAt']),
-      status: map['status'] ?? 'active', // 新增状态属性，默认值
+      status: map['status'] ?? 'active',
       achievementLevels: levelsList,
     );
   }
@@ -104,7 +104,7 @@ class Achievement {
     String? category,
     int? maxLevel,
     DateTime? createdAt,
-    String? status, // 新增状态属性
+    String? status,
     List<AchievementLevel>? achievementLevels,
   }) {
     return Achievement(
@@ -113,7 +113,7 @@ class Achievement {
       category: category ?? this.category,
       maxLevel: maxLevel ?? this.maxLevel,
       createdAt: createdAt ?? this.createdAt,
-      status: status ?? this.status, // 新增状态属性
+      status: status ?? this.status, 
       achievementLevels: achievementLevels ?? this.achievementLevels,
     );
   }
