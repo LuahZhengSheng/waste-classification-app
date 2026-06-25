@@ -1,5 +1,7 @@
 Smart Waste Recycling System
+
 Project Overview
+
 The Smart Waste Recycling System is an intelligent sustainability platform designed to help users classify, recycle, and manage waste more effectively. The system consists of a mobile application for end users and a web-based admin panel for system management. It leverages AI-based image recognition to identify different types of waste and provides guidance based on Malaysia’s waste management practices. Users can capture images of waste through the mobile app, receive classification results, and obtain detailed instructions on how to properly dispose or recycle the items. In addition, the system provides location-based recycling center services, reward mechanisms, community engagement, and carbon footprint tracking to promote environmentally responsible behavior.
 
 Features
