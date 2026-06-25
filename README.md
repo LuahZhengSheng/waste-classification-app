@@ -11,13 +11,21 @@ Features
    - Users can capture and upload images of waste.
    - The system supports multi-object detection in an image.
    - A total of 22 waste types are supported, including:
+   
      • Plastics (HDPE Plastic, Multi-layer Plastic, PET Bottle, Single-use Plastic, Single-layer Plastic, Squeeze-tube, UHT-Box, Polystyrene)
+     
      • Paper (Paper, Paper Cup)
+     
      • Cardboard
+     
      • Glass (Glass Bottle, Light Bulb, Fluorescent Lamp)
+     
      • Aluminium (Aluminium Can)
+     
      • Battery
+     
      • Electronic waste (Smartphone, Laptop, Monitor, Printer, Computer Mouse, Computer Keyboard)
+     
    - After detection:
      • Waste is classified according to Malaysia’s recycling guidelines.
      • Users receive disposal instructions, including preparation steps and disposal locations.
